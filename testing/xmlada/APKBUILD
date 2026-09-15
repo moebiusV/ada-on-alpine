@@ -1,0 +1,33 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=xmlada
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="XML/Ada: XML, schema, and DOM parsing library for Ada"
+url="https://github.com/AdaCore/xmlada"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat"
+makedepends="gcc-gnat build-base gprbuild which gawk"
+source="xmlada-$pkgver.tar.gz::https://github.com/AdaCore/xmlada/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/xmlada-$pkgver"
+
+build() {
+	./configure --prefix=/usr --disable-shared
+	make static GPROPTS_EXTRA="-j${JOBS:-1} -cargs $CFLAGS -largs $LDFLAGS"
+}
+
+check() {
+	# Upstream's tests need an installed XML/Ada; stage-install and point
+	# GPR_PROJECT_PATH at the staged tree.
+	DESTDIR="$srcdir"/stage make -j1 install
+	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make test
+	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make run_test
+}
+
+package() {
+	make -j1 install DESTDIR="$pkgdir"
+}
+
+sha512sums="
+0c46e2dce18a2040973a5b89b1fb89c838f0784b8f9d8668102006a808eaa7c96cdedd0c2078959b961da360f722d55f60cc195390c80adf5bd3d50e80922543  xmlada-26.0.0.tar.gz
+"
