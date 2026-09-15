@@ -1,0 +1,6 @@
+# local build scratch (cloned sources, extracted trees)
+.work/
+
+# built artifacts
+*.apk
+*.tar.gz
