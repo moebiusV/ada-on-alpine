@@ -1,0 +1,48 @@
+# Contributor: Ian Douglas Scott <ian@iandouglasscott.com>
+# Maintainer: Ian Douglas Scott <ian@iandouglasscott.com>
+pkgname=gprbuild
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="Builder for multi-language systems"
+url="https://github.com/AdaCore/gprbuild"
+arch="all"
+license="GPL-3.0-or-later"
+depends="gcc-gnat"
+makedepends="build-base which gawk"
+source="gprbuild-$pkgver.tar.gz::https://github.com/AdaCore/gprbuild/archive/refs/tags/v$pkgver.tar.gz
+	xmlada-$pkgver.tar.gz::https://github.com/AdaCore/xmlada/archive/refs/tags/v$pkgver.tar.gz
+	gprconfig_kb-$pkgver.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/refs/tags/v$pkgver.tar.gz
+	"
+
+_bootstrap() {
+	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
+		--prefix=/usr \
+		--with-xmlada="$srcdir"/xmlada-$pkgver \
+		--with-kb="$srcdir"/gprconfig_kb-$pkgver \
+		"$@"
+}
+
+build() {
+	_bootstrap --build
+}
+
+check() {
+	# Upstream's testsuite needs AdaCore's e3 infrastructure; smoke-test a
+	# staged install instead.
+	DESTDIR="$srcdir"/stage _bootstrap --install
+	mkdir -p "$srcdir"/smoke && cd "$srcdir"/smoke
+	printf 'project Hello is\n   for Main use ("hello.adb");\nend Hello;\n' > hello.gpr
+	printf 'with Ada.Text_IO;\nprocedure Hello is\nbegin\n   Ada.Text_IO.Put_Line ("ok");\nend Hello;\n' > hello.adb
+	"$srcdir"/stage/usr/bin/gprbuild -P hello.gpr
+	[ "$(./hello)" = ok ]
+}
+
+package() {
+	DESTDIR="$pkgdir" _bootstrap --install
+}
+
+sha512sums="
+e5a5dcaf0162154793b23655a9804453498b230a377ae45eabe67f51e15ff69194d98a6b6839fd2ebb0d136e3128e47d296da10ea7be67bec8dbed1d016a1777  gprbuild-26.0.0.tar.gz
+0c46e2dce18a2040973a5b89b1fb89c838f0784b8f9d8668102006a808eaa7c96cdedd0c2078959b961da360f722d55f60cc195390c80adf5bd3d50e80922543  xmlada-26.0.0.tar.gz
+8125c05da4374b14aee34d429715dac4a08e21cf9c9a2b06931d619ccbf315e3b2e64f06d1b6f3ef6b7403b8d08c53210bf3dd79f5762fa1b1a62a0ea725c814  gprconfig_kb-26.0.0.tar.gz
+"
