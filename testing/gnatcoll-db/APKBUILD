@@ -1,0 +1,43 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=gnatcoll-db
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="GNAT Components Collection database components (SQL, SQLite)"
+url="https://github.com/AdaCore/gnatcoll-db"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat gnatcoll sqlite-libs"
+makedepends="gcc-gnat gprbuild gnatcoll xmlada build-base sqlite-dev"
+source="gnatcoll-db-$pkgver.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/gnatcoll-db-$pkgver"
+
+# sqlite imports gnatcoll_sql, so sql must be installed before sqlite builds.
+_install() {
+	local dest="$1"
+	make -C sql ENABLE_SHARED=no install prefix="$dest"
+	export GPR_PROJECT_PATH="$dest/share/gpr"
+	make -C sqlite ENABLE_SHARED=no install prefix="$dest"
+}
+
+build() {
+	make -C sql ENABLE_SHARED=no PROCESSORS="${JOBS:-1}"
+	make -C sql ENABLE_SHARED=no install prefix="$srcdir"/stage
+	export GPR_PROJECT_PATH="$srcdir"/stage/share/gpr
+	make -C sqlite ENABLE_SHARED=no PROCESSORS="${JOBS:-1}"
+}
+
+check() {
+	mkdir -p "$srcdir"/stage2
+	_install "$srcdir"/stage2/usr
+	test -f "$srcdir"/stage2/usr/share/gpr/gnatcoll_sql.gpr
+	test -f "$srcdir"/stage2/usr/share/gpr/gnatcoll_sqlite.gpr
+}
+
+package() {
+	mkdir -p "$pkgdir/usr"
+	_install "$pkgdir/usr"
+}
+
+sha512sums="
+80618b6abd7bbadaf4dbfa2d733d32bbc11a93ef125e500574b002c5b5ca3a2491320cf4ef497a9b0e3bdd8cead27a3c9dc6fee9fc8643a5d74ab249ec10b9db  gnatcoll-db-26.0.0.tar.gz
+"

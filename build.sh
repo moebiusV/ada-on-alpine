@@ -1,18 +1,21 @@
 #!/bin/sh
-# Build both packages inside the Alpine musl image (no cross-compilation).
-#
-# Requires Docker. Produces the .apk files under .work/packages/. The build
-# runs abuild as a non-root user (abuild refuses root), bootstraps gprbuild,
-# installs it, then builds xmlada against it.
+# Build the Ada toolchain aports inside the Alpine musl image (no cross-
+# compilation), in dependency order. Requires Docker. Produces the .apk files
+# under .work/packages/. The build runs abuild as a non-root user, bootstraps
+# gprbuild, installs it, then builds the rest against it in order.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 OUT="$ROOT/.work/packages"
 mkdir -p "$OUT"
 
+# Dependency order: each package's build deps must precede it. The langkit /
+# gpr / libadalang / ada_language_server aports are still scaffolds (unbuilt).
+PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db spawn vss aws}"
+
 docker run -i --rm -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
-apk add --no-cache alpine-sdk gcc-gnat which gawk >/dev/null 2>&1
+apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
 
 # Generate a signing key (keygen -a writes to /root/.config/abuild), trust its
@@ -25,18 +28,20 @@ sed -i "s|/root/.config/abuild|/home/build/.config/abuild|g" /home/build/.config
 chown -R build:build /home/build /repo
 
 run_abuild() {
-    su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/$1; abuild"
+    su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild"
 }
 
-run_abuild testing/gprbuild
+for pkg in $PKGS; do
+    echo "===== BUILDING $pkg ====="
+    run_abuild "$pkg"
+    # Install the just-built package so the next one's makedepends resolve.
+    apk_file=$(find /home/build/.local/share/abuild -name "${pkg}-*.apk" | head -1)
+    if [ -n "$apk_file" ]; then
+        apk add --allow-untrusted "$apk_file" >/dev/null 2>&1 || true
+    fi
+done
 
-# Install the just-built gprbuild so libxmlada's makedepends resolves.
-GPRBUILD_APK=$(find / -name 'gprbuild-*.apk' | head -1)
-apk add --allow-untrusted "$GPRBUILD_APK" >/dev/null 2>&1
-
-run_abuild testing/xmlada
-
-find / -name '*.apk' -exec cp {} /repo/.work/packages/ \;
+find / -name '*.apk' -not -path '/repo/*' -exec cp {} /repo/.work/packages/ \;
 SCRIPT
 
 echo "==> packages written to $OUT"

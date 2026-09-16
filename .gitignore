@@ -1,6 +1,10 @@
 # local build scratch (cloned sources, extracted trees)
 .work/
 
+# abuild per-package scratch
+testing/*/src/
+testing/*/tmp/
+
 # built artifacts
 *.apk
 *.tar.gz

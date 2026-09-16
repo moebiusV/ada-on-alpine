@@ -1,0 +1,34 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=aunit
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="Ada unit testing framework"
+url="https://github.com/AdaCore/aunit"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild"
+source="aunit-$pkgver.tar.gz::https://github.com/AdaCore/aunit/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/aunit-$pkgver"
+
+build() {
+	make all
+}
+
+check() {
+	# Stage-install and compile a trivial test against it.
+	mkdir -p "$srcdir"/stage
+	make install INSTALL="$srcdir"/stage/usr
+	printf 'with AUnit.Assertions;\nprocedure Smoke is\nbegin\n   AUnit.Assertions.Assert (True, "smoke");\nend Smoke;\n' > "$srcdir"/smoke.adb
+	printf 'with "aunit";\nproject Smoke is\n   for Source_Dirs use (".");\n   for Object_Dir use "obj";\n   for Exec_Dir use ".";\n   for Main use ("smoke.adb");\n   for Source_Files use ("smoke.adb");\nend Smoke;\n' > "$srcdir"/smoke.gpr
+	( cd "$srcdir" && GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr gprbuild -p -P smoke.gpr )
+	"$srcdir"/smoke
+}
+
+package() {
+	make install INSTALL="$pkgdir/usr"
+}
+
+sha512sums="
+955967e9b90ba4894c803a34c98d64c517fcc5eec5eb330f6ab04d537554550c60f180c078a9339f52839a2e0751c96364753d2094f5af0ad7a87f008b661851  aunit-26.0.0.tar.gz
+"

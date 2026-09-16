@@ -1,0 +1,33 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=vss
+pkgver=25.0.0
+pkgrel=0
+pkgdesc="Vector/string abstractions library for Ada"
+url="https://github.com/AdaCore/VSS"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild xmlada"
+source="vss-$pkgver.tar.gz::https://github.com/AdaCore/VSS/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/VSS-$pkgver"
+
+build() {
+	make build-libs-static
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	make install-libs-static DESTDIR="$srcdir"/stage PREFIX=/usr
+	test -f "$srcdir"/stage/usr/share/gpr/vss_gnat.gpr
+	test -f "$srcdir"/stage/usr/share/gpr/vss_text.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libvss*.a' | head -1)"
+}
+
+package() {
+	make install-libs-static DESTDIR="$pkgdir" PREFIX=/usr
+}
+
+sha512sums="
+ca440d169e3b73134bb6b1df4473faf48fa867c79f91db1dfeaa2644e694bf9927e6d037fa364ec065c6da77e61efe8758a58a52217b6ce8c21282c1d9761ae6  vss-25.0.0.tar.gz
+"
