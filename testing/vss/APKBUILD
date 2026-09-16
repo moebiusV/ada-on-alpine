@@ -13,20 +13,20 @@ source="vss-$_commit.tar.gz::https://github.com/AdaCore/VSS/archive/$_commit.tar
 builddir="$srcdir/VSS-$_commit"
 
 build() {
-	make build-libs-static
+	make build-libs-release_static
 }
 
 check() {
 	# Stage-install and verify the installed project/library layout.
 	mkdir -p "$srcdir"/stage
-	make install-libs-static DESTDIR="$srcdir"/stage PREFIX=/usr
+	make install-libs-release_static DESTDIR="$srcdir"/stage PREFIX=/usr
 	test -f "$srcdir"/stage/usr/share/gpr/vss_gnat.gpr
 	test -f "$srcdir"/stage/usr/share/gpr/vss_text.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'libvss*.a' | head -1)"
 }
 
 package() {
-	make install-libs-static DESTDIR="$pkgdir" PREFIX=/usr
+	make install-libs-release_static DESTDIR="$pkgdir" PREFIX=/usr
 }
 
 sha512sums="
