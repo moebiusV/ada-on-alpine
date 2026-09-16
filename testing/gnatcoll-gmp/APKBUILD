@@ -18,6 +18,9 @@ build() {
 	gprbuild -p -P gmp/gnatcoll_gmp.gpr \
 		-XLIBRARY_TYPE=static \
 		-XGNATCOLL_VERSION=26.0.0
+	gprbuild -p -P gmp/gnatcoll_gmp.gpr \
+		-XLIBRARY_TYPE=relocatable \
+		-XGNATCOLL_VERSION=26.0.0
 }
 
 check() {
@@ -37,6 +40,11 @@ package() {
 		--prefix="$pkgdir"/usr \
 		--sources-subdir=include/gnatcoll_gmp \
 		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P gmp/gnatcoll_gmp.gpr \
+		-XLIBRARY_TYPE=relocatable -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_gmp \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
 sha512sums="

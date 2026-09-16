@@ -19,6 +19,10 @@ build() {
 		-XLIBRARY_TYPE=static \
 		-XGNATCOLL_VERSION=26.0.0 \
 		-XGNATCOLL_ICONV_OPT=-lc
+	gprbuild -p -P iconv/gnatcoll_iconv.gpr \
+		-XLIBRARY_TYPE=relocatable \
+		-XGNATCOLL_VERSION=26.0.0 \
+		-XGNATCOLL_ICONV_OPT=-lc
 }
 
 check() {
@@ -40,6 +44,12 @@ package() {
 		--prefix="$pkgdir"/usr \
 		--sources-subdir=include/gnatcoll_iconv \
 		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P iconv/gnatcoll_iconv.gpr \
+		-XLIBRARY_TYPE=relocatable -XGNATCOLL_VERSION=26.0.0 \
+		-XGNATCOLL_ICONV_OPT=-lc \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_iconv \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
 sha512sums="

@@ -1,0 +1,39 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=prettier-ada
+pkgver=25.0.0_git20260915
+pkgrel=0
+_commit="2299fce43c74e7e1dea4ecdef7bc7bcd6ffc8b94"
+pkgdesc="Prettier generic document formatter ported to Ada"
+url="https://github.com/AdaCore/prettier-ada"
+arch="all"
+license="Apache-2.0 WITH LLVM-exception"
+depends="libgnat gnatcoll vss"
+makedepends="gcc-gnat gprbuild gnatcoll vss"
+source="prettier-ada-$_commit.tar.gz::https://github.com/AdaCore/prettier-ada/archive/$_commit.tar.gz"
+builddir="$srcdir/prettier-ada-$_commit"
+
+# langkit_support (and thus liblktlang.so) consumes prettier_ada as both a
+# static archive (static consumers) and a shared object (the ctypes Python
+# bindings), so build both. The Makefile's gprinstall records each library
+# type as a --build-name variant.
+build() {
+	make lib LIBRARY_TYPE=static BUILD_MODE=prod PROCESSORS="${JOBS:-1}"
+	make lib LIBRARY_TYPE=relocatable BUILD_MODE=prod PROCESSORS="${JOBS:-1}"
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage/usr
+	make install PREFIX="$srcdir"/stage/usr LIBRARY_TYPE=static BUILD_MODE=prod
+	test -f "$srcdir"/stage/usr/share/gpr/prettier_ada.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libprettier_ada.a' | head -1)"
+}
+
+package() {
+	make install PREFIX="$pkgdir/usr" LIBRARY_TYPE=static BUILD_MODE=prod
+	make install PREFIX="$pkgdir/usr" LIBRARY_TYPE=relocatable BUILD_MODE=prod
+}
+
+sha512sums="
+2e39da37adea55ec76338e1b2d521e30a8293187ba6ff15b873d8bd7a407accac06f917e5a39c77b6da3c3e6571f6b3b16578c96c45765b55829ce49022b090f  prettier-ada-2299fce43c74e7e1dea4ecdef7bc7bcd6ffc8b94.tar.gz
+"

@@ -11,20 +11,27 @@ aports fork for a Merge Request.
 | `testing/gprbuild/` | `gprbuild` | Upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0 |
 | `testing/xmlada/` | `xmlada` | New aport: XML/Ada |
 | `testing/aunit/` | `aunit` | New aport: Ada unit testing framework |
-| `testing/gnatcoll/` | `gnatcoll` | New aport: GNAT Components Collection core |
+| `testing/gnatcoll/` | `gnatcoll` | New aport: GNAT Components Collection core (static + shared) |
 | `testing/gnatcoll-db/` | `gnatcoll-db` | New aport: GNATcoll SQL + SQLite |
+| `testing/gnatcoll-gmp/` | `gnatcoll-gmp` | New aport: GMP (arbitrary precision) bindings (static + shared) |
+| `testing/gnatcoll-iconv/` | `gnatcoll-iconv` | New aport: iconv charset-conversion bindings (static + shared) |
 | `testing/spawn/` | `spawn` | New aport: process-spawning library |
-| `testing/vss/` | `vss` | New aport: vector/string abstractions |
+| `testing/vss/` | `vss` | New aport: vector/string abstractions (static + shared) |
 | `testing/aws/` | `aws` | New aport: Ada Web Server (+ templates-parser) |
+| `testing/adasat/` | `adasat` | New aport: SAT-solving library (static + shared) |
+| `testing/py3-e3-core/` | `py3-e3-core` | New aport: E3 core Python tooling |
+| `testing/prettier-ada/` | `prettier-ada` | New aport: Prettier formatter core (static + shared) |
+| `testing/py3-langkit/` | `py3-langkit` | New aport: Langkit Python parser framework |
+| `testing/langkit/` | `langkit` | New: parser framework (static + shared; needs Docker validation) |
 | `testing/gpr/` | `gpr` | Scaffold: new-generation project library (blocks on langkit) |
-| `testing/langkit/` | `langkit` | Scaffold: parser framework (self-hosting; needs dedicated work) |
 | `testing/libadalang/` | `libadalang` | Scaffold: Ada semantic analysis (blocks on langkit + gpr) |
 | `testing/ada_language_server/` | `ada_language_server` | Scaffold: LSP server for Ada (blocks on libadalang + gpr) |
 
-The eight packages above the fold build cleanly with `./build.sh`. The four
-below are scaffolds — correct metadata and dependency wiring, but their `build()`
-needs dedicated work; the whole tier is gated on `langkit`, a self-hosting
-parser-generator framework with a Python toolchain.
+The packages through `langkit` build with `./build.sh` (the langkit tier is new
+and still being validated in a container). The three below are scaffolds —
+correct metadata and dependency wiring, but their `build()` needs dedicated
+work; they are gated on `langkit`, a self-hosting parser-generator framework
+with a Python toolchain.
 
 ## Why bootstrap gprbuild
 
@@ -42,10 +49,11 @@ one.
 
 ## License
 
-gprbuild is GPL-3.0-or-later. The libraries (xmlada, aunit, gnatcoll,
-gnatcoll-db, spawn, vss, aws) are GPL-3.0-or-later WITH the GCC Runtime
-Library Exception (GCC-exception-3.1). Neither imposes a license on software
-built with or linked against it.
+gprbuild is GPL-3.0-or-later. Most libraries (xmlada, aunit, gnatcoll,
+gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv, spawn, vss, aws) are GPL-3.0-or-later
+WITH the GCC Runtime Library Exception (GCC-exception-3.1). adasat, langkit and
+prettier-ada are Apache-2.0 WITH LLVM-exception. Neither imposes a license on
+software built with or linked against it.
 
 ## Build
 

@@ -1,29 +1,50 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: scaffold — build not yet validated. langkit is a self-hosting
-# parser-generator framework: a Python toolchain (manage.py / pyproject)
-# plus an Ada runtime. Needs py3-e3-core, py3-mako, and a bootstrap of the
-# LKT language before the library/compiler can be produced.
+# NOTE: build not yet validated (no Docker in the writing session). langkit is
+# a self-hosting parser-generator: a Python toolchain (py3-langkit) plus an Ada
+# runtime (Langkit_Support) and the Liblktlang parser library, generated from
+# the checked-in LKT bootstrap. The ctypes Python bindings force a shared
+# (relocatable) Liblktlang, so every Ada dependency below ships static AND
+# relocatable.
 pkgname=langkit
 pkgver=26.0.0_git20260915
 pkgrel=0
 _commit="537d30227cbc46f28de59a933ba4570e074cbf98"
-pkgdesc="Language analysis and generation framework (compiler + runtime)"
+pkgdesc="Language analysis and generation framework (Ada runtime + Liblktlang)"
 url="https://github.com/AdaCore/langkit"
 arch="all"
-license="GPL-3.0-or-later WITH GCC-exception-3.1"
-depends="libgnat"
-makedepends="gcc-gnat gprbuild python3 py3-setuptools"
+license="Apache-2.0 WITH LLVM-exception"
+depends="libgnat adasat gnatcoll gnatcoll-gmp gnatcoll-iconv prettier-ada"
+makedepends="gcc-gnat gprbuild py3-pip py3-langkit adasat gnatcoll gnatcoll-gmp gnatcoll-iconv prettier-ada"
 source="langkit-$_commit.tar.gz::https://github.com/AdaCore/langkit/archive/$_commit.tar.gz"
 builddir="$srcdir/langkit-$_commit"
 
 build() {
-	# TODO: real build is the AdaCore manage.py flow (Python install + Ada
-	# support library + LKT bootstrap). To be fleshed out during validation.
-	python3 -m build --wheel --no-isolation 2>/dev/null || true
+	# Build Langkit_Support and Liblktlang (static + relocatable). The
+	# bootstrap Liblktlang is generated from the checked-in LKT bootstrap, so
+	# no pre-existing langkit is required. Skip mypy (dev-only typecheck).
+	python3 manage.py make --no-mypy \
+		--library-types=static,relocatable \
+		-j"${JOBS:-1}"
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	python3 manage.py install-langkit-support \
+		"$srcdir"/stage/usr --library-types=static,relocatable
+	test -f "$srcdir"/stage/usr/share/gpr/langkit_support.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'liblangkit_support.a' | head -1)"
 }
 
 package() {
-	mkdir -p "$pkgdir"
+	python3 manage.py install-langkit-support \
+		"$pkgdir/usr" --library-types=static,relocatable
+	python3 -m langkit.scripts.lkm install \
+		-c lkt/langkit.yaml "$pkgdir/usr" \
+		--library-types=static,relocatable --disable-all-mains
+	# The generated LKT ctypes bindings (lkt/build/python) are what `lkm` uses
+	# to parse .lkt specs when building libadalang/gpr downstream. Install them
+	# alongside the shared library.
+	python3 -m pip install --prefix="$pkgdir/usr" --no-deps lkt/build/python
 }
 
 sha512sums="

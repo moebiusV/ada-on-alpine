@@ -14,6 +14,7 @@ builddir="$srcdir/VSS-$_commit"
 
 build() {
 	make build-libs-release_static
+	make build-libs-release_relocatable
 }
 
 check() {
@@ -27,6 +28,7 @@ check() {
 
 package() {
 	make install-libs-release_static DESTDIR="$pkgdir" PREFIX=/usr
+	make install-libs-release_relocatable DESTDIR="$pkgdir" PREFIX=/usr
 }
 
 sha512sums="

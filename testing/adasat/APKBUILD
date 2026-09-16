@@ -16,6 +16,9 @@ build() {
 	gprbuild -p -P adasat.gpr \
 		-XLIBRARY_TYPE=static \
 		-XBUILD_MODE=prod
+	gprbuild -p -P adasat.gpr \
+		-XLIBRARY_TYPE=relocatable \
+		-XBUILD_MODE=prod
 }
 
 check() {
@@ -35,6 +38,11 @@ package() {
 		--prefix="$pkgdir"/usr \
 		--sources-subdir=include/adasat \
 		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P adasat.gpr \
+		-XLIBRARY_TYPE=relocatable -XBUILD_MODE=prod \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/adasat \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
 sha512sums="

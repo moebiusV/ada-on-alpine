@@ -1,0 +1,26 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=py3-langkit
+pkgver=26.0.0_git20260915
+pkgrel=0
+_commit="537d30227cbc46f28de59a933ba4570e074cbf98"
+pkgdesc="Langkit Python framework for generating language parsers"
+url="https://github.com/AdaCore/langkit"
+arch="noarch"
+license="Apache-2.0 WITH LLVM-exception"
+depends="python3 py3-mako py3-yaml py3-funcy py3-docutils"
+makedepends="py3-setuptools py3-build py3-installer py3-wheel python3-dev"
+subpackages="$pkgname-pyc:pyc:noarch"
+source="langkit-$_commit.tar.gz::https://github.com/AdaCore/langkit/archive/$_commit.tar.gz"
+builddir="$srcdir/langkit-$_commit"
+
+build() {
+	python3 -m build --wheel --no-isolation
+}
+
+package() {
+	python3 -m installer -d "$pkgdir" dist/*.whl
+}
+
+sha512sums="
+fe48c813ff321b2c4650db6762e14ac435295206406becd01cd7aa7804e9d20550e60a504787ad977e3893678668aa1e08f25cefb40ca6cd556b9f2fc4d09921  langkit-537d30227cbc46f28de59a933ba4570e074cbf98.tar.gz
+"
