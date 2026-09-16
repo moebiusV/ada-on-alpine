@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-db
-pkgver=26.0.0
+pkgver=26.0.0_git20260518
 pkgrel=0
+_commit="e43ed894c20c69544882e28eb8c75f7eafe14c08"
 pkgdesc="GNAT Components Collection database components (SQL, SQLite)"
 url="https://github.com/AdaCore/gnatcoll-db"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll sqlite-libs"
 makedepends="gcc-gnat gprbuild gnatcoll xmlada build-base sqlite-dev"
-source="gnatcoll-db-$pkgver.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/gnatcoll-db-$pkgver"
+source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatcoll-db-$_commit"
 
 # sqlite imports gnatcoll_sql, so sql must be installed before sqlite builds.
 _install() {
@@ -39,5 +40,5 @@ package() {
 }
 
 sha512sums="
-80618b6abd7bbadaf4dbfa2d733d32bbc11a93ef125e500574b002c5b5ca3a2491320cf4ef497a9b0e3bdd8cead27a3c9dc6fee9fc8643a5d74ab249ec10b9db  gnatcoll-db-26.0.0.tar.gz
+744665b06546f0f9fce87fe8ca1402bf1cdc5cfb43cfc362d57b38c4aa95d6b32ae2c0dab6c82522558a716639bd6e26dd6c859849958ea9feb8f5b56f9f533a  gnatcoll-db-e43ed894c20c69544882e28eb8c75f7eafe14c08.tar.gz
 "

@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=aunit
-pkgver=26.0.0
+pkgver=26.0.0_git20260825
 pkgrel=0
+_commit="c97bf13eb85097ad9ae01896e16b730affb14302"
 pkgdesc="Ada unit testing framework"
 url="https://github.com/AdaCore/aunit"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
-source="aunit-$pkgver.tar.gz::https://github.com/AdaCore/aunit/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/aunit-$pkgver"
+source="aunit-$_commit.tar.gz::https://github.com/AdaCore/aunit/archive/$_commit.tar.gz"
+builddir="$srcdir/aunit-$_commit"
 
 build() {
 	make all
@@ -30,5 +31,5 @@ package() {
 }
 
 sha512sums="
-955967e9b90ba4894c803a34c98d64c517fcc5eec5eb330f6ab04d537554550c60f180c078a9339f52839a2e0751c96364753d2094f5af0ad7a87f008b661851  aunit-26.0.0.tar.gz
+b99477348204807180fa056236f881e71506914f65b095e8599f96cd2cc8d9b03fe2e2412fa1d0f2ee0d3cef3821ca7385a5b9daf1dce48faeff4b6b4b3bb5e2  aunit-c97bf13eb85097ad9ae01896e16b730affb14302.tar.gz
 "

@@ -1,20 +1,20 @@
-Fix missing prerequisites in the `make setup` target graph.
+Fix two missing prerequisites in the `make setup` target graph.
 
 Under `make -jN setup`, two targets can run before the files and
 directories they depend on have been created:
 
-1. The *_setup sub-makes read makefile.setup (e.g. regtests' testsuite.tags
-   depends on it), but do not depend on gen_setup, which writes it.
+1. The *_setup sub-makes read $(TGT_DIR)/makefile.setup (e.g. regtests'
+   testsuite.tags rule), but do not depend on gen_setup, which writes it.
 
-2. setup_config writes aws_config.gpr into $(PRJ_DIR), but does not depend
-   on setup_dir, which creates $(PRJ_DIR).
+2. setup_config writes aws_config.gpr into $(PRJ_DIR), which is created
+   by setup_dir, but does not depend on it.
 
 Both lead to non-deterministic failures on parallel builds. Add the
 missing prerequisites so `make setup` is safe under -j.
 
 --- a/Makefile
 +++ b/Makefile
-@@ -122,7 +122,7 @@
+@@ -135,7 +135,7 @@ GALL_OPTIONS := $(ALL_OPTIONS) \
  	TP_XMLADA="$(TP_XMLADA)" \
  	I_INC="$(I_INC)"
 
@@ -23,7 +23,7 @@ missing prerequisites so `make setup` is safe under -j.
  	${MAKE} -C ${@:%_setup=%} setup $(GALL_OPTIONS)
 
  ${MODULES_INSTALL}: force
-@@ -298,7 +298,7 @@
+@@ -311,7 +311,7 @@ ifeq (${SOCKET}, std)
  SSL_SUFFIX = dummy
  endif
 

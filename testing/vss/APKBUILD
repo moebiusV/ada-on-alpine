@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=vss
-pkgver=25.0.0
+pkgver=25.0.0_git20250901
 pkgrel=0
+_commit="29344249f77afab2f00dc0e6a6e7d6a19bc0bf01"
 pkgdesc="Vector/string abstractions library for Ada"
 url="https://github.com/AdaCore/VSS"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild xmlada"
-source="vss-$pkgver.tar.gz::https://github.com/AdaCore/VSS/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/VSS-$pkgver"
+source="vss-$_commit.tar.gz::https://github.com/AdaCore/VSS/archive/$_commit.tar.gz"
+builddir="$srcdir/VSS-$_commit"
 
 build() {
 	make build-libs-static
@@ -29,5 +30,5 @@ package() {
 }
 
 sha512sums="
-ca440d169e3b73134bb6b1df4473faf48fa867c79f91db1dfeaa2644e694bf9927e6d037fa364ec065c6da77e61efe8758a58a52217b6ce8c21282c1d9761ae6  vss-25.0.0.tar.gz
+adfeec20d9981b8bae288c926b5487f1b340f3258fe5a4179b4e4fbc2b220d1674a52e56bc08f1f7325a4cc368585b7fed027e53cd77ae0818bee303369109f6  vss-29344249f77afab2f00dc0e6a6e7d6a19bc0bf01.tar.gz
 "

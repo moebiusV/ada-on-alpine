@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll
-pkgver=26.0.0
+pkgver=26.0.0_git20260915
 pkgrel=0
+_commit="358c384d11ad0d9d26d78744d3a78259c3ce0451"
 pkgdesc="GNAT Components Collection core library"
 url="https://github.com/AdaCore/gnatcoll-core"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild xmlada build-base python3 rsync"
-source="gnatcoll-$pkgver.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/gnatcoll-core-$pkgver"
+source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatcoll-core-$_commit"
 
 build() {
 	make prefix=/usr ENABLE_SHARED=no PROCESSORS="${JOBS:-1}" GNATCOLL_PROJECTS=no
@@ -31,5 +32,5 @@ package() {
 }
 
 sha512sums="
-59a3ac4c911f1d2950964afc9ad5508a9cbd1facb0d1a49caaab8dea18376e287cbbe1948c2ae6a21de3e8488aa0b4d4a94d53f55529a909123e2db0c6c38cde  gnatcoll-26.0.0.tar.gz
+5ff1892f19d627a83e7009d2c9cad10247b7730ea9ecb7f11d9c8ce2077240924512b17b4d1f32cd238ffaa499fe697ecc3d033915a25222748cf11348c6e60c  gnatcoll-358c384d11ad0d9d26d78744d3a78259c3ce0451.tar.gz
 "

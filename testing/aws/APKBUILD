@@ -1,27 +1,27 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=aws
-pkgver=26.0.0
+pkgver=26.0.0_git20260902
 pkgrel=0
+_commit="36b0a055f502c071df63fd05a67042dbf5d5dd79"
 pkgdesc="Ada Web Server"
 url="https://github.com/AdaCore/aws"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild xmlada zlib-dev zlib-static build-base"
-# templates_parser is a git submodule; pin the exact commit aws 26.0.0 expects.
-_tp_commit="cc94ff9833cfe776d462b490aac9727b623742c8"
-source="aws-$pkgver.tar.gz::https://github.com/AdaCore/aws/archive/refs/tags/v$pkgver.tar.gz
-	templates-parser-$pkgver.tar.gz::https://github.com/AdaCore/templates-parser/archive/$_tp_commit.tar.gz
+# templates_parser is a git submodule; pin the commit aws $_commit references.
+_tp_commit="7c59ed4f1ee371c7d3f420b890e287b72c2473f4"
+source="aws-$_commit.tar.gz::https://github.com/AdaCore/aws/archive/$_commit.tar.gz
+	templates-parser-$_tp_commit.tar.gz::https://github.com/AdaCore/templates-parser/archive/$_tp_commit.tar.gz
 	zlib-system.patch
-	wsdl2aws-name_set.patch
 	setup-deps.patch"
-builddir="$srcdir/aws-$pkgver"
+builddir="$srcdir/aws-$_commit"
 
 build() {
 	# templates_parser is a git submodule; GitHub archive tarballs omit it,
 	# so splice the separately-fetched source into the tree first.
-	rm -rf "$srcdir"/aws-$pkgver/templates_parser
-	mv "$srcdir"/templates-parser-$_tp_commit "$srcdir"/aws-$pkgver/templates_parser
+	rm -rf "$builddir"/templates_parser
+	mv "$srcdir"/templates-parser-$_tp_commit "$builddir"/templates_parser
 
 	# ZLIB=true selects the system zlib (zlib-system.patch makes that apply
 	# to static kinds too). ENABLE_SHARED=false builds static-only, matching
@@ -47,9 +47,8 @@ package() {
 }
 
 sha512sums="
-6c6c57437432685e2fd790a64f1a9a136f929803b0dec6f10c1defaf1901b7101667d26f53c0b280f55518ea452ad244ad4bfa210e853c5ae1a81dfaa671f9a3  aws-26.0.0.tar.gz
-0130d7d3732a09f1ad2da82492da6ee47ca2f2760128457fb2c3c23ec8059c72f1bead879dd8f9eefbe0fce85903497d4019088e9998dd26ea527d15f05abef3  templates-parser-26.0.0.tar.gz
+34e37851c2655f31ecc774604c599890f05584b00c89bfca35cc4cd6d060ede802704da0eb7790a502de0596ef78848f6533ec4c0b5a1d63a03da6b15682e648  aws-36b0a055f502c071df63fd05a67042dbf5d5dd79.tar.gz
+92390985b33fc0e54803877fb7af365797bc86e5b2fb7da71d5672ac96552e53572018c84d037b29bf272a165d2cef99ea01125119d91db534dbfd3e95e3e611  templates-parser-7c59ed4f1ee371c7d3f420b890e287b72c2473f4.tar.gz
 81f06af73ccfab4dca32af5e3e8d295fe1e9d6f5e7a4cc1d7eb18c625af86abd9f17995314239ed4a1290675eea0f194453e39e3fede701b6ed0721e8adbfbfc  zlib-system.patch
-838924a412999dbdedc98c1fcda967d63710390d6f825862ca9752feeeaa2e47d838ef3278cebb4ba2eaf1494e3cf80f9190ea784f92e3c947bdfde0f14ea843  wsdl2aws-name_set.patch
-069a1a46aa84011752f93480f5277a8f4d4bb80af57e869b52f28fe47d6df998e914522927522ac2d317753f16ba485d935c9bf423893c463c42548fb525e2b9  setup-deps.patch
+b217beaa471a4f71c72c6f7136031a8c4ad32a51715e55ace437aa4827aad470dd0b8038265a0d0f967a05d8fe3ef4b2c9b7fd0f65b8b023c4b1745f89429071  setup-deps.patch
 "

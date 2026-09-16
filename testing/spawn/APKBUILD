@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=spawn
-pkgver=26.0.0
+pkgver=26.0.0_git20260825
 pkgrel=0
+_commit="cb2cf09f5b59bccf94613fa2968cb9b72fd0b7bf"
 pkgdesc="Ada process-spawning library"
 url="https://github.com/AdaCore/spawn"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
-source="spawn-$pkgver.tar.gz::https://github.com/AdaCore/spawn/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/spawn-$pkgver"
+source="spawn-$_commit.tar.gz::https://github.com/AdaCore/spawn/archive/$_commit.tar.gz"
+builddir="$srcdir/spawn-$_commit"
 
 build() {
 	# Build the library only; `make` also builds the test project, which
@@ -31,5 +32,5 @@ package() {
 }
 
 sha512sums="
-e0c5252bee89216b44105e96080c194b81715e08f16ac844d2d6b771210f31b553ecf32cc2c57c0cbed1d6d33b94da20359bd2bfe0eddcdcb6ef3860a7e356b3  spawn-26.0.0.tar.gz
+71031c007e1a325d8c3f05eb6e0a3b20f1e440cddec122a9de0694b8016d6fe882c79a7a233971313eebd8b4c8163bdc58ff3e4ecd3653b4370fcc279aaef831  spawn-cb2cf09f5b59bccf94613fa2968cb9b72fd0b7bf.tar.gz
 "

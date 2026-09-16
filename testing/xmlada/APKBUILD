@@ -1,15 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=xmlada
-pkgver=26.0.0
+pkgver=26.0.0_git20260615
 pkgrel=0
+_commit="9823ffb294187897a08b14bbce00743ff647cae1"
 pkgdesc="XML/Ada: XML, schema, and DOM parsing library for Ada"
 url="https://github.com/AdaCore/xmlada"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat build-base gprbuild which gawk"
-source="xmlada-$pkgver.tar.gz::https://github.com/AdaCore/xmlada/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/xmlada-$pkgver"
+source="xmlada-$_commit.tar.gz::https://github.com/AdaCore/xmlada/archive/$_commit.tar.gz"
+builddir="$srcdir/xmlada-$_commit"
 
 build() {
 	./configure --prefix=/usr --disable-shared
@@ -21,7 +22,7 @@ check() {
 	# GPR_PROJECT_PATH at the staged tree.
 	DESTDIR="$srcdir"/stage make -j1 install
 	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make test
-	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make run_test
+	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make check
 }
 
 package() {
@@ -29,5 +30,5 @@ package() {
 }
 
 sha512sums="
-0c46e2dce18a2040973a5b89b1fb89c838f0784b8f9d8668102006a808eaa7c96cdedd0c2078959b961da360f722d55f60cc195390c80adf5bd3d50e80922543  xmlada-26.0.0.tar.gz
+fb5718ee5e3a6932eacbf861aef3d75718e5892cf28ac49697fb589839517e721ff4533ef046ca25ed291af235c9b92d9d5383e3ed4be48a35d789411fc30db4  xmlada-9823ffb294187897a08b14bbce00743ff647cae1.tar.gz
 "
