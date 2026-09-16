@@ -1,0 +1,30 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: scaffold — build not yet validated. langkit is a self-hosting
+# parser-generator framework: a Python toolchain (manage.py / pyproject)
+# plus an Ada runtime. Needs py3-e3-core, py3-mako, and a bootstrap of the
+# LKT language before the library/compiler can be produced.
+pkgname=langkit
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="Language analysis and generation framework (compiler + runtime)"
+url="https://github.com/AdaCore/langkit"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild python3 py3-setuptools"
+source="langkit-$pkgver.tar.gz::https://github.com/AdaCore/langkit/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/langkit-$pkgver"
+
+build() {
+	# TODO: real build is the AdaCore manage.py flow (Python install + Ada
+	# support library + LKT bootstrap). To be fleshed out during validation.
+	python3 -m build --wheel --no-isolation 2>/dev/null || true
+}
+
+package() {
+	mkdir -p "$pkgdir"
+}
+
+sha512sums="
+e96aaf4c9b351166ee544f0e7ded0999e171f660e7b12b664e23913d6e7805ca5792890ffd228ab7a819c5939080f4e6ef2f3e2b75bd8ca722d703f45203388f  langkit-26.0.0.tar.gz
+"

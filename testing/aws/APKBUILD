@@ -1,0 +1,42 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=aws
+pkgver=26.0.0
+pkgrel=0
+pkgdesc="Ada Web Server"
+url="https://github.com/AdaCore/aws"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild xmlada zlib-dev build-base"
+source="aws-$pkgver.tar.gz::https://github.com/AdaCore/aws/archive/refs/tags/v$pkgver.tar.gz
+	templates-parser-$pkgver.tar.gz::https://github.com/AdaCore/templates-parser/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/aws-$pkgver"
+
+build() {
+	# templates_parser is a git submodule; GitHub archive tarballs omit it,
+	# so splice the separately-fetched source into the tree first.
+	rm -rf "$srcdir"/aws-$pkgver/templates_parser
+	mv "$srcdir"/templates-parser-$pkgver "$srcdir"/aws-$pkgver/templates_parser
+
+	# `setup` must be serial: regtests_setup reads makefile.setup before
+	# gen_setup writes it under parallel make. ZLIB=true forces the system
+	# zlib (the bundled fallback fails to compile under gcc 15).
+	make -j1 setup prefix=/usr ZLIB=true
+	make PROCESSORS="${JOBS:-1}" ZLIB=true
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	make install DESTDIR="$srcdir"/stage prefix=/usr ZLIB=true
+	test -f "$srcdir"/stage/usr/share/gpr/aws.gpr
+}
+
+package() {
+	make install DESTDIR="$pkgdir" prefix=/usr ZLIB=true
+}
+
+sha512sums="
+6c6c57437432685e2fd790a64f1a9a136f929803b0dec6f10c1defaf1901b7101667d26f53c0b280f55518ea452ad244ad4bfa210e853c5ae1a81dfaa671f9a3  aws-26.0.0.tar.gz
+44c97ed71c681af5e042ceb4b14685fc94772b23845569ba8b6a9471714448c40f26994430e6b7c97d9316c4c540307ea004e57c6e715d05fd562da56b37b279  templates-parser-26.0.0.tar.gz
+"
