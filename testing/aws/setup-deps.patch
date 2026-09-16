@@ -1,0 +1,34 @@
+Fix missing prerequisites in the `make setup` target graph.
+
+Under `make -jN setup`, two targets can run before the files and
+directories they depend on have been created:
+
+1. The *_setup sub-makes read makefile.setup (e.g. regtests' testsuite.tags
+   depends on it), but do not depend on gen_setup, which writes it.
+
+2. setup_config writes aws_config.gpr into $(PRJ_DIR), but does not depend
+   on setup_dir, which creates $(PRJ_DIR).
+
+Both lead to non-deterministic failures on parallel builds. Add the
+missing prerequisites so `make setup` is safe under -j.
+
+--- a/Makefile
++++ b/Makefile
+@@ -122,7 +122,7 @@
+ 	TP_XMLADA="$(TP_XMLADA)" \
+ 	I_INC="$(I_INC)"
+
+-${MODULES_SETUP}: force
++${MODULES_SETUP}: force gen_setup setup_config
+ 	${MAKE} -C ${@:%_setup=%} setup $(GALL_OPTIONS)
+
+ ${MODULES_INSTALL}: force
+@@ -298,7 +298,7 @@
+ SSL_SUFFIX = dummy
+ endif
+
+-setup_config:
++setup_config: setup_dir
+ 	echo 'abstract project AWS_Config is' > $(CONFGPR)
+ 	echo '   for Source_Dirs use ();' >> $(CONFGPR)
+ 	echo >> $(CONFGPR)

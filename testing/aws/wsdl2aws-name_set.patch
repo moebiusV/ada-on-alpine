@@ -1,13 +1,12 @@
-Remove stale reference to the removed Generator.Name_Set package.
+Backport of upstream a923fbee3 (https://github.com/AdaCore/aws/issues/394):
+drop the stale tools.gpr reference to wsdl2aws-generator-name_set.adb,
+removed in d0b8dbdfe3. Drop this patch when updating past 26.0.0.
 
 Commit d0b8dbdfe3 ("Remove package Generator.Name_Set", 2025-01-27)
 deleted tools/wsdl2aws-generator-name_set.adb but left a reference to it
-in tools.gpr's Locally_Removed_Files list. gprbuild now fails while
-processing tools.gpr:
+in tools.gpr's Locally_Removed_Files list, so gprbuild fails:
 
     tools.gpr:57:53: unknown file "wsdl2aws-generator-name_set.adb"
-
-Drop the dangling entry.
 
 --- a/tools/tools.gpr
 +++ b/tools/tools.gpr

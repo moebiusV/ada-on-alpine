@@ -13,7 +13,8 @@ _tp_commit="cc94ff9833cfe776d462b490aac9727b623742c8"
 source="aws-$pkgver.tar.gz::https://github.com/AdaCore/aws/archive/refs/tags/v$pkgver.tar.gz
 	templates-parser-$pkgver.tar.gz::https://github.com/AdaCore/templates-parser/archive/$_tp_commit.tar.gz
 	zlib-system.patch
-	wsdl2aws-name_set.patch"
+	wsdl2aws-name_set.patch
+	setup-deps.patch"
 builddir="$srcdir/aws-$pkgver"
 
 build() {
@@ -22,30 +23,33 @@ build() {
 	rm -rf "$srcdir"/aws-$pkgver/templates_parser
 	mv "$srcdir"/templates-parser-$_tp_commit "$srcdir"/aws-$pkgver/templates_parser
 
-	# `setup` must be serial: regtests_setup reads makefile.setup before
-	# gen_setup writes it under parallel make. ZLIB=true selects the system
-	# zlib; zlib-system.patch makes that apply to static builds too.
-	# ENABLE_SHARED=false builds static-only, matching our gnatcoll/xmlada.
-	make -j1 setup prefix=/usr ZLIB=true ENABLE_SHARED=false
-	# -j1: aws's own graph builds the awsres tool (via gen-templates) and the
-	# library concurrently, and both ar libaws.a -- serial make avoids the race.
+	# ZLIB=true selects the system zlib (zlib-system.patch makes that apply
+	# to static kinds too). ENABLE_SHARED=false builds static-only, matching
+	# our gnatcoll/xmlada. setup-deps.patch fixes the parallel-setup race,
+	# so no -j1 is needed here.
+	make setup prefix=/usr ZLIB=true ENABLE_SHARED=false
+	# -j1: the awsres tool and the library both ar libaws.a concurrently
+	# (upstream #400) -- serial make avoids that race.
 	make -j1 PROCESSORS="${JOBS:-1}" ZLIB=true ENABLE_SHARED=false
 }
 
 check() {
 	# Stage-install and verify the installed project/library layout.
 	mkdir -p "$srcdir"/stage
-	make install DESTDIR="$srcdir"/stage prefix=/usr ZLIB=true ENABLE_SHARED=false
+	# -j1: parallel install races the same way the build does (gprinstall
+	# chokes with END_ERROR reading a file another job is mid-writing).
+	make -j1 install DESTDIR="$srcdir"/stage prefix=/usr ZLIB=true ENABLE_SHARED=false
 	test -f "$srcdir"/stage/usr/share/gpr/aws.gpr
 }
 
 package() {
-	make install DESTDIR="$pkgdir" prefix=/usr ZLIB=true ENABLE_SHARED=false
+	make -j1 install DESTDIR="$pkgdir" prefix=/usr ZLIB=true ENABLE_SHARED=false
 }
 
 sha512sums="
 6c6c57437432685e2fd790a64f1a9a136f929803b0dec6f10c1defaf1901b7101667d26f53c0b280f55518ea452ad244ad4bfa210e853c5ae1a81dfaa671f9a3  aws-26.0.0.tar.gz
 0130d7d3732a09f1ad2da82492da6ee47ca2f2760128457fb2c3c23ec8059c72f1bead879dd8f9eefbe0fce85903497d4019088e9998dd26ea527d15f05abef3  templates-parser-26.0.0.tar.gz
 81f06af73ccfab4dca32af5e3e8d295fe1e9d6f5e7a4cc1d7eb18c625af86abd9f17995314239ed4a1290675eea0f194453e39e3fede701b6ed0721e8adbfbfc  zlib-system.patch
-71a7f9cb8e10110f4fcb1c7327716bac1ddca2b34dcbc242cbef215150f090897665fbb4813e54e6f9694744289f8538015da543a42c831617cb25cb4a5aeb75  wsdl2aws-name_set.patch
+838924a412999dbdedc98c1fcda967d63710390d6f825862ca9752feeeaa2e47d838ef3278cebb4ba2eaf1494e3cf80f9190ea784f92e3c947bdfde0f14ea843  wsdl2aws-name_set.patch
+069a1a46aa84011752f93480f5277a8f4d4bb80af57e869b52f28fe47d6df998e914522927522ac2d317753f16ba485d935c9bf423893c463c42548fb525e2b9  setup-deps.patch
 "
