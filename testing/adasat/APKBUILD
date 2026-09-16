@@ -1,0 +1,42 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=adasat
+pkgver=26.0.0_git20260903
+pkgrel=0
+_commit="5d8866bc4547373ff36e461f6d179568fd74b524"
+pkgdesc="Ada static analysis (SAT solving) library"
+url="https://github.com/AdaCore/AdaSAT"
+arch="all"
+license="Apache-2.0"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild"
+source="adasat-$_commit.tar.gz::https://github.com/AdaCore/AdaSAT/archive/$_commit.tar.gz"
+builddir="$srcdir/AdaSAT-$_commit"
+
+build() {
+	gprbuild -p -P adasat.gpr \
+		-XLIBRARY_TYPE=static \
+		-XBUILD_MODE=prod
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	gprinstall -p -f -P adasat.gpr \
+		-XLIBRARY_TYPE=static -XBUILD_MODE=prod \
+		--prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/adasat \
+		--build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/adasat.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libadasat.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P adasat.gpr \
+		-XLIBRARY_TYPE=static -XBUILD_MODE=prod \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/adasat \
+		--build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+bf91c4621f293691b773ea4c8cfbb1472497882a36b7e27708b38e3cf521051ab2fd9170a5187ae40c62150a5a22f0c82e2b5da409cedb0be1e9b5a645e51bcb  adasat-5d8866bc4547373ff36e461f6d179568fd74b524.tar.gz
+"
