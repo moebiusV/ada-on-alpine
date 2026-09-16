@@ -22,16 +22,15 @@ aports fork for a Merge Request.
 | `testing/py3-e3-core/` | `py3-e3-core` | New aport: E3 core Python tooling |
 | `testing/prettier-ada/` | `prettier-ada` | New aport: Prettier formatter core (static + shared) |
 | `testing/py3-langkit/` | `py3-langkit` | New aport: Langkit Python parser framework |
-| `testing/langkit/` | `langkit` | New: parser framework (static + shared; needs Docker validation) |
+| `testing/langkit/` | `langkit` | New: parser framework (static + shared) |
 | `testing/gpr/` | `gpr` | Scaffold: new-generation project library (blocks on langkit) |
 | `testing/libadalang/` | `libadalang` | Scaffold: Ada semantic analysis (blocks on langkit + gpr) |
 | `testing/ada_language_server/` | `ada_language_server` | Scaffold: LSP server for Ada (blocks on libadalang + gpr) |
 
-The packages through `langkit` build with `./build.sh` (the langkit tier is new
-and still being validated in a container). The three below are scaffolds —
-correct metadata and dependency wiring, but their `build()` needs dedicated
-work; they are gated on `langkit`, a self-hosting parser-generator framework
-with a Python toolchain.
+The packages through `langkit` build with `./build.sh`. The three below are
+scaffolds — correct metadata and dependency wiring, but their `build()` needs
+dedicated work; they are gated on `langkit`, a self-hosting parser-generator
+framework with a Python toolchain.
 
 ## Why bootstrap gprbuild
 
