@@ -14,7 +14,7 @@ mkdir -p "$OUT"
 # / ada_language_server remain scaffolds (unbuilt).
 PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat prettier-ada py3-langkit langkit}"
 
-docker run -i --rm -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
+docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
