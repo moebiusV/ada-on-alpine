@@ -1,0 +1,47 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=gnatcoll-iconv
+pkgver=26.0.0_git20260722
+pkgrel=0
+_commit="e3c51c1688f5b902306a6afea22d2955239f47a0"
+pkgdesc="GNAT Components Collection – iconv (charset conversion) bindings"
+url="https://github.com/AdaCore/gnatcoll-bindings"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat gnatcoll"
+makedepends="gcc-gnat gprbuild gnatcoll"
+source="gnatcoll-bindings-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-bindings/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatcoll-bindings-$_commit"
+
+# On musl iconv lives in libc, so there is no -liconv to link; the gpr's
+# default GNATCOLL_ICONV_OPT="-liconv" would fail. Point it at libc instead.
+build() {
+	gprbuild -p -P iconv/gnatcoll_iconv.gpr \
+		-XLIBRARY_TYPE=static \
+		-XGNATCOLL_VERSION=26.0.0 \
+		-XGNATCOLL_ICONV_OPT=-lc
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	gprinstall -p -f -P iconv/gnatcoll_iconv.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		-XGNATCOLL_ICONV_OPT=-lc \
+		--prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/gnatcoll_iconv \
+		--build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/gnatcoll_iconv.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libgnatcoll_iconv.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P iconv/gnatcoll_iconv.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		-XGNATCOLL_ICONV_OPT=-lc \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_iconv \
+		--build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+58a0bb6171ee8712519ab4586c0915f2071617fd06806006e7b3b6bf7f49592477917419fdeedd37f674412fcd8fa286f8e334c9cb85a6def7dcb33e3aa627f7  gnatcoll-bindings-e3c51c1688f5b902306a6afea22d2955239f47a0.tar.gz
+"

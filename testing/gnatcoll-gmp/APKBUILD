@@ -1,0 +1,44 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=gnatcoll-gmp
+pkgver=26.0.0_git20260722
+pkgrel=0
+_commit="e3c51c1688f5b902306a6afea22d2955239f47a0"
+pkgdesc="GNAT Components Collection – GMP (arbitrary precision) bindings"
+url="https://github.com/AdaCore/gnatcoll-bindings"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat gnatcoll gmp"
+makedepends="gcc-gnat gprbuild gnatcoll gmp-dev"
+source="gnatcoll-bindings-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-bindings/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatcoll-bindings-$_commit"
+
+# The git snapshot's version_information is a "0.0" placeholder; pin the
+# release version explicitly so the generated project/library carry it.
+build() {
+	gprbuild -p -P gmp/gnatcoll_gmp.gpr \
+		-XLIBRARY_TYPE=static \
+		-XGNATCOLL_VERSION=26.0.0
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	gprinstall -p -f -P gmp/gnatcoll_gmp.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/gnatcoll_gmp \
+		--build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/gnatcoll_gmp.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libgnatcoll_gmp.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P gmp/gnatcoll_gmp.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_gmp \
+		--build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+58a0bb6171ee8712519ab4586c0915f2071617fd06806006e7b3b6bf7f49592477917419fdeedd37f674412fcd8fa286f8e334c9cb85a6def7dcb33e3aa627f7  gnatcoll-bindings-e3c51c1688f5b902306a6afea22d2955239f47a0.tar.gz
+"
