@@ -1,16 +1,17 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 # NOTE: scaffold — build not yet validated. Blocks on langkit + gpr.
 pkgname=libadalang
-pkgver=26.0.0
+pkgver=26.0.0_git20260911
 pkgrel=0
+_commit="69d7b688345ebc5139620cf3dee5bcbd473a9d28"
 pkgdesc="Ada semantic analysis library (parser + name resolution)"
 url="https://github.com/AdaCore/libadalang"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll langkit"
 makedepends="gcc-gnat gprbuild gnatcoll langkit gpr python3"
-source="libadalang-$pkgver.tar.gz::https://github.com/AdaCore/libadalang/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/libadalang-$pkgver"
+source="libadalang-$_commit.tar.gz::https://github.com/AdaCore/libadalang/archive/$_commit.tar.gz"
+builddir="$srcdir/libadalang-$_commit"
 
 build() {
 	# TODO: AdaCore manage.py flow — generate the parser with langkit, then
@@ -23,5 +24,5 @@ package() {
 }
 
 sha512sums="
-185c6e55cab712f8ca02b47cea469cdf0bf1befd9e2b7c45f30dc93e1105de70ceab5918c4a7f3c64f60dd8a825d689f583ebdd099c6da98092dde395626230d  libadalang-26.0.0.tar.gz
+0144e1c86492556f4fe14091d81351ebd0882a6070353cc4643e182666c3f9a6dd10c1c72d83bc14a9b3aa6f75ee2197919d8ad22c479a0b4da6cd60aa01e509  libadalang-69d7b688345ebc5139620cf3dee5bcbd473a9d28.tar.gz
 "

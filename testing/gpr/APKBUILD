@@ -1,16 +1,17 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 # NOTE: scaffold — build not yet validated. Blocks on langkit.
 pkgname=gpr
-pkgver=26.0.0
+pkgver=26.0.0_git20260915
 pkgrel=0
+_commit="5763ca8090156812c5c3208ff24377cc7fd9b11f"
 pkgdesc="GPR project-file parser library (new-generation, formerly GPR2)"
-url="https://github.com/AdaCore/gpr2"
+url="https://github.com/AdaCore/gpr"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll"
 makedepends="gcc-gnat gprbuild gnatcoll langkit python3"
-source="gpr-$pkgver.tar.gz::https://github.com/AdaCore/gpr2/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/gpr-$pkgver"
+source="gpr-$_commit.tar.gz::https://github.com/AdaCore/gpr/archive/$_commit.tar.gz"
+builddir="$srcdir/gpr-$_commit"
 
 build() {
 	make setup prefix=/usr
@@ -22,5 +23,5 @@ package() {
 }
 
 sha512sums="
-ceb34ec18e7719f4fe533fcbaad5586fb6fd6e41e835821a64d41e5a09b8aa0f3e5a35a2ed027e3b1a2e5df7c2ceacfee507a48d0783a641f208c50b93c4f0bf  gpr-26.0.0.tar.gz
+e5fee7997fdbffa28e7c4b164aaa15cc3306b47bc01223aca341d63189a442ea15b9cbd41b4729eaab19024b4218fb0a522b66f66a7ed0dcdcd1325edd02a160  gpr-5763ca8090156812c5c3208ff24377cc7fd9b11f.tar.gz
 "

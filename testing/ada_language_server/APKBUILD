@@ -2,16 +2,17 @@
 # NOTE: scaffold — build not yet validated. Blocks on libadalang + gpr +
 # vss + spawn (+ anet, source TBD). Uses dated release tags upstream.
 pkgname=ada_language_server
-pkgver=26.0.0
+pkgver=26.0.0_git20260914
 pkgrel=0
+_commit="3e0492f4a8a1080811875818b18feeb5fac37646"
 pkgdesc="Language Server Protocol server for Ada"
 url="https://github.com/AdaCore/ada_language_server"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat libadalang gnatcoll vss spawn"
 makedepends="gcc-gnat gprbuild libadalang gpr vss spawn gnatcoll python3"
-source="ada_language_server-$pkgver.tar.gz::https://github.com/AdaCore/ada_language_server/archive/refs/tags/v$pkgver.tar.gz"
-builddir="$srcdir/ada_language_server-$pkgver"
+source="ada_language_server-$_commit.tar.gz::https://github.com/AdaCore/ada_language_server/archive/$_commit.tar.gz"
+builddir="$srcdir/ada_language_server-$_commit"
 
 build() {
 	# TODO: upstream builds via its Makefile + subprojects; needs anet.
@@ -24,5 +25,5 @@ package() {
 }
 
 sha512sums="
-9c3e2b821185f8822593a4bad09dceca0bf922b536338fb493c601b53f999109930403babfda04c09e5e975e8d7496fcfe0b014006c8dbde007e6960ad451f53  ada_language_server-26.0.0.tar.gz
+97ceabb689a41fd48e9ad85cfe5904547cd7a29e05c49cf0a9fb74c0daac39cfe565b5316b8ee9517f6bac4c176a68fbff1e4bcc68e5cd8ef6b19723d98fb380  ada_language_server-3e0492f4a8a1080811875818b18feeb5fac37646.tar.gz
 "
