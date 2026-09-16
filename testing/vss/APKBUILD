@@ -14,7 +14,12 @@ builddir="$srcdir/VSS-$_commit"
 
 build() {
 	make build-libs-release_static
-	make build-libs-release_relocatable
+	# Only vss_gnat + vss_text need a relocatable build (prettier_ada uses
+	# vss_text). build-libs-release_relocatable would also build
+	# vss_xml_xmlada, whose -XXMLADA_BUILD=relocatable xmlada rejects (its
+	# build type is "static"/"shared").
+	gprbuild -p -j0 -XVSS_BUILD_PROFILE=release -XVSS_LIBRARY_TYPE=relocatable gnat/vss_gnat.gpr
+	gprbuild -p -j0 -XVSS_BUILD_PROFILE=release -XVSS_LIBRARY_TYPE=relocatable gnat/vss_text.gpr
 }
 
 check() {
@@ -28,7 +33,18 @@ check() {
 
 package() {
 	make install-libs-release_static DESTDIR="$pkgdir" PREFIX=/usr
-	make install-libs-release_relocatable DESTDIR="$pkgdir" PREFIX=/usr
+	for lib in gnat text; do
+		gprinstall \
+			-XVSS_BUILD_PROFILE=release -XVSS_LIBRARY_TYPE=relocatable \
+			--build-name=relocatable \
+			--build-var=LIBRARY_TYPE --build-var=VSS_LIBRARY_TYPE \
+			--prefix=/usr --exec-subdir="$pkgdir"/usr/bin \
+			--lib-subdir="$pkgdir"/usr/lib/vss/relocatable \
+			--project-subdir="$pkgdir"/usr/share/gpr \
+			--link-lib-subdir="$pkgdir"/usr/lib \
+			--sources-subdir="$pkgdir"/usr/include/vss/$lib \
+			-f -p -P gnat/vss_$lib.gpr --install-name=vss_$lib
+	done
 }
 
 sha512sums="

@@ -16,7 +16,7 @@ PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-i
 
 docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
-apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev >/dev/null 2>&1
+apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev gmp-dev py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
 
 # Generate a signing key (keygen -a writes to /root/.config/abuild), trust its
@@ -34,12 +34,19 @@ run_abuild() {
 
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
-    run_abuild "$pkg"
-    # Install the just-built package so the next one's makedepends resolve.
-    apk_file=$(find /home/build/.local/share/abuild -name "${pkg}-*.apk" | head -1)
-    if [ -n "$apk_file" ]; then
-        apk add --allow-untrusted "$apk_file" >/dev/null 2>&1 || true
+    if ls /repo/.work/packages/${pkg}-*.apk >/dev/null 2>&1; then
+        echo "  (cached, installing)"
+        apk add --allow-untrusted /repo/.work/packages/${pkg}-*.apk >/dev/null 2>&1 || true
+        continue
     fi
+    run_abuild "$pkg"
+    # Persist the just-built package(s) for reuse across runs, and install them
+    # so the next package's makedepends resolve. A package may split into a main
+    # apk plus subpackages (e.g. py3-langkit-pyc); install them all.
+    for apk_file in $(find /home/build/.local/share/abuild -name "${pkg}-*.apk" 2>/dev/null); do
+        cp "$apk_file" /repo/.work/packages/
+        apk add --allow-untrusted "$apk_file" >/dev/null 2>&1 || true
+    done
 done
 
 find / -name '*.apk' -not -path '/repo/*' -exec cp {} /repo/.work/packages/ \;

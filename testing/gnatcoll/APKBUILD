@@ -13,19 +13,15 @@ source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archi
 builddir="$srcdir/gnatcoll-core-$_commit"
 
 build() {
-	# Build static and relocatable: langkit's shared Liblktlang needs the
-	# latter. The Makefile rebuilds into a single gnatcoll-core-install dir,
-	# so preserve each result for package().
-	make ENABLE_SHARED=no PROCESSORS="${JOBS:-1}" GNATCOLL_PROJECTS=no
-	mv gnatcoll-core-install gnatcoll-core-install-static
+	# ENABLE_SHARED=yes builds static, static-pic, and relocatable in one pass;
+	# langkit's shared Liblktlang needs the relocatable variant.
 	make ENABLE_SHARED=yes PROCESSORS="${JOBS:-1}" GNATCOLL_PROJECTS=no
-	mv gnatcoll-core-install gnatcoll-core-install-shared
 }
 
 check() {
 	# Stage-install and compile a trivial consumer against it.
 	mkdir -p "$srcdir"/stage/usr
-	rsync -a gnatcoll-core-install-static/ "$srcdir"/stage/usr/
+	rsync -a gnatcoll-core-install/ "$srcdir"/stage/usr/
 	printf 'with Ada.Text_IO;\nprocedure Smoke is\nbegin\n   Ada.Text_IO.Put_Line ("gnatcoll ok");\nend Smoke;\n' > "$srcdir"/smoke.adb
 	printf 'with "gnatcoll";\nproject Smoke is\n   for Source_Dirs use (".");\n   for Object_Dir use "obj";\n   for Exec_Dir use ".";\n   for Main use ("smoke.adb");\n   for Source_Files use ("smoke.adb");\nend Smoke;\n' > "$srcdir"/smoke.gpr
 	( cd "$srcdir" && GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr gprbuild -p -P smoke.gpr )
@@ -34,8 +30,9 @@ check() {
 
 package() {
 	mkdir -p "$pkgdir/usr"
-	rsync -a gnatcoll-core-install-static/ "$pkgdir/usr/"
-	rsync -a gnatcoll-core-install-shared/ "$pkgdir/usr/"
+	# -L dereferences the lib*.so* symlinks (libgnatcoll_minimal.so.25 ->
+	# .so.25.0): abuild's soname tracer needs the SONAME to be a real file.
+	rsync -aL gnatcoll-core-install/ "$pkgdir/usr/"
 }
 
 sha512sums="

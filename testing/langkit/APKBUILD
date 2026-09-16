@@ -19,6 +19,13 @@ source="langkit-$_commit.tar.gz::https://github.com/AdaCore/langkit/archive/$_co
 builddir="$srcdir/langkit-$_commit"
 
 build() {
+	# langkit's emitter.py needs the AdaSAT sources at langkit/adasat/src (a
+	# git submodule omitted from the GitHub tarball). Populate that exact path
+	# from the installed adasat package; leave GPR_PROJECT_PATH alone so
+	# gprbuild keeps resolving "adasat" through /usr/share/gpr.
+	mkdir -p langkit/adasat/src
+	cp /usr/include/adasat/*.ad[sb] langkit/adasat/src/
+
 	# Build Langkit_Support and Liblktlang (static + relocatable). The
 	# bootstrap Liblktlang is generated from the checked-in LKT bootstrap, so
 	# no pre-existing langkit is required. Skip mypy (dev-only typecheck).
