@@ -1,0 +1,55 @@
+Use the system zlib when available, for every library kind.
+
+The vendored zlib (a stock, unmodified 1.2.11 copy under include/zlib/)
+is compiled unconditionally for the "static" and "static-pic" library
+kinds, even when the platform already provides a system zlib (AWS requires
+only zlib >= 1.2.1, per config/setup/mzlib.adb).  That vendored copy no
+longer builds with recent GCC, and it needlessly duplicates a system
+dependency.
+
+Two changes:
+
+1. Make every library kind respect Zlib_Exists, so a system zlib is used
+   whenever it is available -- static builds included -- while the vendored
+   copy remains only as a fallback for platforms with no zlib at all.
+
+2. When the system zlib is selected (Zlib_Activated = "No"), point
+   Library_Dir at the system library directory so gprbuild links the
+   installed libz instead of resolving the vendored include/zlib path.
+
+--- a/include/zlib/zlib.gpr
++++ b/include/zlib/zlib.gpr
+@@ -31,25 +31,21 @@
+    type Yes_No is ("Yes", "No");
+    Zlib_Activated : Yes_No := "No";
+
+-   --  Always build the static Z library as needed by some AWS tools
++   --  Use the system zlib whenever it is available, whatever the library
++   --  kind. The vendored copy is only a fallback for platforms with no
++   --  zlib at all (AWS requires only zlib >= 1.2.1).
+
+-   case Shared.Library_Type is
+-      when "static" | "static-pic" =>
++   case AWS_Config.Zlib_Exists is
++      when "true" =>
++         Zlib_Activated := "No";
++      when "false" =>
+          Zlib_Activated := "Yes";
+-
+-      when "relocatable" =>
+-         case AWS_Config.Zlib_Exists is
+-            when "true" =>
+-               Zlib_Activated := "No";
+-            when "false" =>
+-               Zlib_Activated := "Yes";
+-         end case;
+    end case;
+
+    case ZLib_Activated is
+       when "No" =>
+          for Source_Dirs use ();
+-         for Library_Dir use ".";
++         for Library_Dir use "/usr/lib";
+          for Externally_Built use "true";
+       when "Yes" =>
+          for Source_Dirs use (".");
