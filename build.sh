@@ -12,7 +12,7 @@ mkdir -p "$OUT"
 # Dependency order: each package's build deps must precede it. The langkit tier
 # (adasat .. langkit) is new and still needs Docker validation; gpr / libadalang
 # / ada_language_server remain scaffolds (unbuilt).
-PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat prettier-ada py3-langkit langkit}"
+PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat prettier-ada py3-langkit langkit gpr}"
 
 docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
