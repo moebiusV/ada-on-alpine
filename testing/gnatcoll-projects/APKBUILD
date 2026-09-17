@@ -1,0 +1,41 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=gnatcoll-projects
+pkgver=26.0.0_git20260915
+pkgrel=0
+_commit="358c384d11ad0d9d26d78744d3a78259c3ce0451"
+pkgdesc="GNAT Components Collection – project file support"
+url="https://github.com/AdaCore/gnatcoll-core"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat gnatcoll libgpr"
+makedepends="gcc-gnat gprbuild gnatcoll libgpr"
+source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatcoll-core-$_commit"
+
+build() {
+	gprbuild -p -P projects/gnatcoll_projects.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	gprinstall -p -f -P projects/gnatcoll_projects.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/gnatcoll_projects \
+		--build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/gnatcoll_projects.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libgnatcoll_projects.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P projects/gnatcoll_projects.gpr \
+		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_projects \
+		--build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+5ff1892f19d627a83e7009d2c9cad10247b7730ea9ecb7f11d9c8ce2077240924512b17b4d1f32cd238ffaa499fe697ecc3d033915a25222748cf11348c6e60c  gnatcoll-358c384d11ad0d9d26d78744d3a78259c3ce0451.tar.gz
+"

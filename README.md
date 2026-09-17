@@ -23,14 +23,15 @@ aports fork for a Merge Request.
 | `testing/prettier-ada/` | `prettier-ada` | New aport: Prettier formatter core (static + shared) |
 | `testing/py3-langkit/` | `py3-langkit` | New aport: Langkit Python parser framework |
 | `testing/langkit/` | `langkit` | New: parser framework (static + shared) |
-| `testing/gpr/` | `gpr` | Scaffold: new-generation project library (blocks on langkit) |
-| `testing/libadalang/` | `libadalang` | Scaffold: Ada semantic analysis (blocks on langkit + gpr) |
+| `testing/gpr/` | `gpr` | New: GPR2 project parser library (static) |
+| `testing/libgpr/` | `libgpr` | New: gprbuild's project parser library (static) |
+| `testing/gnatcoll-projects/` | `gnatcoll-projects` | New: GNATcoll project-file support (static) |
+| `testing/libadalang/` | `libadalang` | WIP: Ada semantic analysis (builds on ≥8GB; blocks on the above) |
 | `testing/ada_language_server/` | `ada_language_server` | Scaffold: LSP server for Ada (blocks on libadalang + gpr) |
 
-The packages through `langkit` build with `./build.sh`. The three below are
-scaffolds — correct metadata and dependency wiring, but their `build()` needs
-dedicated work; they are gated on `langkit`, a self-hosting parser-generator
-framework with a Python toolchain.
+The packages through `gnatcoll-projects` build with `./build.sh`. `libadalang`
+is next (its generated parser needs ≥8 GB to compile); `ada_language_server`
+is still a scaffold with a large dependency tree.
 
 ## Why bootstrap gprbuild
 
