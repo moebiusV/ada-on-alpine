@@ -41,11 +41,17 @@ check() {
 		"$srcdir"/stage/usr --library-types=static,relocatable
 	test -f "$srcdir"/stage/usr/share/gpr/langkit_support.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'liblangkit_support.a' | head -1)"
+	# Use langkit's own environment setup to expose the built Liblktlang
+	# (Python bindings, shared lib, lkt_* mains) to the testsuite — the
+	# canonical `eval $(manage.py printenv)` from the langkit dev workflow.
+	eval "$(python3 manage.py printenv)"
 	# Run the LKT-language tests (a fast subset of the upstream e3-testsuite)
-	# to exercise Liblktlang and its Python bindings.
+	# to exercise Liblktlang and its Python bindings. Pass the full tests/
+	# path: a bare "lkt" would match the top-level lkt/ source directory
+	# (e3-testsuite treats an existing directory argument as the root).
 	python3 testsuite/testsuite.py \
 		--disable-java --disable-ocaml --disable-native-image \
-		-j"${JOBS:-1}" lkt
+		-j"${JOBS:-1}" testsuite/tests/lkt
 }
 
 package() {
