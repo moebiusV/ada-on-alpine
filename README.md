@@ -26,12 +26,23 @@ aports fork for a Merge Request.
 | `testing/gpr/` | `gpr` | New: GPR2 project parser library (static) |
 | `testing/libgpr/` | `libgpr` | New: gprbuild's project parser library (static) |
 | `testing/gnatcoll-projects/` | `gnatcoll-projects` | New: GNATcoll project-file support (static) |
-| `testing/libadalang/` | `libadalang` | WIP: Ada semantic analysis (builds on ≥8GB; blocks on the above) |
-| `testing/ada_language_server/` | `ada_language_server` | Scaffold: LSP server for Ada (blocks on libadalang + gpr) |
+| `testing/libadalang/` | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM to compile) |
+| `testing/templates-parser/` | `templates-parser` | New: AWS templates-parser engine (aws builds it in-tree but doesn't install it) |
+| `testing/vss-extra/` | `vss-extra` | New: VSS extras — JSON/Regexp/XML/OS (split out of VSS) |
+| `testing/xdiff/` | `xdiff` | New: Ada bindings for the xdiff diff library |
+| `testing/libadalang-tools/` | `libadalang-tools` | New: Libadalang tools library (renamer, formatting support) |
+| `testing/lal-refactor/` | `lal-refactor` | New: source-code refactoring library |
+| `testing/gnatformat/` | `gnatformat` | New: source-code formatter library |
+| `testing/gnatdoc/` | `gnatdoc` | New: documentation-generation library |
+| `testing/fswatch/` | `fswatch` | New: libfswatch C/C++ library + CLI (dep of ada-libfswatch) |
+| `testing/ada-libfswatch/` | `ada-libfswatch` | New: filesystem-change notification bindings |
+| `testing/markdown/` | `markdown` | New: Markdown parser library (only the gnatdoc CLI tool needs it) |
+| `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 
-The packages through `gnatcoll-projects` build with `./build.sh`. `libadalang`
-is next (its generated parser needs ≥8 GB to compile); `ada_language_server`
-is still a scaffold with a large dependency tree.
+All 29 packages — `gprbuild` through `ada_language_server` — build with
+`./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). The
+`ada_language_server` binary links every Ada dependency statically (only
+libc/libgnat/libgmp stay dynamic), so the overlay's end goal is met.
 
 ## Why bootstrap gprbuild
 
@@ -49,11 +60,13 @@ one.
 
 ## License
 
-gprbuild is GPL-3.0-or-later. Most libraries (xmlada, aunit, gnatcoll,
-gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv, spawn, vss, aws) are GPL-3.0-or-later
-WITH the GCC Runtime Library Exception (GCC-exception-3.1). adasat, langkit and
-prettier-ada are Apache-2.0 WITH LLVM-exception. Neither imposes a license on
-software built with or linked against it.
+gprbuild, libgpr, fswatch and ada_language_server are GPL-3.0-or-later. Most
+libraries (xmlada, aunit, gnatcoll, gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv,
+spawn, aws, templates-parser, libadalang-tools, gnatdoc, ada-libfswatch) are
+GPL-3.0-or-later WITH the GCC Runtime Library Exception (GCC-exception-3.1).
+langkit, prettier-ada, markdown, vss, vss-extra, gnatformat and lal-refactor are
+Apache-2.0 WITH LLVM-exception; adasat is Apache-2.0; xdiff is GPL-3.0. None
+imposes a license on software built with or linked against it.
 
 ## Build
 

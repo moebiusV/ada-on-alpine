@@ -1,6 +1,9 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: scaffold — build not yet validated. Blocks on libadalang + gpr +
-# vss + spawn (+ anet, source TBD). Uses dated release tags upstream.
+# NOTE: draft — build not yet validated. The server executable is built by
+# gprbuild from gnat/lsp_server.gpr (the Makefile's non-Alire path); the
+# generated completion databases in source/{ada,gpr}/generated are committed,
+# so no code-generation step is needed. Links every Ada dependency statically
+# (libadalang and gpr2 are static-only) while keeping libc dynamic.
 pkgname=ada_language_server
 pkgver=26.0.0_git20260914
 pkgrel=0
@@ -8,20 +11,37 @@ _commit="3e0492f4a8a1080811875818b18feeb5fac37646"
 pkgdesc="Language Server Protocol server for Ada"
 url="https://github.com/AdaCore/ada_language_server"
 arch="all"
-license="GPL-3.0-or-later WITH GCC-exception-3.1"
-depends="libgnat libadalang gnatcoll vss spawn"
-makedepends="gcc-gnat gprbuild libadalang gpr vss spawn gnatcoll python3"
+license="GPL-3.0-or-later"
+depends="libgnat gmp"
+makedepends="gcc-gnat gprbuild g++ gpr libadalang libadalang-tools lal-refactor
+	ada-libfswatch gnatdoc spawn gnatformat vss-extra vss xdiff"
 source="ada_language_server-$_commit.tar.gz::https://github.com/AdaCore/ada_language_server/archive/$_commit.tar.gz"
 builddir="$srcdir/ada_language_server-$_commit"
 
 build() {
-	# TODO: upstream builds via its Makefile + subprojects; needs anet.
-	# To be fleshed out during validation.
-	make -j1 2>/dev/null || true
+	# Static server executable: libadalang/gpr2 are static-only, and upstream's
+	# "static" linker profile (in lsp_server.gpr) adds -static-libstdc++/-static-
+	# libgcc so libfswatch's C++ links in, keeping only libc dynamic. BUILD_MODE
+	# =prod avoids dev-mode -gnatwe/-gnaty* warnings-as-errors that trip GNAT 15.
+	export GPR_PROJECT_PATH=/usr/share/gpr
+	FLAGS="-XBUILD_MODE=prod -XLSP_OS=unix -XALS_LIBRARY_TYPE=static \
+		-XLIBRARY_TYPE=static -XXMLADA_BUILD=static -XGPR_BUILD=static"
+	# s-memory.adb overrides System.Memory; force its recompile, else a stale
+	# object survives a GNAT upgrade and breaks the link (see upstream Makefile).
+	gprbuild -d -ws -c -u -p -P gnat/lsp_server.gpr $FLAGS s-memory.adb
+	gprbuild -p -j"${JOBS:-1}" -P gnat/lsp_server.gpr $FLAGS -XVERSION="$pkgver"
+}
+
+check() {
+	test -x .obj/server/ada_language_server
+	# Smoke-test: --version prints the embedded VERSION and exits 0, which also
+	# proves the runtime's dynamic deps (libgnat, gmp) resolve.
+	.obj/server/ada_language_server --version | grep -q "ALS version"
 }
 
 package() {
-	mkdir -p "$pkgdir"
+	install -Dm755 .obj/server/ada_language_server \
+		"$pkgdir"/usr/bin/ada_language_server
 }
 
 sha512sums="
