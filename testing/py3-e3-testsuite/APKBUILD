@@ -1,0 +1,26 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=py3-e3-testsuite
+pkgver=27.4_git20260819
+pkgrel=0
+_commit="cebcce71df1720f7fddbd0911fb327363a39a69c"
+pkgdesc="E3 testsuite framework (driver for AdaCore test suites)"
+url="https://github.com/AdaCore/e3-testsuite"
+arch="noarch"
+license="GPL-3.0-only"
+depends="python3 py3-e3-core"
+makedepends="py3-setuptools py3-build py3-installer py3-wheel python3-dev"
+subpackages="$pkgname-pyc:pyc:noarch"
+source="e3-testsuite-$_commit.tar.gz::https://github.com/AdaCore/e3-testsuite/archive/$_commit.tar.gz"
+builddir="$srcdir/e3-testsuite-$_commit"
+
+build() {
+	python3 -m build --wheel --no-isolation
+}
+
+package() {
+	python3 -m installer -d "$pkgdir" dist/*.whl
+}
+
+sha512sums="
+d9474d71a8b32748bf78c7f565515c5657da722ea01cbeb134a8a626a5a1b0de5bda3d0d93135544cf9e1194367efd59696c45cfd889fdb6c2cb4a07d87c1be1  e3-testsuite-cebcce71df1720f7fddbd0911fb327363a39a69c.tar.gz
+"
