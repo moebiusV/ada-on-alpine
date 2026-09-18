@@ -1,0 +1,46 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. Mixed Ada+C project: xdiff.gpr builds
+# libxdiff_ada.a and `with`s src/c_xdiff/c_xdiff.gpr (the vendored C xdiff,
+# libxdiff.a). gprinstall does NOT install the imported c_xdiff project, so it
+# must be gprinstalled separately — else consumers (ada_language_server) fail
+# with `imported project file "c_xdiff" not found`.
+pkgname=xdiff
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="e32aba349aeb9b888ef9d7a4b3fe0ffb5973e985"
+pkgdesc="Ada bindings for the xdiff diff library"
+url="https://github.com/AdaCore/xdiff"
+arch="all"
+license="GPL-3.0"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild build-base"
+source="xdiff-$_commit.tar.gz::https://github.com/AdaCore/xdiff/archive/$_commit.tar.gz"
+builddir="$srcdir/xdiff-$_commit"
+
+build() {
+	gprbuild -p -P xdiff.gpr -XLIBRARY_TYPE=static
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	gprinstall -p -f -P xdiff.gpr -XLIBRARY_TYPE=static \
+		--prefix="$srcdir"/stage/usr --build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P src/c_xdiff/c_xdiff.gpr -XLIBRARY_TYPE=static \
+		--prefix="$srcdir"/stage/usr --build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/xdiff.gpr
+	test -f "$srcdir"/stage/usr/share/gpr/c_xdiff.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libxdiff_ada.a' | head -1)"
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libxdiff.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P xdiff.gpr -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P src/c_xdiff/c_xdiff.gpr -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+30e7e49a7a135f49e2285b3a31153506b27dd4dcfd574bea99dbaa3d1209001b5f66643fa08e0bd5557c77be6e39c3e6d9f1628ab5e8324399ef3514b0caad0e  xdiff-e32aba349aeb9b888ef9d7a4b3fe0ffb5973e985.tar.gz
+"

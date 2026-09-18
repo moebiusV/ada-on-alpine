@@ -13,13 +13,15 @@ source="aunit-$_commit.tar.gz::https://github.com/AdaCore/aunit/archive/$_commit
 builddir="$srcdir/aunit-$_commit"
 
 build() {
-	make all
+	# -j1: the static/static-pic/relocatable sub-builds race on gnatchop's
+	# generated a-*.adb sources (same class of bug as aws #400).
+	make -j1 all
 }
 
 check() {
 	# Stage-install and compile a trivial test against it.
 	mkdir -p "$srcdir"/stage
-	make install INSTALL="$srcdir"/stage/usr
+	make -j1 install INSTALL="$srcdir"/stage/usr
 	printf 'with AUnit.Assertions;\nprocedure Smoke is\nbegin\n   AUnit.Assertions.Assert (True, "smoke");\nend Smoke;\n' > "$srcdir"/smoke.adb
 	printf 'with "aunit";\nproject Smoke is\n   for Source_Dirs use (".");\n   for Object_Dir use "obj";\n   for Exec_Dir use ".";\n   for Main use ("smoke.adb");\n   for Source_Files use ("smoke.adb");\nend Smoke;\n' > "$srcdir"/smoke.gpr
 	( cd "$srcdir" && GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr gprbuild -p -P smoke.gpr )
@@ -27,7 +29,7 @@ check() {
 }
 
 package() {
-	make install INSTALL="$pkgdir/usr"
+	make -j1 install INSTALL="$pkgdir/usr"
 }
 
 sha512sums="

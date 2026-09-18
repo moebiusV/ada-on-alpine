@@ -1,0 +1,37 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# New aport: the libfswatch C/C++ library + CLI, needed by ada-libfswatch.
+# Built static-only (ada_libfswatch links libfswatch.a via c_libfswatch.gpr's
+# `for Library_Kind use "static"`). Installs libfswatch.h under
+# /usr/include/libfswatch/c/ and libfswatch.a under /usr/lib/.
+pkgname=fswatch
+pkgver=1.22.0
+pkgrel=0
+pkgdesc="Cross-platform file change monitor (libfswatch library + CLI)"
+url="https://github.com/emcrisostomo/fswatch"
+arch="all"
+license="GPL-3.0-or-later"
+makedepends="build-base gettext"
+source="fswatch-$pkgver.tar.gz::https://github.com/emcrisostomo/fswatch/releases/download/$pkgver/fswatch-$pkgver.tar.gz"
+builddir="$srcdir/fswatch-$pkgver"
+
+build() {
+	./configure --prefix=/usr --enable-static --disable-shared
+	make
+}
+
+check() {
+	# Stage-install and verify the installed layout.
+	make DESTDIR="$srcdir"/stage install
+	test -f "$srcdir"/stage/usr/include/libfswatch/c/libfswatch.h
+	test -f "$srcdir"/stage/usr/lib/libfswatch.a
+}
+
+package() {
+	make DESTDIR="$pkgdir" install
+	# abuild requires compressed man pages; `make install` leaves them raw.
+	find "$pkgdir"/usr/share/man -type f -exec gzip -9 {} \; 2>/dev/null || true
+}
+
+sha512sums="
+a5955d8a27c754a290d03e7acc8f3f2138094be725d291f385b85a4a57a1f71432025a9204dae513c4456dd43b3097a1988c7981bc19330bd1539a48c7d2adb7  fswatch-1.22.0.tar.gz
+"

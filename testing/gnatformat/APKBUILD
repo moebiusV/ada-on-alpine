@@ -1,0 +1,37 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. Needs vss_os (vss-extra) alongside
+# libadalang (WIP) + prettier-ada.
+pkgname=gnatformat
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="9d7346432742c4919b7236dd2abfe6dc32f68bdf"
+pkgdesc="Ada source-code formatter library"
+url="https://github.com/AdaCore/gnatformat"
+arch="all"
+license="Apache-2.0 WITH LLVM-exception"
+depends="libgnat libadalang prettier-ada vss vss-extra"
+makedepends="gcc-gnat gprbuild libadalang prettier-ada vss vss-extra"
+source="gnatformat-$_commit.tar.gz::https://github.com/AdaCore/gnatformat/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatformat-$_commit"
+
+build() {
+	gprbuild -p -P gnat/gnatformat.gpr -XGNATFORMAT_LIBRARY_TYPE=static -XGNATFORMAT_BUILD_MODE=prod
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	gprinstall -p -f -P gnat/gnatformat.gpr -XGNATFORMAT_LIBRARY_TYPE=static -XGNATFORMAT_BUILD_MODE=prod \
+		--prefix="$srcdir"/stage/usr --build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/gnatformat.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libgnatformat.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P gnat/gnatformat.gpr -XGNATFORMAT_LIBRARY_TYPE=static -XGNATFORMAT_BUILD_MODE=prod \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+f624197dd6a1295df7590207521f6ca6d44bd34696a14e7ac4ba308a9db92ed2c76136c891f72e2a4ad450eea493f58e7c2349d08bfb0806d89263d0ff94917f  gnatformat-9d7346432742c4919b7236dd2abfe6dc32f68bdf.tar.gz
+"

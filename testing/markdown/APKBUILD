@@ -1,0 +1,43 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. OPTIONAL for the ALS library build:
+# only the standalone gnatdoc CLI tool (gnatdoc.gpr) `with "markdown"`; ALS
+# itself uses only libgnatdoc.gpr, which does not. markdown.gpr `with`s the
+# relative ../config/markdown_config.gpr, so the installed project may need the
+# config project shipped alongside (or the repo Makefile's install used).
+pkgname=markdown
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="687e5abb4171a5ae7fb55ff9c8c602cb329fdb81"
+pkgdesc="Markdown parser library for Ada"
+url="https://github.com/AdaCore/markdown"
+arch="all"
+license="Apache-2.0 WITH LLVM-exception"
+depends="libgnat vss vss-extra"
+makedepends="gcc-gnat gprbuild vss vss-extra"
+source="markdown-$_commit.tar.gz::https://github.com/AdaCore/markdown/archive/$_commit.tar.gz"
+builddir="$srcdir/markdown-$_commit"
+
+build() {
+	gprbuild -p -P gnat/markdown.gpr \
+		-XMARKDOWN_LIBRARY_TYPE=static -XMARKDOWN_BUILD_MODE=prod
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	gprinstall -p -f -P gnat/markdown.gpr \
+		-XMARKDOWN_LIBRARY_TYPE=static -XMARKDOWN_BUILD_MODE=prod \
+		--prefix="$srcdir"/stage/usr --build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/markdown.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libmarkdown.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P gnat/markdown.gpr \
+		-XMARKDOWN_LIBRARY_TYPE=static -XMARKDOWN_BUILD_MODE=prod \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+7a19375a83022be8baf65316e8a9b5c6dad1acb0de1d29bb2f2b086c9bb6df44f6b67564bbd85a2947104ec7c20e232056c0c6559b49b8264f6c1ae46b8809b8  markdown-687e5abb4171a5ae7fb55ff9c8c602cb329fdb81.tar.gz
+"

@@ -1,0 +1,37 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. VSS extra split: vss_os/vss_json/
+# vss_regexp/vss_xml* (vss_xml_xmlada needs xmlada). Pinned to f7ef9d19442d
+# (2026-07-18), the last pre-GCC16 commit — vss-extra HEAD requires GCC 16,
+# Alpine edge is GCC 15.2.0.
+pkgname=vss-extra
+pkgver=26.0.0_git20260718
+pkgrel=0
+_commit="f7ef9d19442d819e4f34c5503858b1bb4805dea0"
+pkgdesc="VSS extra libraries (JSON, Regexp, XML, OS)"
+url="https://github.com/AdaCore/vss-extra"
+arch="all"
+license="Apache-2.0 WITH LLVM-exception"
+depends="libgnat vss"
+makedepends="gcc-gnat gprbuild vss xmlada"
+source="vss-extra-$_commit.tar.gz::https://github.com/AdaCore/vss-extra/archive/$_commit.tar.gz"
+builddir="$srcdir/vss-extra-$_commit"
+
+build() {
+	make build-libs-release_static
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	make install-libs-release_static DESTDIR="$srcdir"/stage PREFIX=/usr
+	test -f "$srcdir"/stage/usr/share/gpr/vss_os.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libvss-os.a' | head -1)"
+}
+
+package() {
+	make install-libs-release_static DESTDIR="$pkgdir" PREFIX=/usr
+}
+
+sha512sums="
+b8c4f316edd2f37fc161a97335746cc873d2ca279236557f82884636fc03185f60af208fb095f378212955ace8b27cc4690234756ace8e6d6561645b1646281e  vss-extra-f7ef9d19442d819e4f34c5503858b1bb4805dea0.tar.gz
+"

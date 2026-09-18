@@ -1,0 +1,39 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. Installs liblal_tools (project
+# lal_tools.gpr); the executable tools (gnatpp/gnatmetric/...) are excluded by
+# lal_tools.gpr's Excluded_Source_Files. Depends on libadalang (WIP) + the
+# standalone templates-parser package (aws does not install it).
+pkgname=libadalang-tools
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="282af1931ccba08efbb45de29e6345cd873e1b25"
+pkgdesc="Libadalang tools (source renaming, formatting support, metrics)"
+url="https://github.com/AdaCore/libadalang-tools"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat libadalang templates-parser vss"
+makedepends="gcc-gnat gprbuild libadalang templates-parser vss"
+source="libadalang-tools-$_commit.tar.gz::https://github.com/AdaCore/libadalang-tools/archive/$_commit.tar.gz"
+builddir="$srcdir/libadalang-tools-$_commit"
+
+build() {
+	gprbuild -p -P src/lal_tools.gpr -XLIBRARY_TYPE=static
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	gprinstall -p -f -P src/lal_tools.gpr -XLIBRARY_TYPE=static \
+		--prefix="$srcdir"/stage/usr --build-name=static --build-var=LIBRARY_TYPE
+	test -f "$srcdir"/stage/usr/share/gpr/lal_tools.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'liblal_tools.a' | head -1)"
+}
+
+package() {
+	gprinstall -p -f -P src/lal_tools.gpr -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+}
+
+sha512sums="
+71df58738f70bffd572e30bf081dd82579196c328c98332cb9e690a8db978ef73ea9d44c42cf9307cedf5750950493c20475d874f5d9304ca49396d3d02d801a  libadalang-tools-282af1931ccba08efbb45de29e6345cd873e1b25.tar.gz
+"

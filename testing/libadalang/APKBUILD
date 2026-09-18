@@ -31,6 +31,9 @@ check() {
 package() {
 	python3 -m langkit.scripts.lkm install \
 		"$pkgdir"/usr --library-types=static --disable-all-mains
+	# langkit already ships the shared binding skeletons (java/ocaml/python);
+	# libadalang's copies collide with them and are not needed by Ada consumers.
+	rm -rf "$pkgdir"/usr/java "$pkgdir"/usr/ocaml "$pkgdir"/usr/python
 }
 
 sha512sums="
