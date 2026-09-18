@@ -12,11 +12,11 @@ mkdir -p "$OUT"
 # Dependency order: each package's build deps must precede it. Everything
 # through gnatcoll-projects builds; libadalang is next (OOMs on <8GB), then
 # the ada_language_server dependency spine (drafted, not yet validated).
-PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat gnatdoc fswatch ada-libfswatch markdown ada_language_server}"
+PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat gnatdoc fswatch ada-libfswatch markdown ada_language_server}"
 
 docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
-apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev zlib-static gmp-dev gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro >/dev/null 2>&1
+apk add --no-cache alpine-sdk gcc-gnat which gawk python3 rsync sqlite-dev zlib-dev zlib-static gmp-dev gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
 
 # Generate a signing key (keygen -a writes to /root/.config/abuild), trust its
