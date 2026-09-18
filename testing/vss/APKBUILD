@@ -1,23 +1,27 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: re-pinned to AdaCore/vss-text (the split-out text core). VSS was split
+# upstream into vss_text (this package) + vss_extra (separate package, provides
+# vss_os/vss_json/vss_regexp/vss_xml*). Pinned to a8e0e9493076 (2026-06-29),
+# the last pre-GCC16 commit: vss-text HEAD requires GCC 16, but Alpine edge is
+# GCC 15.2.0. Library_Name is now "vss-text" (was "vss"), so prettier-ada /
+# langkit / libadalang must rebuild against it.
 pkgname=vss
-pkgver=25.0.0_git20250901
+pkgver=26.0.0_git20260629
 pkgrel=0
-_commit="29344249f77afab2f00dc0e6a6e7d6a19bc0bf01"
-pkgdesc="Vector/string abstractions library for Ada"
-url="https://github.com/AdaCore/VSS"
+_commit="a8e0e94930767310ce983c09c9b7191cf9f48630"
+pkgdesc="Unicode text-processing library (VSS text core)"
+url="https://github.com/AdaCore/vss-text"
 arch="all"
-license="GPL-3.0-or-later WITH GCC-exception-3.1"
+license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat"
-makedepends="gcc-gnat gprbuild xmlada"
-source="vss-$_commit.tar.gz::https://github.com/AdaCore/VSS/archive/$_commit.tar.gz"
-builddir="$srcdir/VSS-$_commit"
+makedepends="gcc-gnat gprbuild"
+source="vss-text-$_commit.tar.gz::https://github.com/AdaCore/vss-text/archive/$_commit.tar.gz"
+builddir="$srcdir/vss-text-$_commit"
 
 build() {
 	make build-libs-release_static
-	# Only vss_gnat + vss_text need a relocatable build (prettier_ada uses
-	# vss_text). build-libs-release_relocatable would also build
-	# vss_xml_xmlada, whose -XXMLADA_BUILD=relocatable xmlada rejects (its
-	# build type is "static"/"shared").
+	# relocatable vss_text + its vss_gnat dep for prettier-ada/langkit's
+	# shared liblktlang.
 	gprbuild -p -j0 -XVSS_BUILD_PROFILE=release -XVSS_LIBRARY_TYPE=relocatable gnat/vss_gnat.gpr
 	gprbuild -p -j0 -XVSS_BUILD_PROFILE=release -XVSS_LIBRARY_TYPE=relocatable gnat/vss_text.gpr
 }
@@ -26,9 +30,8 @@ check() {
 	# Stage-install and verify the installed project/library layout.
 	mkdir -p "$srcdir"/stage
 	make install-libs-release_static DESTDIR="$srcdir"/stage PREFIX=/usr
-	test -f "$srcdir"/stage/usr/share/gpr/vss_gnat.gpr
 	test -f "$srcdir"/stage/usr/share/gpr/vss_text.gpr
-	test -n "$(find "$srcdir"/stage/usr/lib -name 'libvss*.a' | head -1)"
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libvss-text.a' | head -1)"
 }
 
 package() {
@@ -48,5 +51,5 @@ package() {
 }
 
 sha512sums="
-adfeec20d9981b8bae288c926b5487f1b340f3258fe5a4179b4e4fbc2b220d1674a52e56bc08f1f7325a4cc368585b7fed027e53cd77ae0818bee303369109f6  vss-29344249f77afab2f00dc0e6a6e7d6a19bc0bf01.tar.gz
+e5cfb9a4d882c043c07e42de5e87de4c2e6646a09b29b3ef5372cf0032e01ebffd4c6c6db666cabc335e30bd43725a6e38c3bd73343ca4508f19ca9522752298  vss-text-a8e0e94930767310ce983c09c9b7191cf9f48630.tar.gz
 "

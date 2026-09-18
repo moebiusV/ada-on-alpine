@@ -1,0 +1,44 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. libgnatdoc.gpr is a PLAIN project (no
+# Library_Name/Library_Kind), so it produces no .a: ALS compiles gnatdoc's
+# sources directly via `with "libgnatdoc"`. This package therefore ships the
+# sources + a relocated project file, not an archive. (The standalone gnatdoc
+# CLI tool in gnatdoc.gpr — which adds gpr2 + markdown — is NOT built here.)
+pkgname=gnatdoc
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="b54c399c13fcc21e7ea40600674c6256170f595c"
+pkgdesc="GNAT documentation-generation library"
+url="https://github.com/AdaCore/gnatdoc"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat libadalang vss vss-extra"
+makedepends="gcc-gnat gprbuild libadalang vss vss-extra"
+source="gnatdoc-$_commit.tar.gz::https://github.com/AdaCore/gnatdoc/archive/$_commit.tar.gz"
+builddir="$srcdir/gnatdoc-$_commit"
+
+build() {
+	# Plain project: compile the library sources to validate them.
+	gprbuild -p -P gnat/libgnatdoc.gpr
+}
+
+check() {
+	test -n "$(find "$builddir"/.objs -name '*.o' | head -1)"
+}
+
+package() {
+	# Install the sources + a relocated libgnatdoc.gpr pointing at them. The
+	# Object_Dir is redirected to /tmp: a plain (non-library) project imported
+	# from /usr/share/gpr would otherwise default its object dir to /usr/share/gpr
+	# (non-writable); ALS compiles these sources into /tmp and links them.
+	mkdir -p "$pkgdir"/usr/share/gnatdoc "$pkgdir"/usr/share/gpr
+	cp -a source "$pkgdir"/usr/share/gnatdoc/
+	sed \
+		-e 's|for Source_Dirs use ("../source", "../source/debug");|for Source_Dirs use ("/usr/share/gnatdoc/source", "/usr/share/gnatdoc/source/debug");|' \
+		-e 's|for Object_Dir use "../.objs";|for Object_Dir use "/tmp/libgnatdoc-obj";|' \
+		gnat/libgnatdoc.gpr > "$pkgdir"/usr/share/gpr/libgnatdoc.gpr
+}
+
+sha512sums="
+8e8631f5889156ed48f75fb8eea85d20d302edf4276565c9e4c85147c1b900e9f9b01c45b5d713ded70025ef5f9fde0c7546176477a5ca26a1722d9b836753c0  gnatdoc-b54c399c13fcc21e7ea40600674c6256170f595c.tar.gz
+"

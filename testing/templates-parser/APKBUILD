@@ -1,0 +1,42 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: draft — build not yet validated. templates_parser is a git submodule of
+# aws (same commit as aws's _tp_commit); aws compiles it in-tree but does NOT
+# install it, so libadalang-tools needs this standalone package. Must build via
+# the Makefile (not bare gprbuild): it passes -XPRJ_TARGET/-XTP_XMLADA/-XVERSION
+# that tp_shared.gpr's external() calls require.
+pkgname=templates-parser
+pkgver=26.0.0_git20260916
+pkgrel=0
+_commit="7c59ed4f1ee371c7d3f420b890e287b72c2473f4"
+pkgdesc="Ada template-parser library (AWS templates engine)"
+url="https://github.com/AdaCore/templates-parser"
+arch="all"
+license="GPL-3.0-or-later WITH GCC-exception-3.1"
+depends="libgnat xmlada"
+makedepends="gcc-gnat gprbuild xmlada"
+source="templates-parser-$_commit.tar.gz::https://github.com/AdaCore/templates-parser/archive/$_commit.tar.gz"
+builddir="$srcdir/templates-parser-$_commit"
+
+build() {
+	# Use the Makefile, not bare gprbuild: it computes PRJ_TARGET, TP_XMLADA,
+	# VERSION etc. that tp_shared.gpr's external() calls require. build-static
+	# (not build) skips the tools, whose templates2ada/templatespp binaries
+	# would collide with aws's copies.
+	make -j1 ENABLE_SHARED=false build-static
+}
+
+check() {
+	# Stage-install and verify the installed project/library layout.
+	mkdir -p "$srcdir"/stage
+	make -j1 ENABLE_SHARED=false install-static DESTDIR="$srcdir"/stage prefix=/usr
+	test -f "$srcdir"/stage/usr/share/gpr/templates_parser.gpr
+	test -n "$(find "$srcdir"/stage/usr/lib -name 'libtemplates_parser.a' | head -1)"
+}
+
+package() {
+	make -j1 ENABLE_SHARED=false install-static DESTDIR="$pkgdir" prefix=/usr
+}
+
+sha512sums="
+92390985b33fc0e54803877fb7af365797bc86e5b2fb7da71d5672ac96552e53572018c84d037b29bf272a165d2cef99ea01125119d91db534dbfd3e95e3e611  templates-parser-7c59ed4f1ee371c7d3f420b890e287b72c2473f4.tar.gz
+"
