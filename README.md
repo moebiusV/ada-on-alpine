@@ -19,6 +19,7 @@ aports fork for a Merge Request.
 | `testing/vss/` | `vss` | Built: vector/string abstractions (static + shared) |
 | `testing/aws/` | `aws` | Built: Ada Web Server (+ templates-parser) |
 | `testing/adasat/` | `adasat` | Built: SAT-solving library (static + shared) |
+| `testing/py3-e3-core/` | `py3-e3-core` | Built: E3 core Python tooling |
 | `testing/prettier-ada/` | `prettier-ada` | Built: Prettier formatter core (static + shared) |
 | `testing/py3-langkit/` | `py3-langkit` | Built: Langkit Python parser framework |
 | `testing/langkit/` | `langkit` | Built: parser framework (static + shared) |
@@ -38,7 +39,7 @@ aports fork for a Merge Request.
 | `testing/markdown/` | `markdown` | Built: Markdown parser library (only the gnatdoc CLI tool needs it) |
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 
-All 29 packages — `gprbuild` through `ada_language_server` — build with
+All 30 packages — `gprbuild` through `ada_language_server` — build with
 `./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). The
 `ada_language_server` binary links every Ada dependency statically (only
 libc/libgnat/libgmp stay dynamic), so the overlay's end goal is met.
