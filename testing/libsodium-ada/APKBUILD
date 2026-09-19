@@ -1,0 +1,34 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=libsodium-ada
+pkgver=0.1.0
+pkgrel=0
+_commit="2482770ec116d7592787a08b9ef262e21c246208"
+pkgdesc="Thin Ada binding to libsodium: ChaCha20-Poly1305 AEAD, HMAC-SHA256, randombytes"
+url="https://github.com/moebiusV/ada-on-alpine"
+arch="all"
+license="ISC"
+depends="libgnat libsodium"
+makedepends="gcc-gnat gprbuild build-base libsodium-dev"
+# The binding source lives in this same repo (sources/libsodium-ada/); pull it
+# from the pinned tarball rather than vendoring the files into the aport dir.
+source="ada-on-alpine-$_commit.tar.gz::https://github.com/moebiusV/ada-on-alpine/archive/$_commit.tar.gz"
+builddir="$srcdir/ada-on-alpine-$_commit/sources/libsodium-ada"
+
+build() {
+	gprbuild -P crypto.gpr -p -XLIBRARY_TYPE=static
+}
+
+check() {
+	mkdir -p "$srcdir"/stage
+	gprinstall -P crypto.gpr -p --prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/crypto
+	test -f "$srcdir"/stage/usr/share/gpr/crypto.gpr
+	test -f "$srcdir"/stage/usr/include/crypto/crypto.ads
+}
+
+package() {
+	gprinstall -P crypto.gpr -p --prefix="$pkgdir/usr" \
+		--sources-subdir=include/crypto
+}
+
+sha512sums="ee49b32baf8e6efa25085a96ec5a05904b75a93e6994f39991794e76437e9610a5f68b3a95808df68f2b7e01b5cdaf605770aeed5ad5d9395a0ff1ee43ecb1a2  ada-on-alpine-$_commit.tar.gz"
