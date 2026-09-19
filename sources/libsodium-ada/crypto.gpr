@@ -1,0 +1,40 @@
+--  Standalone project for the Crypto binding (thin wrapper over libsodium).
+--  The trading harness links this as an installed static library; the
+--  ada-on-alpine aports build and gprinstall it as an apk package.
+
+library project Crypto is
+
+   for Languages use ("Ada");
+   for Source_Dirs use (".");
+   for Object_Dir use "obj";
+   for Create_Missing_Dirs use "True";
+   for Library_Dir use "lib";
+   --  "crypto_ada", not "crypto": the latter would install libcrypto.a and
+   --  collide with OpenSSL's static library of the same name.
+   for Library_Name use "crypto_ada";
+
+   --  Scenario variable, so gprinstall emits the installed "library_type :=
+   --  static" marker that tells consuming projects this is a static library
+   --  (without it gprbuild defaults to relocatable and forces -lgnat-15).
+   type Library_Type_Type is ("relocatable", "static", "static-pic");
+   Library_Type : Library_Type_Type :=
+     external ("CRYPTO_LIBRARY_TYPE", external ("LIBRARY_TYPE", "static"));
+   for Library_Kind use Library_Type;
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+
+   package Linker is
+      for Linker_Options use ("-lsodium");
+   end Linker;
+
+   package Install is
+      for Active use "True";
+   end Install;
+
+end Crypto;
