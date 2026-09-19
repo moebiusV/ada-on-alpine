@@ -1,13 +1,14 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 # NOTE: Installs liblal_tools (project
-# lal_tools.gpr); the executable tools (gnatpp/gnatmetric/...) are excluded by
-# lal_tools.gpr's Excluded_Source_Files. Depends on libadalang (WIP) + the
-# standalone templates-parser package (aws does not install it).
+# lal_tools.gpr) plus the executable tools gnatpp/gnatmetric/gnatstub (project
+# src/build.gpr); lal_tools.gpr Excluded_Source_Files the tool mains, so they
+# are built separately. Depends on libadalang + the standalone templates-parser
+# package (aws does not install it).
 pkgname=libadalang-tools
 pkgver=26.0.0_git20260916
-pkgrel=0
+pkgrel=1
 _commit="282af1931ccba08efbb45de29e6345cd873e1b25"
-pkgdesc="Libadalang tools (source renaming, formatting support, metrics)"
+pkgdesc="Libadalang tools: gnatpp, gnatmetric, gnatstub + libraries"
 url="https://github.com/AdaCore/libadalang-tools"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
@@ -18,6 +19,11 @@ builddir="$srcdir/libadalang-tools-$_commit"
 
 build() {
 	gprbuild -p -P src/lal_tools.gpr -XLIBRARY_TYPE=static
+	# The executable tools are separate mains in src/build.gpr (gnatpp,
+	# gnatmetric, gnatstub); build them against the same static/dev scenario
+	# as the library above. -j1 keeps the three large static links serial.
+	gprbuild -p -P src/build.gpr -XLIBRARY_TYPE=static -XXMLADA_BUILD=static \
+		-XLALTOOLS_SET=all -j"${JOBS:-1}"
 }
 
 check() {
@@ -32,6 +38,10 @@ check() {
 package() {
 	gprinstall -p -f -P src/lal_tools.gpr -XLIBRARY_TYPE=static \
 		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+	# Ship the three user-facing tools (skip utils-var_length_ints-test, the
+	# repo's internal test binary that build.gpr also produces).
+	install -d "$pkgdir"/usr/bin
+	install -m755 bin/gnatpp bin/gnatmetric bin/gnatstub "$pkgdir"/usr/bin/
 }
 
 sha512sums="

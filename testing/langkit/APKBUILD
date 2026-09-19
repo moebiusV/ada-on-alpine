@@ -7,9 +7,9 @@
 # relocatable.
 pkgname=langkit
 pkgver=26.0.0_git20260915
-pkgrel=0
+pkgrel=1
 _commit="537d30227cbc46f28de59a933ba4570e074cbf98"
-pkgdesc="Language analysis and generation framework (Ada runtime + Liblktlang)"
+pkgdesc="Language analysis and generation framework (Ada runtime, Liblktlang, lkt tools)"
 url="https://github.com/AdaCore/langkit"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
@@ -59,7 +59,17 @@ package() {
 		"$pkgdir/usr" --library-types=static,relocatable
 	python3 -m langkit.scripts.lkm install \
 		-c lkt/langkit.yaml "$pkgdir/usr" \
-		--library-types=static,relocatable --disable-all-mains
+		--library-types=static,relocatable
+	# The lkt_* mains link dynamically against the relocatable liblktlang.so,
+	# which `lkm install` writes as a versioned symlink chain (liblktlang.so ->
+	# liblktlang.so.25.0). abuild's scanelf/soname tracer won't follow symlinks
+	# (same gnatcoll issue -- it errors "liblktlang.so: path not found"), so
+	# dereference the lib*.so* symlinks into real files.
+	find "$pkgdir"/usr/lib -type l -name 'lib*.so*' | while read -r ln; do
+		tgt=$(readlink -f "$ln")
+		rm -f "$ln"
+		cp -a "$tgt" "$ln"
+	done
 	# The generated LKT ctypes bindings (lkt/build/python) are what `lkm` uses
 	# to parse .lkt specs when building libadalang/gpr downstream. Install them
 	# alongside the shared library.
