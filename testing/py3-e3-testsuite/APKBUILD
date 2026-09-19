@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=py3-e3-testsuite
 pkgver=27.4_git20260819
-pkgrel=0
+pkgrel=1
 _commit="cebcce71df1720f7fddbd0911fb327363a39a69c"
 pkgdesc="E3 testsuite framework (driver for AdaCore test suites)"
 url="https://github.com/AdaCore/e3-testsuite"
@@ -19,6 +19,9 @@ build() {
 
 package() {
 	python3 -m installer -d "$pkgdir" dist/*.whl
+	# py3-e3-core already ships e3/py.typed (both wheels put it at the e3
+	# namespace root); drop our copy so the two packages don't collide.
+	find "$pkgdir" -path '*/site-packages/e3/py.typed' -delete
 }
 
 sha512sums="

@@ -7,7 +7,7 @@
 # relocatable.
 pkgname=langkit
 pkgver=26.0.0_git20260915
-pkgrel=1
+pkgrel=2
 _commit="537d30227cbc46f28de59a933ba4570e074cbf98"
 pkgdesc="Language analysis and generation framework (Ada runtime, Liblktlang, lkt tools)"
 url="https://github.com/AdaCore/langkit"
@@ -60,6 +60,10 @@ package() {
 	python3 -m langkit.scripts.lkm install \
 		-c lkt/langkit.yaml "$pkgdir/usr" \
 		--library-types=static,relocatable
+	# Drop the gprinstall uninstall-manifest for the generic "mains" project:
+	# libadalang ships the same-named manifest (both use langkit's mains.gpr),
+	# and apk — not gprinstall — owns uninstall in a packaged distribution.
+	rm -f "$pkgdir"/usr/share/gpr/manifests/mains
 	# The lkt_* mains link dynamically against the relocatable liblktlang.so,
 	# which `lkm install` writes as a versioned symlink chain (liblktlang.so ->
 	# liblktlang.so.25.0). abuild's scanelf/soname tracer won't follow symlinks
