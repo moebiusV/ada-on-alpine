@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. Needs vss_os (vss-extra) alongside
+# NOTE: Needs vss_os (vss-extra) alongside
 # libadalang (WIP) + prettier-ada.
 pkgname=gnatformat
 pkgver=26.0.0_git20260916

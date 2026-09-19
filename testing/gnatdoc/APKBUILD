@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. libgnatdoc.gpr is a PLAIN project (no
+# NOTE: libgnatdoc.gpr is a PLAIN project (no
 # Library_Name/Library_Kind), so it produces no .a: ALS compiles gnatdoc's
 # sources directly via `with "libgnatdoc"`. This package therefore ships the
 # sources + a relocated project file, not an archive. (The standalone gnatdoc

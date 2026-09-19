@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. Library_Name is "lal-refactor"
+# NOTE: Library_Name is "lal-refactor"
 # (liblal-refactor.a). Needs vss_os from the vss-extra package. Pinned to the
 # `main` branch (default `edge` is stale, May 2026) so it matches libadalang-tools'
 # Move_Arguments_Callback API (the mr/beguet/lal_1733 change).

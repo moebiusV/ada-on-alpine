@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. Installs liblal_tools (project
+# NOTE: Installs liblal_tools (project
 # lal_tools.gpr); the executable tools (gnatpp/gnatmetric/...) are excluded by
 # lal_tools.gpr's Excluded_Source_Files. Depends on libadalang (WIP) + the
 # standalone templates-parser package (aws does not install it).

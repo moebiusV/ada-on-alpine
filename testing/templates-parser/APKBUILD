@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. templates_parser is a git submodule of
+# NOTE: templates_parser is a git submodule of
 # aws (same commit as aws's _tp_commit); aws compiles it in-tree but does NOT
 # install it, so libadalang-tools needs this standalone package. Must build via
 # the Makefile (not bare gprbuild): it passes -XPRJ_TARGET/-XTP_XMLADA/-XVERSION

@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. ada_libfswatch.gpr is a PLAIN project
+# NOTE: ada_libfswatch.gpr is a PLAIN project
 # (no Library_Name/Library_Kind) like libgnatdoc, so it produces no .a: ALS
 # compiles its sources directly via `with "ada_libfswatch"`. Wraps the libfswatch
 # C library (separate fswatch aport); the Ada binding is generated from

@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. Mixed Ada+C project: xdiff.gpr builds
+# NOTE: Mixed Ada+C project: xdiff.gpr builds
 # libxdiff_ada.a and `with`s src/c_xdiff/c_xdiff.gpr (the vendored C xdiff,
 # libxdiff.a). gprinstall does NOT install the imported c_xdiff project, so it
 # must be gprinstalled separately — else consumers (ada_language_server) fail

@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. The server executable is built by
+# NOTE: The server executable is built by
 # gprbuild from gnat/lsp_server.gpr (the Makefile's non-Alire path); the
 # generated completion databases in source/{ada,gpr}/generated are committed,
 # so no code-generation step is needed. Links every Ada dependency statically

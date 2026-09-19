@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: build not yet validated. The parser in langkit/gen is pre-generated
+# NOTE: The parser in langkit/gen is pre-generated
 # (standalone, vendoring langkit_support + adasat), so langkit is not a build
 # dependency; gpr2 links only gnatcoll* + xmlada.
 pkgname=gpr
