@@ -8,3 +8,7 @@ testing/*/tmp/
 # built artifacts
 *.apk
 *.tar.gz
+
+# draft Alpine-MR notes — kept locally, never pushed
+SUBMISSION.md
+ISSUE.md
