@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: build not yet validated (no Docker in the writing session). langkit is
+# NOTE: langkit is
 # a self-hosting parser-generator: a Python toolchain (py3-langkit) plus an Ada
 # runtime (Langkit_Support) and the Liblktlang parser library, generated from
 # the checked-in LKT bootstrap. The ctypes Python bindings force a shared
@@ -13,7 +13,7 @@ pkgdesc="Language analysis and generation framework (Ada runtime + Liblktlang)"
 url="https://github.com/AdaCore/langkit"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
-depends="libgnat adasat gnatcoll gnatcoll-gmp gnatcoll-iconv prettier-ada"
+depends="libgnat gnatcoll"
 makedepends="gcc-gnat gprbuild py3-pip py3-langkit adasat gnatcoll gnatcoll-gmp gnatcoll-iconv prettier-ada"
 checkdepends="py3-e3-core py3-e3-testsuite"
 source="langkit-$_commit.tar.gz::https://github.com/AdaCore/langkit/archive/$_commit.tar.gz"

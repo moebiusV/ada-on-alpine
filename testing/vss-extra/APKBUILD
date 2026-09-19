@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. VSS extra split: vss_os/vss_json/
+# NOTE: VSS extra split: vss_os/vss_json/
 # vss_regexp/vss_xml* (vss_xml_xmlada needs xmlada). Pinned to f7ef9d19442d
 # (2026-07-18), the last pre-GCC16 commit — vss-extra HEAD requires GCC 16,
 # Alpine edge is GCC 15.2.0.

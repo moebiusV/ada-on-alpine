@@ -1,5 +1,5 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: draft — build not yet validated. OPTIONAL for the ALS library build:
+# NOTE: OPTIONAL for the ALS library build:
 # only the standalone gnatdoc CLI tool (gnatdoc.gpr) `with "markdown"`; ALS
 # itself uses only libgnatdoc.gpr, which does not. markdown.gpr `with`s the
 # relative ../config/markdown_config.gpr, so the installed project may need the
