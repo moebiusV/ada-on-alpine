@@ -1,29 +1,40 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 # NOTE: libgnatdoc.gpr is a PLAIN project (no
 # Library_Name/Library_Kind), so it produces no .a: ALS compiles gnatdoc's
-# sources directly via `with "libgnatdoc"`. This package therefore ships the
-# sources + a relocated project file, not an archive. (The standalone gnatdoc
-# CLI tool in gnatdoc.gpr — which adds gpr2 + markdown — is NOT built here.)
+# sources directly via `with "libgnatdoc"`. This package ships those sources +
+# a relocated project file, plus the standalone `gnatdoc` CLI (gnatdoc.gpr),
+# which adds gpr2 (gpr) + markdown (ada-markdown) + vss_xml on top and is
+# static-linked like ada_language_server (only libc/libgnat/libgmp stay dynamic).
 pkgname=gnatdoc
 pkgver=26.0.0_git20260916
-pkgrel=0
+pkgrel=1
 _commit="b54c399c13fcc21e7ea40600674c6256170f595c"
-pkgdesc="GNAT documentation-generation library"
+pkgdesc="GNAT documentation generator (library + gnatdoc CLI)"
 url="https://github.com/AdaCore/gnatdoc"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
-depends="libgnat libadalang vss vss-extra"
-makedepends="gcc-gnat gprbuild libadalang vss vss-extra"
+depends="libgnat gmp"
+makedepends="gcc-gnat gprbuild libadalang vss vss-extra gpr ada-markdown"
 source="gnatdoc-$_commit.tar.gz::https://github.com/AdaCore/gnatdoc/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatdoc-$_commit"
 
 build() {
 	# Plain project: compile the library sources to validate them.
 	gprbuild -p -P gnat/libgnatdoc.gpr
+	# The standalone gnatdoc CLI (adds gpr2 + markdown + vss_xml on top of
+	# libgnatdoc). Static-link every Ada dep (like ada_language_server), so
+	# only libc/libgnat/libgmp stay dynamic at runtime.
+	gprbuild -p -j"${JOBS:-1}" -P gnat/gnatdoc.gpr \
+		-XGPR_UNIT_PROVIDER_LIBRARY_TYPE=static -XGPR_UNIT_PROVIDER_BUILD=debug \
+		-XVSS_LIBRARY_TYPE=static -XMARKDOWN_LIBRARY_TYPE=static \
+		-XLIBADALANG_LIBRARY_TYPE=static -XLANGKIT_SUPPORT_LIBRARY_TYPE=static \
+		-XPRETTIER_ADA_LIBRARY_TYPE=static -XGPR2_LIBRARY_TYPE=static
 }
 
 check() {
 	test -n "$(find "$builddir"/.objs -name '*.o' | head -1)"
+	test -x "$builddir"/bin/gnatdoc
+	test -f "$builddir"/share/gnatdoc/html/template/unit.xhtml
 }
 
 package() {
@@ -37,6 +48,12 @@ package() {
 		-e 's|for Source_Dirs use ("../source", "../source/debug");|for Source_Dirs use ("/usr/share/gnatdoc/source", "/usr/share/gnatdoc/source/debug");|' \
 		-e 's|for Object_Dir use "../.objs";|for Object_Dir use "/tmp/libgnatdoc-obj";|' \
 		gnat/libgnatdoc.gpr > "$pkgdir"/usr/share/gpr/libgnatdoc.gpr
+
+	# Install the standalone gnatdoc CLI and its rendering templates. The CLI
+	# resolves its resources at <prefix>/share/gnatdoc/<backend> (relative to
+	# the executable's own location), so ship share/gnatdoc/{html,odf} there.
+	install -Dm755 bin/gnatdoc "$pkgdir"/usr/bin/gnatdoc
+	cp -a share/gnatdoc/. "$pkgdir"/usr/share/gnatdoc/
 }
 
 sha512sums="
