@@ -40,6 +40,7 @@ aports fork for a Merge Request.
 | `testing/ada-libfswatch/` | `ada-libfswatch` | Built: filesystem-change notification bindings |
 | `testing/ada-markdown/` | `ada-markdown` | Built: Markdown parser library for Ada |
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
+| `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
 All 32 packages — `gprbuild` through `gpr2-tools` — build with
 `./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). `langkit`'s

@@ -1,0 +1,73 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=afl++
+pkgver=4.40c
+pkgrel=0
+pkgdesc="Coverage-guided fuzzer (GCC mode: afl-gcc-fast GCC plugin, no LLVM/clang)"
+url="https://aflplus.plus/"
+# s390x: internal error in c compiler, see https://gitlab.alpinelinux.org/alpine/aports/-/issues/17581
+arch="all !s390x"
+license="Apache-2.0"
+# GCC-only build: depends on gcc for the afl-gcc/afl-g++/afl-gcc-fast wrappers
+# (C++ via afl-g++ additionally needs g++; python3 is for afl-cmin.py/afl-plot).
+# This replaces the upstream Alpine package, which built LLVM mode and depended
+# on clang22-rtlib — a subpackage that no longer exists, so `apk add afl++`
+# failed. Dropping LLVM/clang removes that dependency entirely.
+depends="gcc python3"
+# gcc/g++ come from build-base; gmp-dev provides gmp.h for the GCC plugin.
+makedepends="bash gmp-dev"
+provides="afl=$pkgver-r$pkgrel afl-gcc=$pkgver-r$pkgrel"
+source="$pkgname-$pkgver.tar.gz::https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/AFLplusplus-$pkgver"
+
+build() {
+	export NO_NYX=1 AFL_NO_X86=1 NO_QEMU=1 NO_FRIDA=1 NO_UNICORN=1
+
+	# Core fuzzing binaries.
+	make -j"$JOBS" PREFIX=/usr afl-fuzz afl-showmap afl-tmin afl-gotcpu \
+		afl-analyze afl-cmin
+
+	# Compiler wrapper (afl-cc). Lives in GNUmakefile.llvm but needs no LLVM;
+	# it dispatches to gcc for the afl-gcc/afl-gcc-fast modes we ship.
+	make PREFIX=/usr -f GNUmakefile.llvm afl-cc
+
+	# GCC plugin instrumentation + its runtime.
+	make PREFIX=/usr -f GNUmakefile.gcc_plugin afl-gcc-pass.so afl-compiler-rt.o
+}
+
+check() {
+	# The wrapper must compile + instrument a C program, and the coverage map
+	# must be non-empty (i.e. the GCC plugin actually instrumented it).
+	AFL_CC_COMPILER=GCC_PLUGIN AFL_PATH=. ./afl-cc test-instr.c -o test-instr
+	./afl-showmap -q -o .cov ./test-instr </dev/null
+	test -s .cov
+}
+
+package() {
+	install -d "$pkgdir"/usr/bin "$pkgdir"/usr/lib/afl
+
+	for p in afl-fuzz afl-showmap afl-tmin afl-gotcpu afl-analyze afl-cmin afl-cc; do
+		install -m 755 "$p" "$pkgdir"/usr/bin/
+	done
+	for s in afl-plot afl-cmin.awk afl-cmin.bash afl-cmin.py afl-whatsup \
+		afl-addseeds afl-system-config afl-persistent-config; do
+		install -m 755 "$s" "$pkgdir"/usr/bin/
+	done
+
+	# Compiler-wrapper symlinks: afl-gcc/afl-g++ (classic assembly mode) and
+	# afl-gcc-fast/afl-g++-fast (GCC plugin). afl-clang* point at afl-cc too,
+	# but clang mode is not built, so those report "not available" if used.
+	for c in afl-gcc afl-g++ afl-clang afl-clang++ afl-c++ \
+		afl-gcc-fast afl-g++-fast; do
+		ln -sf afl-cc "$pkgdir"/usr/bin/$c
+	done
+
+	# GCC plugin + runtime in /usr/lib/afl (afl-cc's compiled-in AFL_PATH).
+	# afl-cc looks up afl-compiler-rt.o by name; afl-gcc-rt.o is its classic
+	# afl-gcc alias; dynamic_list.txt exports the __afl_* symbols at link time.
+	install -m 755 afl-gcc-pass.so "$pkgdir"/usr/lib/afl/
+	install -m 644 afl-compiler-rt.o "$pkgdir"/usr/lib/afl/afl-compiler-rt.o
+	ln -sf afl-compiler-rt.o "$pkgdir"/usr/lib/afl/afl-gcc-rt.o
+	install -m 644 dynamic_list.txt "$pkgdir"/usr/lib/afl/
+}
+
+sha512sums="3f2a521c6b24add24249801cf992055c562972ddcf7d574eb9cccfe22d9c5f8590b383f65873cf9c6d1d39568a40d235906a3c52cbcab7be9e1512a900f565ee  afl++-4.40c.tar.gz"
