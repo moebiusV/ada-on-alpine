@@ -21,6 +21,10 @@ build() {
 	# Upstream zlib.gpr does not import cryptolib (Alire injects the
 	# dependency); add the import so the CryptoLib package is visible.
 	sed -i '1a with "cryptolib.gpr";' "$builddir"/zlib.gpr
+	# AWS ships its own "ZLib" unit; rename ours to Zlib_Ada so a consumer can
+	# link both (the project and Library_Name keep their names).
+	sed -i 's/\bZlib\b/Zlib_Ada/g' "$builddir"/src/*.ads "$builddir"/src/*.adb
+	(cd "$builddir"/src && for f in zlib*.ads zlib*.adb; do mv "$f" "zlib_ada${f#zlib}"; done)
 	gprbuild -P "$builddir"/zlib.gpr -p -XLIBRARY_TYPE=static
 }
 
