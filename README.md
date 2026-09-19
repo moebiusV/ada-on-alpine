@@ -37,7 +37,7 @@ aports fork for a Merge Request.
 | `testing/gnatdoc/` | `gnatdoc` | Built: documentation-generation library |
 | `testing/fswatch/` | `fswatch` | Built: libfswatch C/C++ library + CLI (dep of ada-libfswatch) |
 | `testing/ada-libfswatch/` | `ada-libfswatch` | Built: filesystem-change notification bindings |
-| `testing/markdown/` | `markdown` | Built: Markdown parser library (only the gnatdoc CLI tool needs it) |
+| `testing/ada-markdown/` | `ada-markdown` | Built: Markdown parser library for Ada |
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 
 All 31 packages — `gprbuild` through `ada_language_server` — build with
@@ -66,7 +66,7 @@ gprbuild, libgpr, fswatch and ada_language_server are GPL-3.0-or-later. Most
 libraries (xmlada, aunit, gnatcoll, gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv,
 spawn, aws, templates-parser, libadalang-tools, gnatdoc, ada-libfswatch) are
 GPL-3.0-or-later WITH the GCC Runtime Library Exception (GCC-exception-3.1).
-prettier-ada, langkit, py3-langkit, gpr, libadalang, markdown, vss, vss-extra,
+prettier-ada, langkit, py3-langkit, gpr, libadalang, ada-markdown, vss, vss-extra,
 gnatformat and lal-refactor are Apache-2.0 WITH LLVM-exception; adasat is
 Apache-2.0; xdiff is GPL-3.0; py3-e3-core and py3-e3-testsuite are GPL-3.0-only.
 None imposes a license on software built with or linked against it.

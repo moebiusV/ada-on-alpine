@@ -12,7 +12,7 @@ mkdir -p "$OUT"
 # Dependency order: each package's build deps must precede it. Everything
 # through gnatcoll-projects builds; libadalang is next (OOMs on <8GB), then
 # the ada_language_server dependency spine (drafted, not yet validated).
-PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat gnatdoc fswatch ada-libfswatch markdown ada_language_server}"
+PKGS="${PKGS:-gprbuild xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat gnatdoc fswatch ada-libfswatch ada-markdown ada_language_server}"
 
 docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
