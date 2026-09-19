@@ -41,7 +41,8 @@ aports fork for a Merge Request.
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 
 All 31 packages — `gprbuild` through `ada_language_server` — build with
-`./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). The
+`./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). `langkit`'s
+`check()` runs its upstream e3-testsuite on the LKT subset (114 pass). The
 `ada_language_server` binary links every Ada dependency statically (only
 libc/libgnat/libgmp stay dynamic), so the overlay's end goal is met.
 
@@ -65,9 +66,10 @@ gprbuild, libgpr, fswatch and ada_language_server are GPL-3.0-or-later. Most
 libraries (xmlada, aunit, gnatcoll, gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv,
 spawn, aws, templates-parser, libadalang-tools, gnatdoc, ada-libfswatch) are
 GPL-3.0-or-later WITH the GCC Runtime Library Exception (GCC-exception-3.1).
-langkit, prettier-ada, markdown, vss, vss-extra, gnatformat and lal-refactor are
-Apache-2.0 WITH LLVM-exception; adasat is Apache-2.0; xdiff is GPL-3.0. None
-imposes a license on software built with or linked against it.
+prettier-ada, langkit, py3-langkit, gpr, libadalang, markdown, vss, vss-extra,
+gnatformat and lal-refactor are Apache-2.0 WITH LLVM-exception; adasat is
+Apache-2.0; xdiff is GPL-3.0; py3-e3-core and py3-e3-testsuite are GPL-3.0-only.
+None imposes a license on software built with or linked against it.
 
 ## Build
 
