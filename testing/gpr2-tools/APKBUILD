@@ -1,0 +1,51 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+# NOTE: GPR2's tools are AdaCore's next-generation
+# replacement for the classic gprbuild/gprclean/gprconfig/gprinstall tools.
+# They are not yet a full drop-in, so they coexist with classic gprbuild during
+# the transition — hence the renamed `gprls2`; the four un-renamed tools collide
+# with classic gprbuild, so this package replaces it (gprname has no GPR2
+# equivalent yet; gprls becomes gprls2). The tools are
+# LICENSE-tool (GPL-3.0-or-later), unlike libgpr2 (Apache-2.0 WITH LLVM-
+# exception). `make build-tools` rebuilds libgpr2 in-tree, so this is
+# self-contained and does not depend on the `gpr` (library) package.
+pkgname=gpr2-tools
+pkgver=26.0.0_git20260915
+pkgrel=0
+_commit="5763ca8090156812c5c3208ff24377cc7fd9b11f"
+_kb_commit="ba383a7fa2a1ce8d27d44b00b8052acc0d49493c"
+pkgdesc="Next-generation GPR project manager tools (gprbuild, gprclean, ...)"
+url="https://github.com/AdaCore/gpr"
+arch="all"
+license="GPL-3.0-or-later"
+depends="gcc-gnat gmp"
+replaces="gprbuild"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-gmp gnatcoll-iconv xmlada"
+source="gpr-$_commit.tar.gz::https://github.com/AdaCore/gpr/archive/$_commit.tar.gz
+	gprconfig_kb-$_kb_commit.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/$_kb_commit.tar.gz"
+builddir="$srcdir/gpr-$_commit"
+
+build() {
+	# Static-only; build-tools builds libgpr2 (embedded knowledge base) then the
+	# nine tools (gpr2_tools.gpr aggregate). gprdoc/gprdriver/processes_wrapper
+	# install to libexec/gprbuild via Exec_Subdir; the rest go to /usr/bin.
+	make setup prefix=/usr ENABLE_SHARED=no GPR2_BUILD=release PROCESSORS="${JOBS:-1}"
+	make build-tools GPR2KBDIR="$srcdir"/gprconfig_kb-$_kb_commit/db PROCESSORS="${JOBS:-1}"
+}
+
+check() {
+	# Stage-install and verify the tool layout (bin + libexec).
+	mkdir -p "$srcdir"/stage
+	make install-tools prefix="$srcdir"/stage/usr
+	test -x "$srcdir"/stage/usr/bin/gprbuild
+	test -x "$srcdir"/stage/usr/bin/gprls2
+	test -x "$srcdir"/stage/usr/libexec/gprbuild/gprdoc
+}
+
+package() {
+	make install-tools prefix="$pkgdir/usr"
+}
+
+sha512sums="
+e5fee7997fdbffa28e7c4b164aaa15cc3306b47bc01223aca341d63189a442ea15b9cbd41b4729eaab19024b4218fb0a522b66f66a7ed0dcdcd1325edd02a160  gpr-5763ca8090156812c5c3208ff24377cc7fd9b11f.tar.gz
+ed5b663df7cea9ea50a0fc8033c4ce0262796c35bb5d5849e6d1cef306247eec157235c8d6335cfa441bf7ada43322ccfdb3fe33694906cd9264a39c83e157a5  gprconfig_kb-ba383a7fa2a1ce8d27d44b00b8052acc0d49493c.tar.gz
+"
