@@ -23,18 +23,18 @@ aports fork for a Merge Request.
 | `testing/py3-e3-testsuite/` | `py3-e3-testsuite` | Built: E3 testsuite framework (driver for AdaCore test suites) |
 | `testing/prettier-ada/` | `prettier-ada` | Built: Prettier formatter core (static + shared) |
 | `testing/py3-langkit/` | `py3-langkit` | Built: Langkit Python parser framework |
-| `testing/langkit/` | `langkit` | Built: parser framework (static + shared) |
+| `testing/langkit/` | `langkit` | Built: parser framework (static + shared) + lkt tools |
 | `testing/gpr/` | `gpr` | Built: GPR2 project parser library (static) |
 | `testing/libgpr/` | `libgpr` | Built: gprbuild's project parser library (static) |
 | `testing/gnatcoll-projects/` | `gnatcoll-projects` | Built: GNATcoll project-file support (static) |
-| `testing/libadalang/` | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM to compile) |
+| `testing/libadalang/` | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
 | `testing/templates-parser/` | `templates-parser` | Built: AWS templates-parser engine (aws builds it in-tree but doesn't install it) |
 | `testing/vss-extra/` | `vss-extra` | Built: VSS extras — JSON/Regexp/XML/OS (split out of VSS) |
 | `testing/xdiff/` | `xdiff` | Built: Ada bindings for the xdiff diff library |
-| `testing/libadalang-tools/` | `libadalang-tools` | Built: Libadalang tools library (renamer, formatting support) |
+| `testing/libadalang-tools/` | `libadalang-tools` | Built: gnatpp, gnatmetric, gnatstub + libraries |
 | `testing/lal-refactor/` | `lal-refactor` | Built: source-code refactoring library |
 | `testing/gnatformat/` | `gnatformat` | Built: source-code formatter library |
-| `testing/gnatdoc/` | `gnatdoc` | Built: documentation-generation library |
+| `testing/gnatdoc/` | `gnatdoc` | Built: documentation generation (library + gnatdoc CLI) |
 | `testing/fswatch/` | `fswatch` | Built: libfswatch C/C++ library + CLI (dep of ada-libfswatch) |
 | `testing/ada-libfswatch/` | `ada-libfswatch` | Built: filesystem-change notification bindings |
 | `testing/ada-markdown/` | `ada-markdown` | Built: Markdown parser library for Ada |
