@@ -7,7 +7,7 @@
 # -j"${JOBS:-1}" so a low-RAM builder falls back to one unit at a time.
 pkgname=libadalang
 pkgver=26.0.0_git20260911
-pkgrel=0
+pkgrel=1
 _commit="69d7b688345ebc5139620cf3dee5bcbd473a9d28"
 pkgdesc="Ada semantic analysis library (parser + name resolution)"
 url="https://github.com/AdaCore/libadalang"
@@ -33,10 +33,18 @@ check() {
 
 package() {
 	python3 -m langkit.scripts.lkm install \
-		"$pkgdir"/usr --library-types=static --disable-all-mains
+		"$pkgdir"/usr --library-types=static
 	# langkit already ships the shared binding skeletons (java/ocaml/python);
 	# libadalang's copies collide with them and are not needed by Ada consumers.
 	rm -rf "$pkgdir"/usr/java "$pkgdir"/usr/ocaml "$pkgdir"/usr/python
+	# Keep the user-facing debug mains (lal_parse, lal_unparse) but drop the
+	# seven internal testsuite harness mains that `lkm install` also places in
+	# /usr/bin (check_ambiguity, gnat_compare, incrementality, lal_dda,
+	# lal_prep, nameres, navigate).
+	rm -f "$pkgdir"/usr/bin/check_ambiguity "$pkgdir"/usr/bin/gnat_compare \
+		"$pkgdir"/usr/bin/incrementality "$pkgdir"/usr/bin/lal_dda \
+		"$pkgdir"/usr/bin/lal_prep "$pkgdir"/usr/bin/nameres \
+		"$pkgdir"/usr/bin/navigate
 }
 
 sha512sums="
