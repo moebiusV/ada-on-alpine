@@ -1,14 +1,14 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=aws
 pkgver=26.0.0_git20260902
-pkgrel=0
+pkgrel=1
 _commit="36b0a055f502c071df63fd05a67042dbf5d5dd79"
 pkgdesc="Ada Web Server"
 url="https://github.com/AdaCore/aws"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
-depends="libgnat"
-makedepends="gcc-gnat gprbuild xmlada zlib-dev zlib-static build-base"
+depends="libgnat gnatcoll"
+makedepends="gcc-gnat gprbuild xmlada gnatcoll zlib-dev zlib-static openssl-dev openssl-libs-static build-base"
 # templates_parser is a git submodule; pin the commit aws $_commit references.
 _tp_commit="7c59ed4f1ee371c7d3f420b890e287b72c2473f4"
 source="aws-$_commit.tar.gz::https://github.com/AdaCore/aws/archive/$_commit.tar.gz
@@ -24,13 +24,14 @@ build() {
 	mv "$srcdir"/templates-parser-$_tp_commit "$builddir"/templates_parser
 
 	# ZLIB=true selects the system zlib (zlib-system.patch makes that apply
-	# to static kinds too). ENABLE_SHARED=false builds static-only, matching
-	# our gnatcoll/xmlada. setup-deps.patch fixes the parallel-setup race,
-	# so no -j1 is needed here.
-	make setup prefix=/usr ZLIB=true ENABLE_SHARED=false
+	# to static kinds too). SOCKET=openssl builds the real TLS backend against
+	# OpenSSL -- the default "std" ships ssl_dummy, which cannot do HTTPS.
+	# ENABLE_SHARED=false builds static-only, matching our gnatcoll/xmlada.
+	# setup-deps.patch fixes the parallel-setup race, so no -j1 is needed here.
+	make setup prefix=/usr ZLIB=true ENABLE_SHARED=false SOCKET=openssl
 	# -j1: the awsres tool and the library both ar libaws.a concurrently
 	# (upstream #400) -- serial make avoids that race.
-	make -j1 PROCESSORS="${JOBS:-1}" ZLIB=true ENABLE_SHARED=false
+	make -j1 PROCESSORS="${JOBS:-1}" ZLIB=true ENABLE_SHARED=false SOCKET=openssl
 }
 
 check() {
@@ -38,12 +39,12 @@ check() {
 	mkdir -p "$srcdir"/stage
 	# -j1: parallel install races the same way the build does (gprinstall
 	# chokes with END_ERROR reading a file another job is mid-writing).
-	make -j1 install DESTDIR="$srcdir"/stage prefix=/usr ZLIB=true ENABLE_SHARED=false
+	make -j1 install DESTDIR="$srcdir"/stage prefix=/usr ZLIB=true ENABLE_SHARED=false SOCKET=openssl
 	test -f "$srcdir"/stage/usr/share/gpr/aws.gpr
 }
 
 package() {
-	make -j1 install DESTDIR="$pkgdir" prefix=/usr ZLIB=true ENABLE_SHARED=false
+	make -j1 install DESTDIR="$pkgdir" prefix=/usr ZLIB=true ENABLE_SHARED=false SOCKET=openssl
 }
 
 sha512sums="

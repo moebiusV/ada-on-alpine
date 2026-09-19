@@ -1,0 +1,21 @@
+--  Configuration for the zlib crate.  Upstream generates this from alire.toml;
+--  this hand-written copy lets the source build without Alire.  Only the
+--  fields zlib.gpr reads (Crate_Version, Build_Profile, Ada_Compiler_Switches)
+--  are populated.
+
+abstract project Zlib_Config is
+
+   Crate_Version := "0.1.0";
+   Crate_Name    := "zlib";
+
+   Alire_Host_OS     := "linux";
+   Alire_Host_Arch   := "x86_64";
+   Alire_Host_Distro := "unknown";
+
+   Ada_Compiler_Switches := External_As_List ("ADAFLAGS", " ");
+   Ada_Compiler_Switches := Ada_Compiler_Switches & ("-O2", "-g");
+
+   type Build_Profile_Kind is ("release", "validation", "development");
+   Build_Profile : Build_Profile_Kind := "development";
+
+end Zlib_Config;

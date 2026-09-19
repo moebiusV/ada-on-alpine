@@ -1,0 +1,40 @@
+# Maintainer: TODO <you@example.com>
+pkgname=bracke-zlib
+pkgver=0.1.0
+pkgrel=0
+_commit="9e67642ed381fd0d4af09cb2f3e47563295dc7bb"
+pkgdesc="Pure-Ada zlib/gzip/deflate/7z compression (RFC 1952 gzip)"
+url="https://github.com/bracke/zlib"
+arch="all"
+license="MIT"
+depends="libgnat bracke-cryptolib"
+makedepends="gcc-gnat gprbuild build-base bracke-cryptolib"
+source="zlib-$_commit.tar.gz::https://github.com/bracke/zlib/archive/$_commit.tar.gz
+	zlib_config.gpr"
+builddir="$srcdir/zlib-$_commit"
+
+build() {
+	# Upstream generates config/zlib_config.gpr from alire.toml; provide a
+	# hand-written copy so the source builds without Alire.
+	mkdir -p "$builddir"/config
+	cp "$srcdir"/zlib_config.gpr "$builddir"/config/zlib_config.gpr
+	# Upstream zlib.gpr does not import cryptolib (Alire injects the
+	# dependency); add the import so the CryptoLib package is visible.
+	sed -i '1a with "cryptolib.gpr";' "$builddir"/zlib.gpr
+	gprbuild -P "$builddir"/zlib.gpr -p -XLIBRARY_TYPE=static
+}
+
+check() {
+	mkdir -p "$srcdir"/stage
+	gprinstall -P "$builddir"/zlib.gpr -p --prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/zlib
+	test -f "$srcdir"/stage/usr/share/gpr/zlib.gpr
+}
+
+package() {
+	gprinstall -P "$builddir"/zlib.gpr -p --prefix="$pkgdir/usr" \
+		--sources-subdir=include/zlib
+}
+
+sha512sums="1329a036494ccdf2cd22948f0db40fdf328173acf26eb43e7892a143c75d20633ec61ab3644c4207304e55ff2fd1173d0b31c561c8eadf1b7be5cdfac075e895  zlib-$_commit.tar.gz
+742b9e6f39d784a243836e3f2641494a906aaa47a861a9c13cd2056537c2a5d3ebfa3d199325ac0a6aaf873004c2b4501b6be588a1965918aad7d24b8797f576  zlib_config.gpr"
