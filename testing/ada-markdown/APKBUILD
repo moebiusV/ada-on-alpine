@@ -4,7 +4,7 @@
 # itself uses only libgnatdoc.gpr, which does not. markdown.gpr `with`s the
 # relative ../config/markdown_config.gpr, so the installed project may need the
 # config project shipped alongside (or the repo Makefile's install used).
-pkgname=markdown
+pkgname=ada-markdown
 pkgver=26.0.0_git20260916
 pkgrel=0
 _commit="687e5abb4171a5ae7fb55ff9c8c602cb329fdb81"
