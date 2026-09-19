@@ -1,0 +1,37 @@
+# Maintainer: TODO <you@example.com>
+pkgname=bracke-cryptolib
+pkgver=0.1.0
+pkgrel=0
+_commit="05c5117f89a4ec7d06633e0d9b546fd0a8f8f90f"
+pkgdesc="Pure-Ada cryptography (checksums, ciphers, MACs, random); dependency of bracke-zlib"
+url="https://github.com/bracke/cryptolib"
+arch="all"
+license="MIT"
+depends="libgnat"
+makedepends="gcc-gnat gprbuild build-base"
+source="cryptolib-$_commit.tar.gz::https://github.com/bracke/cryptolib/archive/$_commit.tar.gz
+	cryptolib_config.gpr"
+builddir="$srcdir/cryptolib-$_commit"
+
+build() {
+	# Upstream generates config/cryptolib_config.gpr from alire.toml; provide a
+	# hand-written copy so the source builds without Alire.
+	mkdir -p "$builddir"/config
+	cp "$srcdir"/cryptolib_config.gpr "$builddir"/config/cryptolib_config.gpr
+	gprbuild -P "$builddir"/cryptolib.gpr -p -XLIBRARY_TYPE=static
+}
+
+check() {
+	mkdir -p "$srcdir"/stage
+	gprinstall -P "$builddir"/cryptolib.gpr -p --prefix="$srcdir"/stage/usr \
+		--sources-subdir=include/cryptolib
+	test -f "$srcdir"/stage/usr/share/gpr/cryptolib.gpr
+}
+
+package() {
+	gprinstall -P "$builddir"/cryptolib.gpr -p --prefix="$pkgdir/usr" \
+		--sources-subdir=include/cryptolib
+}
+
+sha512sums="136fb1dc86c4edf1f94e66810dfca983bb92802967101464c6153a5d0fd1951eee0c5b16913782a6b12be0fea775b0a0c730af2256217a022276798ddb4bf5ae  cryptolib-$_commit.tar.gz
+ba01438fd8c5918c89a637d8d0c61a93af4d40ff8a4da3fee86609c5873ea68900e57dcf1a3efdbbd74d2fd12568a2f7ad1adb3b2733a9cad72238ea504f568d  cryptolib_config.gpr"
