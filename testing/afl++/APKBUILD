@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=afl++
-pkgver=4.40c
+pkgver=5.03c
 pkgrel=0
 pkgdesc="Coverage-guided fuzzer (GCC mode: afl-gcc-fast GCC plugin, no LLVM/clang)"
 url="https://aflplus.plus/"
@@ -13,8 +13,9 @@ license="Apache-2.0"
 # on clang22-rtlib — a subpackage that no longer exists, so `apk add afl++`
 # failed. Dropping LLVM/clang removes that dependency entirely.
 depends="gcc python3"
-# gcc/g++ come from build-base; gmp-dev provides gmp.h for the GCC plugin.
-makedepends="bash gmp-dev"
+# gcc/g++ come from build-base; gmp-dev provides gmp.h for the GCC plugin;
+# linux-headers provides linux/futex.h (added in 5.x).
+makedepends="bash gmp-dev linux-headers"
 provides="afl=$pkgver-r$pkgrel afl-gcc=$pkgver-r$pkgrel"
 source="$pkgname-$pkgver.tar.gz::https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/v$pkgver.tar.gz"
 builddir="$srcdir/AFLplusplus-$pkgver"
@@ -49,7 +50,7 @@ package() {
 		install -m 755 "$p" "$pkgdir"/usr/bin/
 	done
 	for s in afl-plot afl-cmin.awk afl-cmin.bash afl-cmin.py afl-whatsup \
-		afl-addseeds afl-system-config afl-persistent-config; do
+		afl-addseeds afl-system-config afl-persistent-config afl-health; do
 		install -m 755 "$s" "$pkgdir"/usr/bin/
 	done
 
@@ -70,4 +71,4 @@ package() {
 	install -m 644 dynamic_list.txt "$pkgdir"/usr/lib/afl/
 }
 
-sha512sums="3f2a521c6b24add24249801cf992055c562972ddcf7d574eb9cccfe22d9c5f8590b383f65873cf9c6d1d39568a40d235906a3c52cbcab7be9e1512a900f565ee  afl++-4.40c.tar.gz"
+sha512sums="f5698178f2de1a5743b0b908e910195afccbd0f3d556ad652db61c77290b20445d672aee01f7e09d329b65e709b9f1309f4f33c6f8f3ca92f577232ff5738e96  afl++-5.03c.tar.gz"
