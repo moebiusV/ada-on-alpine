@@ -2,12 +2,12 @@
 pkgname=libsodium-ada
 pkgver=0.1.0
 pkgrel=0
-_commit="2482770ec116d7592787a08b9ef262e21c246208"
+_commit="e5cd4d534517bd6db30404ff1bab92699b225c8c"
 pkgdesc="Thin Ada binding to libsodium: ChaCha20-Poly1305 AEAD, HMAC-SHA256, randombytes"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
-depends="libgnat libsodium"
+depends="libsodium"
 makedepends="gcc-gnat gprbuild build-base libsodium-dev"
 # The binding source lives in this same repo (sources/libsodium-ada/); pull it
 # from the pinned tarball rather than vendoring the files into the aport dir.

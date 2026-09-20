@@ -2,7 +2,7 @@
 pkgname=hbnf
 pkgver=0.1.0
 pkgrel=0
-_commit="5c42a5ca8c69b65566014d3d30aa1acddf02fea6"
+_commit="e5cd4d534517bd6db30404ff1bab92699b225c8c"
 pkgdesc="OpenBSD-style configuration file parser in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
