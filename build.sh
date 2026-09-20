@@ -14,7 +14,7 @@ mkdir -p "$OUT"
 # `replaces` gprbuild, so it must install after every package that builds
 # against gprbuild. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
 # nor gpr2-tools, so it sits after the spine.
-PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server gpr2-tools afl++}"
+PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada hbnf xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server gpr2-tools afl++}"
 
 docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
