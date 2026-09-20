@@ -12,3 +12,9 @@ testing/*/tmp/
 # draft Alpine-MR notes — kept locally, never pushed
 SUBMISSION.md
 ISSUE.md
+
+# Ada library build scratch (gprbuild obj/lib/exec artifacts)
+sources/*/obj/
+sources/*/lib/
+sources/*/obj-check/
+sources/*/tests/hbnf_check

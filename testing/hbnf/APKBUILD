@@ -20,11 +20,16 @@ build() {
 }
 
 check() {
-	mkdir -p "$srcdir"/stage
-	gprinstall -P hbnf.gpr -p --prefix="$srcdir"/stage/usr \
-		--sources-subdir=include/hbnf
-	test -f "$srcdir"/stage/usr/share/gpr/hbnf.gpr
-	test -f "$srcdir"/stage/usr/include/hbnf/hbnf.ads
+	# Build the conformance driver against the built library and run the
+	# corpus: every accept/*.conf must parse and round-trip (print, re-parse,
+	# re-print is stable), every reject/*.conf must fail.
+	gprbuild -P tests/check.gpr -p
+	for f in tests/accept/*.conf; do
+		./tests/hbnf_check "$f" accept
+	done
+	for f in tests/reject/*.conf; do
+		./tests/hbnf_check "$f" reject
+	done
 }
 
 package() {
