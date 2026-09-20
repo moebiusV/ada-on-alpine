@@ -2,17 +2,20 @@
 pkgname=libsodium-ada
 pkgver=0.1.0
 pkgrel=0
-_commit="73014af131dc106f3c556a08c7eeedb137e9b410"
+_tag="libsodium-ada-v$pkgver"
 pkgdesc="Thin Ada binding to libsodium: ChaCha20-Poly1305 AEAD, HMAC-SHA256, randombytes"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
 depends="libsodium"
 makedepends="gcc-gnat gprbuild build-base libsodium-dev"
-# The binding source lives in this same repo (sources/libsodium-ada/); pull it
-# from the pinned tarball rather than vendoring the files into the aport dir.
-source="ada-on-alpine-$_commit.tar.gz::https://github.com/moebiusV/ada-on-alpine/archive/$_commit.tar.gz"
-builddir="$srcdir/ada-on-alpine-$_commit/sources/libsodium-ada"
+# The binding source lives in THIS repo (sources/libsodium-ada/), so the
+# tarball is self-referential. Pin it to a version tag, never a commit hash (a
+# rewritten history breaks a hash pin). To release:
+# `git tag libsodium-ada-v$pkgver`, push the commit and the tag, then
+# `abuild checksum` and commit the new sha512sums.
+source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/archive/refs/tags/$_tag.tar.gz"
+builddir="$srcdir/ada-on-alpine-$_tag/sources/libsodium-ada"
 
 build() {
 	gprbuild -P crypto.gpr -p -XLIBRARY_TYPE=static
@@ -31,4 +34,4 @@ package() {
 		--sources-subdir=include/crypto
 }
 
-sha512sums="41049e40f0b2124135c7230c5345e7ce08695777620e8790d2d3bbaa700b87583d5b267409aac2dedd8aff6d8ff403327b1c7745ff0a8e2ac54f739868718b49  ada-on-alpine-$_commit.tar.gz"
+sha512sums="81acef2f9804116d884970d0e6026a250bb898673e867ed97d71be035704999c762e46bed37951aa35a5dedad02683b02cd91c3bf150f7c1735c50d05f3f54b9  ada-on-alpine-$_tag.tar.gz"
