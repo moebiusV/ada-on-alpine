@@ -2,7 +2,7 @@
 pkgname=hbnf
 pkgver=0.1.0
 pkgrel=0
-_commit="PENDING-commit"  # filled after the sources are pushed; see build notes
+_commit="5c42a5ca8c69b65566014d3d30aa1acddf02fea6"
 pkgdesc="OpenBSD-style (Hartmeier Brauer Norby Floeter) configuration parser"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
@@ -31,4 +31,4 @@ package() {
 		--sources-subdir=include/hbnf
 }
 
-sha512sums="PENDING-abuild-checksum"
+sha512sums="0be6a68eab7453af36f8f9a4a44feb4f99edcbec8f4143eafbb72ae040ad23a454495ccc4c5ca6a1df270e5b91a9def7338865c4b48371ace159be30a58f304e  ada-on-alpine-5c42a5ca8c69b65566014d3d30aa1acddf02fea6.tar.gz"
