@@ -2,7 +2,7 @@
 pkgname=hbnf
 pkgver=0.1.0
 pkgrel=0
-_commit="e5cd4d534517bd6db30404ff1bab92699b225c8c"
+_commit="73014af131dc106f3c556a08c7eeedb137e9b410"
 pkgdesc="OpenBSD-style configuration file parser in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
@@ -37,4 +37,4 @@ package() {
 		--sources-subdir=include/hbnf
 }
 
-sha512sums="0be6a68eab7453af36f8f9a4a44feb4f99edcbec8f4143eafbb72ae040ad23a454495ccc4c5ca6a1df270e5b91a9def7338865c4b48371ace159be30a58f304e  ada-on-alpine-5c42a5ca8c69b65566014d3d30aa1acddf02fea6.tar.gz"
+sha512sums="41049e40f0b2124135c7230c5345e7ce08695777620e8790d2d3bbaa700b87583d5b267409aac2dedd8aff6d8ff403327b1c7745ff0a8e2ac54f739868718b49  ada-on-alpine-$_commit.tar.gz"

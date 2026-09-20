@@ -2,7 +2,7 @@
 pkgname=libsodium-ada
 pkgver=0.1.0
 pkgrel=0
-_commit="e5cd4d534517bd6db30404ff1bab92699b225c8c"
+_commit="73014af131dc106f3c556a08c7eeedb137e9b410"
 pkgdesc="Thin Ada binding to libsodium: ChaCha20-Poly1305 AEAD, HMAC-SHA256, randombytes"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
@@ -31,4 +31,4 @@ package() {
 		--sources-subdir=include/crypto
 }
 
-sha512sums="ee49b32baf8e6efa25085a96ec5a05904b75a93e6994f39991794e76437e9610a5f68b3a95808df68f2b7e01b5cdaf605770aeed5ad5d9395a0ff1ee43ecb1a2  ada-on-alpine-$_commit.tar.gz"
+sha512sums="41049e40f0b2124135c7230c5345e7ce08695777620e8790d2d3bbaa700b87583d5b267409aac2dedd8aff6d8ff403327b1c7745ff0a8e2ac54f739868718b49  ada-on-alpine-$_commit.tar.gz"
