@@ -3,11 +3,12 @@ pkgname=hbnf
 pkgver=0.1.0
 pkgrel=0
 _commit="5c42a5ca8c69b65566014d3d30aa1acddf02fea6"
-pkgdesc="OpenBSD-style (Hartmeier Brauer Norby Floeter) configuration parser"
+pkgdesc="OpenBSD-style configuration file parser in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
-depends="libgnat"
+# Static-only (sources + a static .a + a .gpr): no runtime component, so no
+# runtime depends and no -dev split — hbnf is its own dev package.
 makedepends="gcc-gnat gprbuild build-base"
 # The parser source lives in this same repo (sources/hbnf/); pull it from the
 # pinned tarball rather than vendoring the files into the aport dir.

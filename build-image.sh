@@ -1,11 +1,10 @@
 #!/bin/sh
 # Build the ada-toolchain:edge image from the .apk files produced by build.sh.
 #
-# The image is what the trading harness Dockerfile builds FROM (see
-# tradingharness/Dockerfile). It is plain alpine:edge with the whole toolchain
-# installed, plus gcc-gnat/musl-dev/gmp for building against it. gpr2-tools is
-# skipped: it `replaces` gprbuild's binaries, and installing it would swap the
-# gprbuild the other packages were built against.
+# The image is plain alpine:edge with the whole toolchain installed, plus
+# gcc-gnat/musl-dev/gmp for building against it. gpr2-tools is skipped: it
+# `replaces` gprbuild's binaries, and installing it would swap the gprbuild
+# the other packages were built against.
 #
 # Run build.sh first (or at least build the .apks you want), then this.
 set -eu

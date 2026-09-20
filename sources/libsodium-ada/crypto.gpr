@@ -1,6 +1,6 @@
 --  Standalone project for the Crypto binding (thin wrapper over libsodium).
---  The trading harness links this as an installed static library; the
---  ada-on-alpine aports build and gprinstall it as an apk package.
+--  Linked as an installed static library; the ada-on-alpine aports build and
+--  gprinstall it as an apk package.
 
 library project Crypto is
 
