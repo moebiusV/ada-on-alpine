@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.4.0
-pkgrel=1
+pkgver=0.5.0
+pkgrel=0
 _tag="hbnf-v$pkgver"
 pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada/Rust/Zig parser generators) in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
@@ -22,6 +22,7 @@ builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
 build() {
 	gprbuild -P astbnf.gpr -p -XLIBRARY_TYPE=static
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
+	gprbuild -P astbnf_cli.gpr -p -XLIBRARY_TYPE=static
 }
 
 check() {
@@ -43,6 +44,10 @@ check() {
 		./tests/hbnf_match_check ./hbnf.astbnf "$f" reject
 	done
 	./tests/astbnf_check tests/server.astbnf hbnf.astbnf
+
+	# The CLI emits a self-contained C parser; smoke-test that it compiles.
+	./astbnf_cli tests/server.astbnf --backend=c > /tmp/astbnf-out.c
+	cc -std=gnu11 -D_GNU_SOURCE -c /tmp/astbnf-out.c -o /tmp/astbnf-out.o
 }
 
 package() {
@@ -50,6 +55,7 @@ package() {
 		--sources-subdir=include/astbnf
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
+	install -Dm755 astbnf_cli "$pkgdir/usr/bin/astbnf"
 }
 
 sha512sums="32a54cd36805610fb187b4fa8019412fcbd64773de6f112904353ac970efdd32cd65cbf3adaf75bc93b5e03b5ef564dc4a0f2b76d6f129db30b04f384937b9c7  ada-on-alpine-$_tag.tar.gz"
