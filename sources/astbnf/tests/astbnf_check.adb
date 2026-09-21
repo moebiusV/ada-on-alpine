@@ -7,6 +7,7 @@ with ASTBNF;
 use type ASTBNF.Element_Kind;
 with ASTBNF_Ada;
 with ASTBNF_C;
+with ASTBNF_Match;
 
 --  Check the parser and both emitters against two schema files passed on the
 --  command line.  Usage: astbnf_check <server.astbnf> <hbnf.astbnf>
@@ -93,90 +94,68 @@ procedure ASTBNF_Check is
    end Check_Server;
 
    procedure Check_Hbnf (Path : String) is
+      use ASTBNF_Match;
       Rules : constant ASTBNF.Rule_Vectors.Vector :=
         ASTBNF.Parse (Read_File (Path));
       I     : Natural;
    begin
-      Check ("hbnf 7 rules", Natural (Rules.Length) = 7);
+      Check ("hbnf 8 rules", Natural (Rules.Length) = 8);
 
-      --  config = *entry : a repeated reference (a list).
-      I := Find_Rule (Rules, "config");
-      Check ("config is a list",
-             I /= 0 and then Natural (Rules (I).Pattern.Length) = 1
-               and then Rules (I).Pattern (1).Kind = ASTBNF.Name
-               and then Rules (I).Pattern (1).Min = 0
-               and then Rules (I).Pattern (1).Max = -1
-               and then To_String (Rules (I).Pattern (1).Name) = "entry");
-
-      --  entry = statement / block : an alternation of two references.
+      --  entry = block / statement : block first, so a block's "{" wins.
       I := Find_Rule (Rules, "entry");
-      Check ("entry is an alternation",
+      Check ("entry is block/statement",
              I /= 0 and then Natural (Rules (I).Pattern.Length) = 3
-               and then Rules (I).Pattern (1).Kind = ASTBNF.Name
                and then Rules (I).Pattern (2).Kind = ASTBNF.Alt
-               and then Rules (I).Pattern (3).Kind = ASTBNF.Name
-               and then To_String (Rules (I).Pattern (1).Name) = "statement"
-               and then To_String (Rules (I).Pattern (3).Name) = "block");
+               and then To_String (Rules (I).Pattern (1).Name) = "block"
+               and then To_String (Rules (I).Pattern (3).Name) = "statement");
 
-      --  statement = name *arg (";" / "\n") : keyword + args, ended by a
-      --  semicolon or a newline token.
+      --  statement = name *arg (the terminator is handled by `sep`).
       I := Find_Rule (Rules, "statement");
-      Check ("statement ends in ; or newline",
-             I /= 0 and then Natural (Rules (I).Pattern.Length) = 3
-               and then Rules (I).Pattern (3).Kind = ASTBNF.Group
-               and then Natural (Rules (I).Pattern (3).Items.Length) = 3
-               and then Rules (I).Pattern (3).Items (1).Kind = ASTBNF.Literal
-               and then To_String (Rules (I).Pattern (3).Items (1).Lit) = ";"
-               and then Rules (I).Pattern (3).Items (2).Kind = ASTBNF.Alt
-               and then Rules (I).Pattern (3).Items (3).Kind = ASTBNF.Literal
-               and then To_String (Rules (I).Pattern (3).Items (3).Lit) =
-                 ("" & ASCII.LF));
-
-      --  block = name [qualifier] "{" *entry "}" : keyword, optional
-      --  qualifier (a bracket group), then a repeated child list.
-      I := Find_Rule (Rules, "block");
-      Check ("block nests entries",
-             I /= 0 and then Natural (Rules (I).Pattern.Length) = 5
-               and then Rules (I).Pattern (2).Kind = ASTBNF.Group
+      Check ("statement is name *arg",
+             I /= 0 and then Natural (Rules (I).Pattern.Length) = 2
+               and then To_String (Rules (I).Pattern (1).Name) = "name"
                and then Rules (I).Pattern (2).Min = 0
-               and then Rules (I).Pattern (2).Max = 1
-               and then Rules (I).Pattern (3).Kind = ASTBNF.Literal
-               and then To_String (Rules (I).Pattern (3).Lit) = "{"
-               and then Rules (I).Pattern (4).Kind = ASTBNF.Name
-               and then Rules (I).Pattern (4).Min = 0
-               and then Rules (I).Pattern (4).Max = -1
-               and then To_String (Rules (I).Pattern (4).Name) = "entry");
+               and then Rules (I).Pattern (2).Max = -1);
 
-      --  name = atom : a bare-token scalar.
+      --  ws = 1*( "\n" / comment ) — newlines and comments are whitespace.
+      I := Find_Rule (Rules, "ws");
+      Check ("ws is newline/comment",
+             I /= 0 and then Natural (Rules (I).Pattern.Length) = 1
+               and then Rules (I).Pattern (1).Kind = ASTBNF.Group
+               and then Rules (I).Pattern (1).Min = 1
+               and then Rules (I).Pattern (1).Max = -1);
+
       I := Find_Rule (Rules, "name");
       Check ("name is an atom",
              I /= 0 and then Natural (Rules (I).Pattern.Length) = 1
-               and then Rules (I).Pattern (1).Kind = ASTBNF.Name
                and then To_String (Rules (I).Pattern (1).Name) = "atom");
 
-      --  qualifier = str / atom ; arg = atom / str / int / dec.
       I := Find_Rule (Rules, "qualifier");
       Check ("qualifier alternates str/atom",
              I /= 0 and then Natural (Rules (I).Pattern.Length) = 3
                and then Rules (I).Pattern (2).Kind = ASTBNF.Alt);
+
       I := Find_Rule (Rules, "arg");
       Check ("arg alternates atom/str/int/dec",
              I /= 0 and then Natural (Rules (I).Pattern.Length) = 7);
 
-      --  The emitters break the entry/block mutual recursion: forward
-      --  declarations (C) and access types (Ada) at the repeated member.
+      --  The matcher recognizes the schema against a token stream.
       declare
-         C_Text : constant String := ASTBNF_C.Emit (Rules);
-         A_Text : constant String := ASTBNF_Ada.Emit (Rules, "Hbnf_Schema");
+         T : Token_Vectors.Vector;
       begin
-         Check ("hbnf C forward decl",
-                Has (C_Text, "typedef struct entry entry_t;"));
-         Check ("hbnf C list member",
-                Has (C_Text, "struct { entry_t *items; size_t n; } entry;"));
-         Check ("hbnf Ada access type",
-                Has (A_Text, "type Entry_Access is access Entry_Type;"));
-         Check ("hbnf Ada list field",
-                Has (A_Text, "Entry_F : Block_Entry_Vectors.Vector;"));
+         T.Append (Token'(Atom, To_Unbounded_String ("listen")));
+         T.Append (Token'(Atom, To_Unbounded_String ("on")));
+         T.Append (Token'(Int, To_Unbounded_String ("443")));
+         T.Append (Token'(Newline, Null_Unbounded_String));
+         T.Append (Token'(Eof, Null_Unbounded_String));
+         Check ("matcher accepts a directive",
+                ASTBNF_Match.Match (Rules, T, "config"));
+
+         T.Clear;
+         T.Append (Token'(Punct, To_Unbounded_String ("}")));
+         T.Append (Token'(Eof, Null_Unbounded_String));
+         Check ("matcher rejects a stray brace",
+                not ASTBNF_Match.Match (Rules, T, "config"));
       end;
    end Check_Hbnf;
 
