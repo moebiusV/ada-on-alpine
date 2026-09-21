@@ -1,16 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=0
 _tag="hbnf-v$pkgver"
 pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada emitters) in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
-# Static-only (sources + a static .a + a .gpr): no runtime component, so no
-# runtime depends and no -dev split — hbnf is its own dev package.  It bundles
-# the astbnf schema engine (parser, matcher/binder, C and Ada emitters) into
-# the same library, so there is no separate astbnf package.
+# Static-only (sources + static .a files + .gpr files): no runtime component,
+# so no runtime depends and no -dev split — hbnf is its own dev package.  It
+# ships two libraries from the one source tree: libastbnf.a (the schema
+# engine) and libhbnf.a (the parser), which links against libastbnf.a.
 makedepends="gcc-gnat gprbuild build-base"
 # The sources live in THIS repo (sources/hbnf/), so the tarball is
 # self-referential. Pin it to a version tag, never a commit hash (a rewritten
@@ -20,6 +20,7 @@ source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/ar
 builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
 
 build() {
+	gprbuild -P astbnf.gpr -p -XLIBRARY_TYPE=static
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
 }
 
@@ -45,6 +46,8 @@ check() {
 }
 
 package() {
+	gprinstall -P astbnf.gpr -p --prefix="$pkgdir/usr" \
+		--sources-subdir=include/astbnf
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
 }
