@@ -34,16 +34,13 @@ check() {
 	for f in tests/reject/*.conf; do
 		./tests/hbnf_check "$f" reject
 	done
-	# The astbnf matcher must also recognize the same corpus against the
-	# hbnf schema.  Skip the decimal-overflow reject: it is a value-range
-	# check in hbnf's parser, not a grammar rule.
+	# The astbnf binder must agree with hbnf's own parser on the whole corpus:
+	# accept files produce the same tree (Print for Print), reject files —
+	# including the decimal-overflow value-range reject — both fail.
 	for f in tests/accept/*.conf; do
 		./tests/hbnf_match_check ../astbnf/tests/hbnf.astbnf "$f" accept
 	done
 	for f in tests/reject/*.conf; do
-		case "$(basename "$f")" in
-		005-decimal-overflow.conf) continue ;;
-		esac
 		./tests/hbnf_match_check ../astbnf/tests/hbnf.astbnf "$f" reject
 	done
 }

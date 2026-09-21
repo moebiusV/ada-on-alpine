@@ -9,6 +9,11 @@ package body ASTBNF_Match is
       Tokens : Token_Vectors.Vector;
    end record;
 
+   type Match_Result is record
+      Pos   : Natural := 0;
+      Nodes : Node_Vectors.Vector;
+   end record;
+
    function Last (M : Matcher) return Natural is
      (Natural (M.Tokens.Length));
 
@@ -43,9 +48,15 @@ package body ASTBNF_Match is
       return False;
    end Is_Core;
 
-   --  Match a literal terminal against the token at Pos.  A one-character
-   --  punctuation matches a Punct token, a newline matches a Newline token,
-   --  anything else is a keyword matched against an Atom token's text.
+   procedure Append_All (Dst : in out Node_Vectors.Vector;
+                         Src : Node_Vectors.Vector) is
+   begin
+      for N of Src loop
+         Dst.Append (N);
+      end loop;
+   end Append_All;
+
+   --  Match a literal terminal against the token at Pos.
    function Match_Literal (M : Matcher; Lit : String; Pos : Natural)
      return Natural
    is
@@ -89,127 +100,167 @@ package body ASTBNF_Match is
       elsif Name = "bool" or else Name = "flag" then
          return (if T.Kind = Atom then Pos + 1 else 0);
       elsif Name = "comment" then
-         return (if T.Kind = Comment then Pos + 1 else 0);
+         return (if T.Kind = Comment or else T.Kind = Eol_Comment
+                 then Pos + 1 else 0);
       else
          return (if T.Kind = Int then Pos + 1 else 0);  --  u8..u64 / i8..i64
       end if;
    end Match_Core;
 
    --  Mutually recursive match functions (PEG-style: ordered choice, greedy
-   --  repetition).  Each returns the token index just past the match, or 0.
-   function Match_Alts
-     (M : Matcher; Els : Element_Vectors.Vector; Pos : Natural) return Natural;
-   function Match_Concat
-     (M : Matcher; Els : Element_Vectors.Vector; From, To : Natural;
-      Pos : Natural) return Natural;
-   function Match_Element
-     (M : Matcher; E : Element_Access; Pos : Natural) return Natural;
-   function Match_Atom
-     (M : Matcher; E : Element_Access; Pos : Natural) return Natural;
-   function Match_Rule
-     (M : Matcher; Name : String; Pos : Natural) return Natural;
+   --  repetition), each building the matched subtree.
+   function Match_Alts (M : Matcher; Els : Element_Vectors.Vector;
+                        Pos : Natural) return Match_Result;
+   function Match_Concat (M : Matcher; Els : Element_Vectors.Vector;
+                          From, To : Natural; Pos : Natural)
+                          return Match_Result;
+   function Match_Element (M : Matcher; E : Element_Access; Pos : Natural)
+                           return Match_Result;
+   function Match_Atom (M : Matcher; E : Element_Access; Pos : Natural)
+                        return Match_Result;
+   function Match_Rule (M : Matcher; Name : String; Pos : Natural)
+                        return Match_Result;
 
    function Match_Rule (M : Matcher; Name : String; Pos : Natural)
-     return Natural
+     return Match_Result
    is
       RI : constant Natural := Find_Rule (M, Name);
+      R  : Match_Result;
    begin
       if RI = 0 then
          raise ASTBNF.Parse_Error with "undefined rule: " & Name;
       end if;
-      return Match_Alts (M, M.Rules (RI).Pattern, Pos);
+      R := Match_Alts (M, M.Rules (RI).Pattern, Pos);
+      if R.Pos /= 0 then
+         declare
+            N : constant Node_Access := new Node'
+              (Kind      => Rule_Node,
+               Rule_Name => To_Unbounded_String (Name),
+               Kids      => R.Nodes);
+         begin
+            R.Nodes.Clear;
+            R.Nodes.Append (N);
+         end;
+      end if;
+      return R;
    end Match_Rule;
 
    function Match_Atom (M : Matcher; E : Element_Access; Pos : Natural)
-     return Natural is
+     return Match_Result
+   is
+      R : Match_Result;
    begin
       case E.Kind is
-         when Literal => return Match_Literal (M, To_String (E.Lit), Pos);
+         when Literal =>
+            R.Pos := Match_Literal (M, To_String (E.Lit), Pos);
          when Name =>
             if Is_Core (To_String (E.Name)) then
-               return Match_Core (M, To_String (E.Name), Pos);
+               R.Pos := Match_Core (M, To_String (E.Name), Pos);
+               if R.Pos /= 0 then
+                  R.Nodes.Append
+                    (new Node'(Kind => Token_Node, Tok => M.Tokens (Pos)));
+               end if;
             else
                return Match_Rule (M, To_String (E.Name), Pos);
             end if;
-         when Group => return Match_Alts (M, E.Items, Pos);
-         when Alt   => return 0;
+         when Group =>
+            return Match_Alts (M, E.Items, Pos);
+         when Alt =>
+            return R;
       end case;
+      return R;
    end Match_Atom;
 
-   --  Match the element body between E.Min and E.Max times (greedy).
    function Match_Element (M : Matcher; E : Element_Access; Pos : Natural)
-     return Natural
+     return Match_Result
    is
       Count : Natural := 0;
       P     : Natural := Pos;
+      R     : Match_Result;
    begin
       loop
          exit when E.Max >= 0 and then Count >= E.Max;
          declare
-            Next : constant Natural := Match_Atom (M, E, P);
+            Next : constant Match_Result := Match_Atom (M, E, P);
          begin
-            exit when Next = 0;
-            P := Next;
+            exit when Next.Pos = 0;
+            P := Next.Pos;
+            Append_All (R.Nodes, Next.Nodes);
             Count := Count + 1;
          end;
       end loop;
-      return (if Count >= E.Min then P else 0);
+      if Count >= E.Min then
+         R.Pos := P;
+         return R;
+      end if;
+      return (Pos => 0, Nodes => Node_Vectors.Empty_Vector);
    end Match_Element;
 
-   --  Match a concatenation of elements Els (From .. To), in sequence.
-   function Match_Concat
-     (M : Matcher; Els : Element_Vectors.Vector; From, To : Natural;
-      Pos : Natural) return Natural
+   function Match_Concat (M : Matcher; Els : Element_Vectors.Vector;
+                          From, To : Natural; Pos : Natural)
+     return Match_Result
    is
+      R : Match_Result;
       P : Natural := Pos;
    begin
       for K in From .. To loop
-         P := Match_Element (M, Els (K), P);
-         if P = 0 then
-            return 0;
-         end if;
+         declare
+            Next : constant Match_Result := Match_Element (M, Els (K), P);
+         begin
+            if Next.Pos = 0 then
+               return (Pos => 0, Nodes => Node_Vectors.Empty_Vector);
+            end if;
+            P := Next.Pos;
+            Append_All (R.Nodes, Next.Nodes);
+         end;
       end loop;
-      return P;
+      R.Pos := P;
+      return R;
    end Match_Concat;
 
-   --  Match an alternation: the flat list is split on Alt, each segment a
-   --  concatenation; the first that matches wins (ordered choice).
-   function Match_Alts
-     (M : Matcher; Els : Element_Vectors.Vector; Pos : Natural) return Natural
+   function Match_Alts (M : Matcher; Els : Element_Vectors.Vector;
+                        Pos : Natural) return Match_Result
    is
       Alt_First : Natural := 1;
    begin
       for K in 1 .. Natural (Els.Length) + 1 loop
          if K > Natural (Els.Length) or else Els (K).Kind = Alt then
             declare
-               R : constant Natural :=
+               R : constant Match_Result :=
                  Match_Concat (M, Els, Alt_First, K - 1, Pos);
             begin
-               if R /= 0 then
+               if R.Pos /= 0 then
                   return R;
                end if;
             end;
             Alt_First := K + 1;
          end if;
       end loop;
-      return 0;
+      return (Pos => 0, Nodes => Node_Vectors.Empty_Vector);
    end Match_Alts;
 
-   function Match
-     (Rules  : ASTBNF.Rule_Vectors.Vector;
-      Tokens : Token_Vectors.Vector;
-      Root   : String) return Boolean
+   function Bind (Rules  : ASTBNF.Rule_Vectors.Vector;
+                  Tokens : Token_Vectors.Vector;
+                  Root   : String) return Node_Access
    is
-      M  : constant Matcher := (Rules => Rules, Tokens => Tokens);
-      RI : constant Natural := Find_Rule (M, Root);
-      R  : Natural;
+      M : constant Matcher := (Rules => Rules, Tokens => Tokens);
+      R : Match_Result;
    begin
-      if RI = 0 then
+      if Find_Rule (M, Root) = 0 then
          raise ASTBNF.Parse_Error with "no root rule: " & Root;
       end if;
-      R := Match_Alts (M, M.Rules (RI).Pattern, 1);
-      return R /= 0 and then R <= Last (M)
-        and then M.Tokens (R).Kind = Eof;
-   end Match;
+      R := Match_Rule (M, Root, 1);
+      if R.Pos /= 0 and then R.Pos <= Last (M)
+        and then M.Tokens (R.Pos).Kind = Eof
+      then
+         return R.Nodes (1);
+      end if;
+      return null;
+   end Bind;
+
+   function Match (Rules  : ASTBNF.Rule_Vectors.Vector;
+                   Tokens : Token_Vectors.Vector;
+                   Root   : String) return Boolean is
+     (Bind (Rules, Tokens, Root) /= null);
 
 end ASTBNF_Match;

@@ -99,7 +99,7 @@ procedure ASTBNF_Check is
         ASTBNF.Parse (Read_File (Path));
       I     : Natural;
    begin
-      Check ("hbnf 8 rules", Natural (Rules.Length) = 8);
+      Check ("hbnf 9 rules", Natural (Rules.Length) = 9);
 
       --  entry = block / statement : block first, so a block's "{" wins.
       I := Find_Rule (Rules, "entry");
@@ -138,6 +138,14 @@ procedure ASTBNF_Check is
       I := Find_Rule (Rules, "arg");
       Check ("arg alternates atom/str/int/dec",
              I /= 0 and then Natural (Rules (I).Pattern.Length) = 7);
+
+      --  semicolon = ";" — the entry terminator, captured so the binder can
+      --  set Semicolon_After.
+      I := Find_Rule (Rules, "semicolon");
+      Check ("semicolon is a literal ';'",
+             I /= 0 and then Natural (Rules (I).Pattern.Length) = 1
+               and then Rules (I).Pattern (1).Kind = ASTBNF.Literal
+               and then To_String (Rules (I).Pattern (1).Lit) = ";");
 
       --  The matcher recognizes the schema against a token stream.
       declare
