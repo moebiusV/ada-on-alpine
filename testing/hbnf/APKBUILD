@@ -52,4 +52,4 @@ package() {
 		--sources-subdir=include/hbnf
 }
 
-sha512sums="SKIP"  # TODO: `abuild checksum` after pushing hbnf-v0.4.0
+sha512sums="32a54cd36805610fb187b4fa8019412fcbd64773de6f112904353ac970efdd32cd65cbf3adaf75bc93b5e03b5ef564dc4a0f2b76d6f129db30b04f384937b9c7  ada-on-alpine-$_tag.tar.gz"
