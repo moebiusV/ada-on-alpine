@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.3.1
+pkgver=0.4.0
 pkgrel=0
 _tag="hbnf-v$pkgver"
 pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada emitters) in Ada"
@@ -52,4 +52,4 @@ package() {
 		--sources-subdir=include/hbnf
 }
 
-sha512sums="fa558213e31f2cd61df41b78905e889b5d035796e3b124517ae873f50c051975e1eba632a9303cbc72a8683e31ba1fbfba931907751d35d885259ad694c8a7a6  ada-on-alpine-$_tag.tar.gz"
+sha512sums="SKIP"  # TODO: `abuild checksum` after pushing hbnf-v0.4.0
