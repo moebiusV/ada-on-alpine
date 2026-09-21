@@ -1,9 +1,9 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
 pkgver=0.4.0
-pkgrel=0
+pkgrel=1
 _tag="hbnf-v$pkgver"
-pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada emitters) in Ada"
+pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada/Rust/Zig parser generators) in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
