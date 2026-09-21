@@ -9,6 +9,10 @@ aports fork for a Merge Request.
 | Path | Package | Status |
 | --- | --- | --- |
 | `testing/gprbuild/` | `gprbuild` | Built: upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0 |
+| `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) |
+| `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate |
+| `testing/libsodium-ada/` | `libsodium-ada` | Built: thin Ada binding to libsodium (ChaCha20-Poly1305, HMAC-SHA256) |
+| `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `astbnf` schema engine (C/Ada/Rust/Zig parser generators) |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
@@ -42,11 +46,17 @@ aports fork for a Merge Request.
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 | `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
-All 32 packages — `gprbuild` through `gpr2-tools` — build with
-`./build.sh` (`libadalang` needs ≥8 GB RAM for its generated parser). `langkit`'s
-`check()` runs its upstream e3-testsuite on the LKT subset (114 pass). The
+The full set — `gprbuild` through `gpr2-tools`, plus `bracke-cryptolib` /
+`bracke-zlib`, `libsodium-ada`, `hbnf` and `afl++` — builds with `./build.sh`
+(`libadalang` needs ≥8 GB RAM for its generated parser). `langkit`'s `check()`
+runs its upstream e3-testsuite on the LKT subset (114 pass). The
 `ada_language_server` binary links every Ada dependency statically (only
 libc/libgnat/libgmp stay dynamic), so the overlay's end goal is met.
+
+`hbnf` ships `astbnf`, an RFC 5234 schema engine whose four code generators
+(C, Ada, Rust, Zig) each emit a recursive-descent parser that reports errors
+classic-unix style — `expected a number, found oops` with line/col and a caret
+under the offending token.
 
 ## Why bootstrap gprbuild
 
