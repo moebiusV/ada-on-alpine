@@ -8,8 +8,10 @@ url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
 # Static-only (sources + a static .a + a .gpr): no runtime component, so no
-# runtime depends and no -dev split — hbnf is its own dev package.
-makedepends="gcc-gnat gprbuild build-base"
+# runtime depends and no -dev split — hbnf is its own dev package.  It does
+# depend on astbnf (hbnf.gpr withs it), so consumers get that .gpr too.
+makedepends="gcc-gnat gprbuild build-base astbnf"
+depends="astbnf"
 # The parser source lives in THIS repo (sources/hbnf/), so the tarball is
 # self-referential. Pin it to a version tag, never a commit hash (a rewritten
 # history breaks a hash pin). To release: `git tag hbnf-v$pkgver`, push the

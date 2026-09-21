@@ -17,4 +17,4 @@ ISSUE.md
 sources/*/obj/
 sources/*/lib/
 sources/*/obj-check/
-sources/*/tests/hbnf_check
+sources/*/tests/*_check
