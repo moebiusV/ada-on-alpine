@@ -1,18 +1,18 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=0
 _tag="hbnf-v$pkgver"
-pkgdesc="OpenBSD-style configuration file parser in Ada"
+pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada emitters) in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
 # Static-only (sources + a static .a + a .gpr): no runtime component, so no
-# runtime depends and no -dev split — hbnf is its own dev package.  It does
-# depend on astbnf (hbnf.gpr withs it), so consumers get that .gpr too.
-makedepends="gcc-gnat gprbuild build-base astbnf"
-depends="astbnf"
-# The parser source lives in THIS repo (sources/hbnf/), so the tarball is
+# runtime depends and no -dev split — hbnf is its own dev package.  It bundles
+# the astbnf schema engine (parser, matcher/binder, C and Ada emitters) into
+# the same library, so there is no separate astbnf package.
+makedepends="gcc-gnat gprbuild build-base"
+# The sources live in THIS repo (sources/hbnf/), so the tarball is
 # self-referential. Pin it to a version tag, never a commit hash (a rewritten
 # history breaks a hash pin). To release: `git tag hbnf-v$pkgver`, push the
 # commit and the tag, then `abuild checksum` and commit the new sha512sums.
@@ -24,9 +24,10 @@ build() {
 }
 
 check() {
-	# Build the conformance driver against the built library and run the
-	# corpus: every accept/*.conf must parse and round-trip (print, re-parse,
-	# re-print is stable), every reject/*.conf must fail.
+	# Build the conformance drivers against the built library and run them:
+	# hbnf_check (every accept/*.conf parses and round-trips, every reject
+	# fails), hbnf_match_check (the astbnf binder agrees with hbnf's own
+	# parser on the whole corpus), and astbnf_check (the C/Ada emitters).
 	gprbuild -P tests/check.gpr -p
 	for f in tests/accept/*.conf; do
 		./tests/hbnf_check "$f" accept
@@ -34,15 +35,13 @@ check() {
 	for f in tests/reject/*.conf; do
 		./tests/hbnf_check "$f" reject
 	done
-	# The astbnf binder must agree with hbnf's own parser on the whole corpus:
-	# accept files produce the same tree (Print for Print), reject files —
-	# including the decimal-overflow value-range reject — both fail.
 	for f in tests/accept/*.conf; do
-		./tests/hbnf_match_check ../astbnf/tests/hbnf.astbnf "$f" accept
+		./tests/hbnf_match_check ./hbnf.astbnf "$f" accept
 	done
 	for f in tests/reject/*.conf; do
-		./tests/hbnf_match_check ../astbnf/tests/hbnf.astbnf "$f" reject
+		./tests/hbnf_match_check ./hbnf.astbnf "$f" reject
 	done
+	./tests/astbnf_check tests/server.astbnf hbnf.astbnf
 }
 
 package() {
@@ -50,4 +49,4 @@ package() {
 		--sources-subdir=include/hbnf
 }
 
-sha512sums="463296f8de70a145fc308a3192b66510ce68905306aea275de9d7c9be6d2f059fb7ff6019b741cc34be87ebf78d5b1eb47d033c87beda53cd8c08c0b93426d9f  ada-on-alpine-$_tag.tar.gz"
+sha512sums="SKIP"  # TODO: `abuild checksum` after pushing hbnf-v0.3.0
