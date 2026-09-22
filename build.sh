@@ -41,11 +41,20 @@ run_abuild() {
 # `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
 install_apks() {
     _pkg="$1" _dir="$2"
-    apk add --allow-untrusted "$_dir"/"$_pkg"-[0-9]*.apk >/dev/null 2>&1 || true
+    # A failed install is fatal: this is a dependency-ordered build, so a
+    # swallowed apk failure would surface much later as a confusing compiler
+    # or linker error. Keep apk's output visible for diagnosis.
+    if ! apk add --allow-untrusted "$_dir"/"$_pkg"-[0-9]*.apk; then
+        echo "error: failed to install $_pkg" >&2
+        exit 1
+    fi
     for _sub in $(sed -n 's/^subpackages="\(.*\)"$/\1/p' "/repo/testing/$_pkg/APKBUILD" 2>/dev/null); do
         _sub=${_sub%%:*}
         _sub=$(echo "$_sub" | sed "s/\$pkgname/$_pkg/")
-        apk add --allow-untrusted "$_dir"/"$_sub"-[0-9]*.apk >/dev/null 2>&1 || true
+        if ! apk add --allow-untrusted "$_dir"/"$_sub"-[0-9]*.apk; then
+            echo "error: failed to install $_sub (subpackage of $_pkg)" >&2
+            exit 1
+        fi
     done
 }
 

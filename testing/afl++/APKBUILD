@@ -6,13 +6,13 @@ pkgdesc="Coverage-guided fuzzer (GCC mode: afl-gcc-fast GCC plugin, no LLVM/clan
 url="https://aflplus.plus/"
 # s390x: internal error in c compiler, see https://gitlab.alpinelinux.org/alpine/aports/-/issues/17581
 arch="all !s390x"
-license="Apache-2.0"
+license="AGPL-3.0-or-later AND Apache-2.0"
 # GCC-only build: depends on gcc for the afl-gcc/afl-g++/afl-gcc-fast wrappers
 # (C++ via afl-g++ additionally needs g++; python3 is for afl-cmin.py/afl-plot).
 # This replaces the upstream Alpine package, which built LLVM mode and depended
 # on clang22-rtlib — a subpackage that no longer exists, so `apk add afl++`
 # failed. Dropping LLVM/clang removes that dependency entirely.
-depends="gcc python3"
+depends="gcc g++ python3"
 # gcc/g++ come from build-base; gmp-dev provides gmp.h for the GCC plugin;
 # linux-headers provides linux/futex.h (added in 5.x).
 makedepends="bash gmp-dev linux-headers"

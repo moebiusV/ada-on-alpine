@@ -37,6 +37,18 @@ check() {
 	# Smoke-test: --version prints the embedded VERSION and exits 0, which also
 	# proves the runtime's dynamic deps (libgnat, gmp) resolve.
 	.obj/server/ada_language_server --version | grep -q "ALS version"
+
+	# The static-link invariant: only libc/libgnat/libgmp (plus the compiler's
+	# libgcc_s) may stay dynamic. Assert no Ada-stack shared library sneaks in —
+	# a stray libadalang/libgpr2/libgnatcoll/etc. here would mean one of the
+	# static links silently fell back to a shared library.
+	scanelf -n .obj/server/ada_language_server > .need-dyn
+	if grep -Eq 'libadalang|libgpr|libgnatcoll|libxmlada|liblangkit|liblktlang|libvss|libmarkdown|libfswatch|libxdiff|libadasat|libprettier|libtemplates' .need-dyn; then
+		echo "error: ada_language_server links Ada-stack shared libraries" >&2
+		cat .need-dyn >&2
+		return 1
+	fi
+	rm -f .need-dyn
 }
 
 package() {
