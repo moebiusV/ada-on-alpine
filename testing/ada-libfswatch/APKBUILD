@@ -1,12 +1,13 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-# NOTE: ada_libfswatch.gpr is a PLAIN project
-# (no Library_Name/Library_Kind) like libgnatdoc, so it produces no .a: ALS
-# compiles its sources directly via `with "ada_libfswatch"`. Wraps the libfswatch
-# C library (separate fswatch aport); the Ada binding is generated from
-# libfswatch.h with `gcc -fdump-ada-spec`.
+# NOTE: ada_libfswatch.gpr is a PLAIN project upstream (no Library_Name/Kind),
+# like libgnatdoc; ALS compiles its sources in-tree. This package precompiles
+# them into libada_libfswatch.a at package time and ships an Externally_Built
+# project, so consumers link the .a instead of compiling into a shared /tmp
+# Object_Dir. Wraps the libfswatch C library (separate fswatch aport); the Ada
+# binding is generated from libfswatch.h with `gcc -fdump-ada-spec`.
 pkgname=ada-libfswatch
 pkgver=26.0.0_git20260916
-pkgrel=0
+pkgrel=1
 _commit="686d96834e92ed34e1b5dd9239c9ad668f366c70"
 pkgdesc="Ada bindings for libfswatch (filesystem change notifications)"
 url="https://github.com/AdaCore/ada_libfswatch"
@@ -29,31 +30,48 @@ build() {
 	# gcc -fdump-ada-spec mis-handles musl's bits/alltypes.h, emitting spurious
 	# anonymous fields typed Extensions.Signed_0 (never declared).
 	sed -i '/Extensions\.Signed_0/d' generated/bits_alltypes_h.ads
-	gprbuild -p -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX=/usr
+
+	# Precompile as a static library (a library-project form of the upstream
+	# plain project), so consumers link libada_libfswatch.a instead of compiling
+	# the sources into a shared /tmp Object_Dir.
+	cat > ada_libfswatch.gpr <<'GPR'
+with "c_lib/c_libfswatch";
+with "gnatcoll_core";
+
+library project Ada_Libfswatch is
+   type Library_Type_Type is ("static");
+   Library_Type : Library_Type_Type := external ("LIBRARY_TYPE", "static");
+
+   for Languages use ("Ada");
+   for Source_Dirs use ("src", "generated");
+   for Object_Dir use "obj";
+   for Library_Name use "ada_libfswatch";
+   for Library_Dir use "lib";
+   for Library_Kind use Library_Type;
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-g", "-O0", "-gnatwa", "-gnaty");
+   end Compiler;
+end Ada_Libfswatch;
+GPR
+	gprbuild -p -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX=/usr -XLIBRARY_TYPE=static
 }
 
 check() {
-	test -n "$(find "$builddir"/obj -name '*.o' | head -1)"
+	test -n "$(find "$builddir"/lib -name 'libada_libfswatch.a' | head -1)"
 }
 
 package() {
-	# Install sources + project files for `with "ada_libfswatch"`.
-	mkdir -p "$pkgdir"/usr/share/ada_libfswatch "$pkgdir"/usr/share/gpr/c_lib
-	cp -a src generated "$pkgdir"/usr/share/ada_libfswatch/
-	# ada_libfswatch.gpr `with "c_lib/c_libfswatch"` (relative), so keep that
-	# layout under /usr/share/gpr.
-	cp c_lib/c_libfswatch.gpr "$pkgdir"/usr/share/gpr/c_lib/c_libfswatch.gpr
-	# Relocate Source_Dirs in ada_libfswatch.gpr and redirect its Object_Dir to
-	# /tmp (a plain project imported from /usr/share/gpr otherwise defaults its
-	# object dir to /usr/share/gpr, which is non-writable for consumers).
-	sed \
-		-e 's|for Source_Dirs use ("src", "generated");|for Source_Dirs use ("/usr/share/ada_libfswatch/src", "/usr/share/ada_libfswatch/generated");|' \
-		-e 's|for Object_Dir use "obj";|for Object_Dir use "/tmp/ada_libfswatch-obj";|' \
-		ada_libfswatch.gpr > "$pkgdir"/usr/share/gpr/ada_libfswatch.gpr
-	# Default c_libfswatch.gpr to the system fswatch (upstream defaults to the
-	# vendored ../libfswatch).
-	sed -i 's|External("LIBFSWATCH_PREFIX", "../libfswatch")|External("LIBFSWATCH_PREFIX", "/usr")|' \
-		"$pkgdir"/usr/share/gpr/c_lib/c_libfswatch.gpr
+	# Install the prebuilt library (.a + .ali + sources + Externally_Built .gpr).
+	gprinstall -p -f -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX=/usr -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+
+	# gprinstall rewrites the relative `with "c_lib/c_libfswatch"` to a plain
+	# `with "c_libfswatch"` (a top-level project-path name), so install the C
+	# binding project at /usr/share/gpr/c_libfswatch.gpr and default it to the
+	# system fswatch (upstream defaults to the vendored ../libfswatch).
+	sed 's|External("LIBFSWATCH_PREFIX", "../libfswatch")|External("LIBFSWATCH_PREFIX", "/usr")|' \
+		c_lib/c_libfswatch.gpr > "$pkgdir"/usr/share/gpr/c_libfswatch.gpr
 }
 
 sha512sums="
