@@ -45,8 +45,12 @@ check() {
 	./tests/hbnf_emit_check tests/server.hbnf hbnf_schema.hbnf
 
 	# The CLI emits a self-contained C parser; smoke-test that it compiles.
-	./hbnf_cli tests/server.hbnf --backend=c > /tmp/hbnf-out.c
-	cc -std=gnu11 -D_GNU_SOURCE -c /tmp/hbnf-out.c -o /tmp/hbnf-out.o
+	# Generate into a mktemp dir (the djb dance) rather than a fixed /tmp
+	# path, so two concurrent builds can't collide.
+	tmpdir=$(mktemp -d)
+	trap 'rm -rf "$tmpdir"' EXIT
+	./hbnf_cli tests/server.hbnf --backend=c > "$tmpdir/hbnf-out.c"
+	cc -std=gnu11 -D_GNU_SOURCE -c "$tmpdir/hbnf-out.c" -o "$tmpdir/hbnf-out.o"
 }
 
 package() {
