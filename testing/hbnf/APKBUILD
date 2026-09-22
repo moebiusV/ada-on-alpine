@@ -55,4 +55,4 @@ package() {
 	install -Dm755 hbnf_cli "$pkgdir/usr/bin/hbnf"
 }
 
-sha512sums="32a54cd36805610fb187b4fa8019412fcbd64773de6f112904353ac970efdd32cd65cbf3adaf75bc93b5e03b5ef564dc4a0f2b76d6f129db30b04f384937b9c7  ada-on-alpine-$_tag.tar.gz"
+sha512sums="0eb5224da2f919e48d9edfff7723b118986a01e8bccc9301d4bae0204d01d327e7f6aea80f836a9460b520bc1a6b587361af42780972146954f8b907b3568b5a  ada-on-alpine-$_tag.tar.gz"
