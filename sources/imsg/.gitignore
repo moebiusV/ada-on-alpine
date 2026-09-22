@@ -1,0 +1,6 @@
+obj/
+obj-check/
+lib/
+*.o
+*.ali
+tests/imsg_check
