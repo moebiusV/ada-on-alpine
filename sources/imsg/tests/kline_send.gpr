@@ -1,0 +1,21 @@
+with "../imsg.gpr";
+
+--  Build the kline_send interop example against the imsg library: a client
+--  that forwards the kucoin CSV on stdin as IMSG_KLINE frames over a unix
+--  socket, mirroring stoplossbot's tools/imsg_kline_send.c.  Object files land
+--  outside the library's own obj/ so this build never pollutes the library.
+project Kline_Send is
+   for Source_Dirs use (".");
+   for Object_Dir use "../obj-kline";
+   for Exec_Dir use ".";
+   for Main use ("kline_send.adb");
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa");
+   end Compiler;
+   package Binder is
+      for Switches ("Ada") use ("-Es", "-static");
+   end Binder;
+   package Linker is
+      for Default_Switches ("Ada") use ("-static");
+   end Linker;
+end Kline_Send;
