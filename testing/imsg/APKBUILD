@@ -32,4 +32,4 @@ package() {
 		--sources-subdir=include/imsg
 }
 
-sha512sums="SKIP"
+sha512sums="fb2540adb2bfa9119e609fd679cc330a204023d968c31dfd6db95edad319ce9909393b526a3fb33012d7466c759c58abbdf24ee633cabd9504a952a41bc306e1  ada-on-alpine-$_tag.tar.gz"
