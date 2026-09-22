@@ -9,8 +9,8 @@ arch="all"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): no runtime component,
 # so no runtime depends and no -dev split — hbnf is its own dev package.  It
-# ships two libraries from the one source tree: libhbnf_grammar.a (the schema
-# engine) and libhbnf.a (the parser), which links against libhbnf_grammar.a.
+# ships one library, libhbnf.a: the config parser plus the schema engine and
+# the C/Rust/Zig/Ada emitters.
 makedepends="gcc-gnat gprbuild build-base"
 # The sources live in THIS repo (sources/hbnf/), so the tarball is
 # self-referential. Pin it to a version tag, never a commit hash (a rewritten
@@ -20,7 +20,6 @@ source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/ar
 builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
 
 build() {
-	gprbuild -P hbnf_grammar.gpr -p -XLIBRARY_TYPE=static
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
 	gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
 }
@@ -51,8 +50,6 @@ check() {
 }
 
 package() {
-	gprinstall -P hbnf_grammar.gpr -p --prefix="$pkgdir/usr" \
-		--sources-subdir=include/hbnf_grammar
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
 	install -Dm755 hbnf_cli "$pkgdir/usr/bin/hbnf"
