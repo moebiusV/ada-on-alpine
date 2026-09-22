@@ -9,8 +9,8 @@ arch="all"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): no runtime component,
 # so no runtime depends and no -dev split — hbnf is its own dev package.  It
-# ships two libraries from the one source tree: libastbnf.a (the schema
-# engine) and libhbnf.a (the parser), which links against libastbnf.a.
+# ships two libraries from the one source tree: libhbnf_grammar.a (the schema
+# engine) and libhbnf.a (the parser), which links against libhbnf_grammar.a.
 makedepends="gcc-gnat gprbuild build-base"
 # The sources live in THIS repo (sources/hbnf/), so the tarball is
 # self-referential. Pin it to a version tag, never a commit hash (a rewritten
@@ -20,16 +20,16 @@ source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/ar
 builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
 
 build() {
-	gprbuild -P astbnf.gpr -p -XLIBRARY_TYPE=static
+	gprbuild -P hbnf_grammar.gpr -p -XLIBRARY_TYPE=static
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
-	gprbuild -P astbnf_cli.gpr -p -XLIBRARY_TYPE=static
+	gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
 }
 
 check() {
 	# Build the conformance drivers against the built library and run them:
 	# hbnf_check (every accept/*.conf parses and round-trips, every reject
-	# fails), hbnf_match_check (the astbnf binder agrees with hbnf's own
-	# parser on the whole corpus), and astbnf_check (the C/Ada emitters).
+	# fails), hbnf_match_check (the hbnf binder agrees with hbnf's own
+	# parser on the whole corpus), and hbnf_emit_check (the C/Ada emitters).
 	gprbuild -P tests/check.gpr -p
 	for f in tests/accept/*.conf; do
 		./tests/hbnf_check "$f" accept
@@ -38,24 +38,24 @@ check() {
 		./tests/hbnf_check "$f" reject
 	done
 	for f in tests/accept/*.conf; do
-		./tests/hbnf_match_check ./hbnf.astbnf "$f" accept
+		./tests/hbnf_match_check ./hbnf_schema.hbnf "$f" accept
 	done
 	for f in tests/reject/*.conf; do
-		./tests/hbnf_match_check ./hbnf.astbnf "$f" reject
+		./tests/hbnf_match_check ./hbnf_schema.hbnf "$f" reject
 	done
-	./tests/astbnf_check tests/server.astbnf hbnf.astbnf
+	./tests/hbnf_emit_check tests/server.hbnf hbnf_schema.hbnf
 
 	# The CLI emits a self-contained C parser; smoke-test that it compiles.
-	./astbnf_cli tests/server.astbnf --backend=c > /tmp/astbnf-out.c
-	cc -std=gnu11 -D_GNU_SOURCE -c /tmp/astbnf-out.c -o /tmp/astbnf-out.o
+	./hbnf_cli tests/server.hbnf --backend=c > /tmp/hbnf-out.c
+	cc -std=gnu11 -D_GNU_SOURCE -c /tmp/hbnf-out.c -o /tmp/hbnf-out.o
 }
 
 package() {
-	gprinstall -P astbnf.gpr -p --prefix="$pkgdir/usr" \
-		--sources-subdir=include/astbnf
+	gprinstall -P hbnf_grammar.gpr -p --prefix="$pkgdir/usr" \
+		--sources-subdir=include/hbnf_grammar
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
-	install -Dm755 astbnf_cli "$pkgdir/usr/bin/astbnf"
+	install -Dm755 hbnf_cli "$pkgdir/usr/bin/hbnf"
 }
 
 sha512sums="32a54cd36805610fb187b4fa8019412fcbd64773de6f112904353ac970efdd32cd65cbf3adaf75bc93b5e03b5ef564dc4a0f2b76d6f129db30b04f384937b9c7  ada-on-alpine-$_tag.tar.gz"

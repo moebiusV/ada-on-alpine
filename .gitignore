@@ -16,7 +16,7 @@ ISSUE.md
 # Ada library build scratch (gprbuild obj/lib/exec artifacts)
 sources/*/obj/
 sources/*/lib/
-sources/*/obj-astbnf/
-sources/*/lib-astbnf/
+sources/*/obj-hbnf/
+sources/*/lib-hbnf/
 sources/*/obj-check/
 sources/*/tests/*_check

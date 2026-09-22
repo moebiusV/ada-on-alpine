@@ -12,7 +12,7 @@ aports fork for a Merge Request.
 | `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) |
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate |
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: thin Ada binding to libsodium (ChaCha20-Poly1305, HMAC-SHA256) |
-| `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `astbnf` schema engine (C/Ada/Rust/Zig parser generators) |
+| `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
@@ -53,7 +53,7 @@ runs its upstream e3-testsuite on the LKT subset (114 pass). The
 `ada_language_server` binary links every Ada dependency statically (only
 libc/libgnat/libgmp stay dynamic), so the overlay's end goal is met.
 
-`hbnf` ships `astbnf`, an RFC 5234 schema engine whose four code generators
+`hbnf` ships a self-contained RFC 5234 schema engine whose four code generators
 (C, Ada, Rust, Zig) each emit a recursive-descent parser that reports errors
 classic-unix style — `expected a number, found oops` with line/col and a caret
 under the offending token.
