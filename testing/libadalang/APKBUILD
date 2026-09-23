@@ -14,7 +14,7 @@ url="https://github.com/AdaCore/libadalang"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat langkit gnatcoll gnatcoll-gmp gnatcoll-iconv gnatcoll-projects gpr"
-makedepends="gcc-gnat gprbuild py3-langkit langkit gnatcoll gnatcoll-gmp gnatcoll-iconv gnatcoll-projects gpr"
+makedepends="gcc-gnat gprbuild py3-langkit langkit langkit-static gnatcoll gnatcoll-static gnatcoll-gmp gnatcoll-gmp-static gnatcoll-iconv gnatcoll-iconv-static gnatcoll-projects gpr"
 source="libadalang-$_commit.tar.gz::https://github.com/AdaCore/libadalang/archive/$_commit.tar.gz"
 builddir="$srcdir/libadalang-$_commit"
 

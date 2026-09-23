@@ -8,7 +8,7 @@ url="https://github.com/AdaCore/gnatcoll-db"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll sqlite-libs"
-makedepends="gcc-gnat gprbuild gnatcoll xmlada build-base sqlite-dev"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static xmlada build-base sqlite-dev"
 source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-db-$_commit"
 

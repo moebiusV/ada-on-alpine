@@ -7,7 +7,7 @@
 # langkit / libadalang must rebuild against it.
 pkgname=vss
 pkgver=26.0.0_git20260629
-pkgrel=0
+pkgrel=1
 _commit="a8e0e94930767310ce983c09c9b7191cf9f48630"
 pkgdesc="Unicode text-processing library (VSS text core)"
 url="https://github.com/AdaCore/vss-text"
@@ -15,6 +15,7 @@ arch="all"
 license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
+subpackages="$pkgname-static"
 source="vss-text-$_commit.tar.gz::https://github.com/AdaCore/vss-text/archive/$_commit.tar.gz"
 builddir="$srcdir/vss-text-$_commit"
 

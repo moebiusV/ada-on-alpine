@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll
 pkgver=26.0.0_git20260915
-pkgrel=0
+pkgrel=1
 _commit="358c384d11ad0d9d26d78744d3a78259c3ce0451"
 pkgdesc="GNAT Components Collection core library"
 url="https://github.com/AdaCore/gnatcoll-core"
@@ -9,6 +9,7 @@ arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild xmlada build-base python3 rsync"
+subpackages="$pkgname-static"
 source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-core-$_commit"
 

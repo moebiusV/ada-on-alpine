@@ -1,14 +1,15 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-gmp
 pkgver=26.0.0_git20260722
-pkgrel=0
+pkgrel=1
 _commit="e3c51c1688f5b902306a6afea22d2955239f47a0"
 pkgdesc="GNAT Components Collection – GMP (arbitrary precision) bindings"
 url="https://github.com/AdaCore/gnatcoll-bindings"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll gmp"
-makedepends="gcc-gnat gprbuild gnatcoll gmp-dev"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static gmp-dev"
+subpackages="$pkgname-static"
 source="gnatcoll-bindings-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-bindings/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-bindings-$_commit"
 

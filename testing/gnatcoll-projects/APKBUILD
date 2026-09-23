@@ -8,7 +8,7 @@ url="https://github.com/AdaCore/gnatcoll-core"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll libgpr"
-makedepends="gcc-gnat gprbuild gnatcoll libgpr"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static libgpr"
 source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-core-$_commit"
 

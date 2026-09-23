@@ -10,7 +10,7 @@ url="https://github.com/AdaCore/gnatformat"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat libadalang prettier-ada vss vss-extra"
-makedepends="gcc-gnat gprbuild libadalang prettier-ada vss vss-extra"
+makedepends="gcc-gnat gprbuild libadalang prettier-ada prettier-ada-static vss vss-static vss-extra"
 source="gnatformat-$_commit.tar.gz::https://github.com/AdaCore/gnatformat/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatformat-$_commit"
 

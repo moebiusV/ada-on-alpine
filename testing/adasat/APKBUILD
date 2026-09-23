@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=adasat
 pkgver=26.0.0_git20260903
-pkgrel=0
+pkgrel=1
 _commit="5d8866bc4547373ff36e461f6d179568fd74b524"
 pkgdesc="Ada static analysis (SAT solving) library"
 url="https://github.com/AdaCore/AdaSAT"
@@ -9,6 +9,7 @@ arch="all"
 license="Apache-2.0"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
+subpackages="$pkgname-static"
 source="adasat-$_commit.tar.gz::https://github.com/AdaCore/AdaSAT/archive/$_commit.tar.gz"
 builddir="$srcdir/AdaSAT-$_commit"
 

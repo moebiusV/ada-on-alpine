@@ -1,14 +1,15 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=prettier-ada
 pkgver=25.0.0_git20260915
-pkgrel=0
+pkgrel=1
 _commit="2299fce43c74e7e1dea4ecdef7bc7bcd6ffc8b94"
 pkgdesc="Prettier generic document formatter ported to Ada"
 url="https://github.com/AdaCore/prettier-ada"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat gnatcoll vss"
-makedepends="gcc-gnat gprbuild gnatcoll vss"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static vss vss-static"
+subpackages="$pkgname-static"
 source="prettier-ada-$_commit.tar.gz::https://github.com/AdaCore/prettier-ada/archive/$_commit.tar.gz"
 builddir="$srcdir/prettier-ada-$_commit"
 

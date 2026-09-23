@@ -15,7 +15,7 @@ url="https://github.com/AdaCore/gnatdoc"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gmp"
-makedepends="gcc-gnat gprbuild gmp-dev libadalang vss vss-extra gpr ada-markdown"
+makedepends="gcc-gnat gprbuild gmp-dev libadalang vss vss-static vss-extra gpr ada-markdown"
 source="gnatdoc-$_commit.tar.gz::https://github.com/AdaCore/gnatdoc/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatdoc-$_commit"
 
