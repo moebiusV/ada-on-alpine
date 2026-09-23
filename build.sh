@@ -41,6 +41,12 @@ run_abuild() {
 # `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
 install_apks() {
     _pkg="$1" _dir="$2"
+    # gpr2-tools `replaces` gprbuild's four tool binaries, but apk still sees a
+    # hard `cmd:` provides conflict between the two. Drop classic gprbuild first
+    # (nothing runtime-depends on it) and let the GPR2 tools take over.
+    if [ "$_pkg" = "gpr2-tools" ]; then
+        apk del gprbuild >/dev/null 2>&1 || true
+    fi
     # A failed install is fatal: this is a dependency-ordered build, so a
     # swallowed apk failure would surface much later as a confusing compiler
     # or linker error. Keep apk's output visible for diagnosis.
