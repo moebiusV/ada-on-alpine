@@ -4,6 +4,8 @@
 # itself uses only libgnatdoc.gpr, which does not. markdown.gpr `with`s the
 # relative ../config/markdown_config.gpr, so the installed project may need the
 # config project shipped alongside (or the repo Makefile's install used).
+# Static-only: markdown `with`s vss_regexp, which vss-extra ships static-only
+# (only vss_gnat/vss_text are relocatable), so there is no shared variant.
 pkgname=ada-markdown
 pkgver=26.0.0_git20260916
 pkgrel=0

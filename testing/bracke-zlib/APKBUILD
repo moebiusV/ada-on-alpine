@@ -1,17 +1,18 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=bracke-zlib
 pkgver=0.1.0
-pkgrel=0
+pkgrel=1
 _commit="9e67642ed381fd0d4af09cb2f3e47563295dc7bb"
 pkgdesc="Pure-Ada zlib/gzip/deflate/7z compression (RFC 1952 gzip)"
 url="https://github.com/bracke/zlib"
 arch="all"
 license="MIT"
 depends="libgnat bracke-cryptolib"
-makedepends="gcc-gnat gprbuild build-base bracke-cryptolib"
+makedepends="gcc-gnat gprbuild build-base bracke-cryptolib bracke-cryptolib-static"
 source="zlib-$_commit.tar.gz::https://github.com/bracke/zlib/archive/$_commit.tar.gz
 	zlib_config.gpr"
 builddir="$srcdir/zlib-$_commit"
+subpackages="$pkgname-static"
 
 build() {
 	# Upstream generates config/zlib_config.gpr from alire.toml; provide a
@@ -25,19 +26,28 @@ build() {
 	# link both (the project and Library_Name keep their names).
 	sed -i 's/\bZlib\b/Zlib_Ada/g' "$builddir"/src/*.ads "$builddir"/src/*.adb
 	(cd "$builddir"/src && for f in zlib*.ads zlib*.adb; do mv "$f" "zlib_ada${f#zlib}"; done)
+	# Relocatable first: zlib.gpr doesn't split its object dir by Library_Type,
+	# so build the shared lib first (-fPIC objects) and let the static archive
+	# reuse them (PIC objects are valid in a .a; the reverse fails the .so link).
+	gprbuild -P "$builddir"/zlib.gpr -p -XLIBRARY_TYPE=relocatable
 	gprbuild -P "$builddir"/zlib.gpr -p -XLIBRARY_TYPE=static
 }
 
 check() {
 	mkdir -p "$srcdir"/stage
 	gprinstall -P "$builddir"/zlib.gpr -p --prefix="$srcdir"/stage/usr \
-		--sources-subdir=include/zlib
+		--sources-subdir=include/zlib \
+		--build-name=static --build-var=LIBRARY_TYPE
 	test -f "$srcdir"/stage/usr/share/gpr/zlib.gpr
 }
 
 package() {
-	gprinstall -P "$builddir"/zlib.gpr -p --prefix="$pkgdir/usr" \
-		--sources-subdir=include/zlib
+	gprinstall -P "$builddir"/zlib.gpr -p -f -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir/usr" --sources-subdir=include/zlib \
+		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -P "$builddir"/zlib.gpr -p -f -XLIBRARY_TYPE=relocatable \
+		--prefix="$pkgdir/usr" --sources-subdir=include/zlib \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
 sha512sums="1329a036494ccdf2cd22948f0db40fdf328173acf26eb43e7892a143c75d20633ec61ab3644c4207304e55ff2fd1173d0b31c561c8eadf1b7be5cdfac075e895  zlib-$_commit.tar.gz

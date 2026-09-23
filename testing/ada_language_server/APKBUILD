@@ -14,7 +14,7 @@ arch="all"
 license="GPL-3.0-or-later"
 depends="libgnat gmp"
 makedepends="gcc-gnat gprbuild g++ gpr libadalang libadalang-tools lal-refactor
-	ada-libfswatch gnatdoc spawn gnatformat vss-extra vss xdiff"
+	ada-libfswatch gnatdoc spawn spawn-static gnatformat vss-extra vss xdiff"
 source="ada_language_server-$_commit.tar.gz::https://github.com/AdaCore/ada_language_server/archive/$_commit.tar.gz"
 builddir="$srcdir/ada_language_server-$_commit"
 
