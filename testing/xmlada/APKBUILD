@@ -18,7 +18,11 @@ build() {
 	# pass; each kind gets its own obj/<kind>/ + lib/<kind>/ (see the .gpr's
 	# `for Object_Dir use "obj/" & Project'Library_Kind`), so no -fPIC clash.
 	./configure --prefix=/usr
-	make GPROPTS_EXTRA="-j${JOBS:-1} -cargs $CFLAGS -largs $LDFLAGS"
+	# Alpine's CFLAGS carries C-only warning flags (-Wformat
+	# -Werror=format-security) that gnat1 rejects; strip the -W* family so only
+	# the gcc-common hardening/optimization flags reach -cargs.
+	_ada_cflags=$(echo "$CFLAGS" | sed 's/-W[^ ]*//g')
+	make GPROPTS_EXTRA="-j${JOBS:-1} -cargs $_ada_cflags -largs $LDFLAGS"
 }
 
 check() {
