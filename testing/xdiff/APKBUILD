@@ -2,11 +2,11 @@
 # NOTE: Mixed Ada+C project: xdiff.gpr builds
 # libxdiff_ada.a and `with`s src/c_xdiff/c_xdiff.gpr (the vendored C xdiff,
 # libxdiff.a). gprinstall does NOT install the imported c_xdiff project, so it
-# must be gprinstalled separately — else consumers (ada_language_server) fail
+# must be gprinstalled separately -- else consumers (ada_language_server) fail
 # with `imported project file "c_xdiff" not found`.
 pkgname=xdiff
 pkgver=26.0.0_git20260916
-pkgrel=0
+pkgrel=1
 _commit="e32aba349aeb9b888ef9d7a4b3fe0ffb5973e985"
 pkgdesc="Ada bindings for the xdiff diff library"
 url="https://github.com/AdaCore/xdiff"
@@ -16,8 +16,14 @@ depends="libgnat"
 makedepends="gcc-gnat gprbuild build-base"
 source="xdiff-$_commit.tar.gz::https://github.com/AdaCore/xdiff/archive/$_commit.tar.gz"
 builddir="$srcdir/xdiff-$_commit"
+subpackages="$pkgname-static"
 
 build() {
+	# Relocatable first: xdiff.gpr and c_xdiff.gpr don't split their object
+	# dirs by Library_Type, so build the shared lib first (-fPIC objects) and
+	# let the static archive reuse them (PIC objects are valid in a .a; the
+	# reverse fails the .so link). One gprbuild builds both xdiff + c_xdiff.
+	gprbuild -p -P xdiff.gpr -XLIBRARY_TYPE=relocatable
 	gprbuild -p -P xdiff.gpr -XLIBRARY_TYPE=static
 }
 
@@ -37,8 +43,25 @@ check() {
 package() {
 	gprinstall -p -f -P xdiff.gpr -XLIBRARY_TYPE=static \
 		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P xdiff.gpr -XLIBRARY_TYPE=relocatable \
+		--prefix="$pkgdir"/usr --build-name=relocatable --build-var=LIBRARY_TYPE
 	gprinstall -p -f -P src/c_xdiff/c_xdiff.gpr -XLIBRARY_TYPE=static \
 		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P src/c_xdiff/c_xdiff.gpr -XLIBRARY_TYPE=relocatable \
+		--prefix="$pkgdir"/usr --build-name=relocatable --build-var=LIBRARY_TYPE
+
+	# gprinstall leaves the versioned SONAMEs (xdiff.so.1.0.0, xdiff_ada.so.1.0.0)
+	# as relative symlinks into the <build-name>/ subdirs. abuild's soname tracer
+	# runs `scanelf --soname` NON-recursively over usr/lib and skips symlinks, so
+	# those SONAMEs would go unlisted and it errors "xdiff.so.1.0.0: path not
+	# found". Promote them to real files at the top of usr/lib (same dereference
+	# as gnatcoll's rsync -aL).
+	for _so in "$pkgdir"/usr/lib/*.so.[0-9]*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="
