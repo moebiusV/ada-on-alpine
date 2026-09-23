@@ -6,35 +6,46 @@
 # that tp_shared.gpr's external() calls require.
 pkgname=templates-parser
 pkgver=26.0.0_git20260916
-pkgrel=0
+pkgrel=1
 _commit="7c59ed4f1ee371c7d3f420b890e287b72c2473f4"
 pkgdesc="Ada template-parser library (AWS templates engine)"
 url="https://github.com/AdaCore/templates-parser"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat xmlada"
-makedepends="gcc-gnat gprbuild xmlada"
+makedepends="gcc-gnat gprbuild xmlada xmlada-static"
+subpackages="$pkgname-static"
 source="templates-parser-$_commit.tar.gz::https://github.com/AdaCore/templates-parser/archive/$_commit.tar.gz"
 builddir="$srcdir/templates-parser-$_commit"
 
 build() {
 	# Use the Makefile, not bare gprbuild: it computes PRJ_TARGET, TP_XMLADA,
-	# VERSION etc. that tp_shared.gpr's external() calls require. build-static
-	# (not build) skips the tools, whose templates2ada/templatespp binaries
-	# would collide with aws's copies.
-	make -j1 ENABLE_SHARED=false build-static
+	# VERSION etc. that tp_shared.gpr's external() calls require. build-static +
+	# build-relocatable (not the plain `build`) skips the tools, whose
+	# templates2ada/templatespp binaries would collide with aws's copies.
+	make -j1 ENABLE_SHARED=true build-static build-relocatable
 }
 
 check() {
 	# Stage-install and verify the installed project/library layout.
 	mkdir -p "$srcdir"/stage
-	make -j1 ENABLE_SHARED=false install-static DESTDIR="$srcdir"/stage prefix=/usr
+	make -j1 ENABLE_SHARED=true install-static install-relocatable DESTDIR="$srcdir"/stage prefix=/usr
 	test -f "$srcdir"/stage/usr/share/gpr/templates_parser.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'libtemplates_parser.a' | head -1)"
 }
 
 package() {
-	make -j1 ENABLE_SHARED=false install-static DESTDIR="$pkgdir" prefix=/usr
+	make -j1 ENABLE_SHARED=true install-static install-relocatable DESTDIR="$pkgdir" prefix=/usr
+
+	# Dereference the versioned SONAME symlinks (libtemplates_parser-<ver>.so)
+	# that gprinstall leaves pointing into the <build-name>/ subdirs; abuild's
+	# soname tracer skips symlinks (non-recursive scanelf --soname).
+	for _so in "$pkgdir"/usr/lib/*.so.*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="

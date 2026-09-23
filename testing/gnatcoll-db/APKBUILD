@@ -1,30 +1,32 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-db
 pkgver=26.0.0_git20260518
-pkgrel=0
+pkgrel=1
 _commit="e43ed894c20c69544882e28eb8c75f7eafe14c08"
 pkgdesc="GNAT Components Collection database components (SQL, SQLite)"
 url="https://github.com/AdaCore/gnatcoll-db"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll sqlite-libs"
-makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static xmlada build-base sqlite-dev"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static xmlada xmlada-static build-base sqlite-dev"
+subpackages="$pkgname-static"
 source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-db-$_commit"
 
 # sqlite imports gnatcoll_sql, so sql must be installed before sqlite builds.
 _install() {
 	local dest="$1"
-	make -C sql ENABLE_SHARED=no install prefix="$dest"
+	make -C sql ENABLE_SHARED=yes install prefix="$dest"
 	export GPR_PROJECT_PATH="$dest/share/gpr"
-	make -C sqlite ENABLE_SHARED=no install prefix="$dest"
+	make -C sqlite ENABLE_SHARED=yes install prefix="$dest"
 }
 
 build() {
-	make -C sql ENABLE_SHARED=no PROCESSORS="${JOBS:-1}"
-	make -C sql ENABLE_SHARED=no install prefix="$srcdir"/stage
+	# ENABLE_SHARED=yes builds static + relocatable + static-pic.
+	make -C sql ENABLE_SHARED=yes PROCESSORS="${JOBS:-1}"
+	make -C sql ENABLE_SHARED=yes install prefix="$srcdir"/stage
 	export GPR_PROJECT_PATH="$srcdir"/stage/share/gpr
-	make -C sqlite ENABLE_SHARED=no PROCESSORS="${JOBS:-1}"
+	make -C sqlite ENABLE_SHARED=yes PROCESSORS="${JOBS:-1}"
 }
 
 check() {
@@ -37,6 +39,16 @@ check() {
 package() {
 	mkdir -p "$pkgdir/usr"
 	_install "$pkgdir/usr"
+
+	# Dereference the versioned SONAME symlinks (libgnatcoll_sql.so.<ver> etc.)
+	# that gprinstall leaves pointing into the <build-name>/ subdirs; abuild's
+	# soname tracer skips symlinks (non-recursive scanelf --soname).
+	for _so in "$pkgdir"/usr/lib/*.so.*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="

@@ -1,18 +1,23 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-projects
 pkgver=26.0.0_git20260915
-pkgrel=0
+pkgrel=1
 _commit="358c384d11ad0d9d26d78744d3a78259c3ce0451"
 pkgdesc="GNAT Components Collection – project file support"
 url="https://github.com/AdaCore/gnatcoll-core"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll libgpr"
-makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static libgpr"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static libgpr libgpr-static"
+subpackages="$pkgname-static"
 source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-core-$_commit"
 
 build() {
+	# Object_Dir/Library_Dir split by Library_Type (obj/gnatcoll_projects/pic
+	# vs /static), so both kinds build in one tree.
+	gprbuild -p -P projects/gnatcoll_projects.gpr \
+		-XLIBRARY_TYPE=relocatable -XGNATCOLL_VERSION=26.0.0
 	gprbuild -p -P projects/gnatcoll_projects.gpr \
 		-XLIBRARY_TYPE=static -XGNATCOLL_VERSION=26.0.0
 }
@@ -34,6 +39,21 @@ package() {
 		--prefix="$pkgdir"/usr \
 		--sources-subdir=include/gnatcoll_projects \
 		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P projects/gnatcoll_projects.gpr \
+		-XLIBRARY_TYPE=relocatable -XGNATCOLL_VERSION=26.0.0 \
+		--prefix="$pkgdir"/usr \
+		--sources-subdir=include/gnatcoll_projects \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
+
+	# Dereference the versioned SONAME symlinks (libgnatcoll_projects.so.<ver>)
+	# that gprinstall leaves pointing into the <build-name>/ subdirs; abuild's
+	# soname tracer skips symlinks (non-recursive scanelf --soname).
+	for _so in "$pkgdir"/usr/lib/*.so.*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="

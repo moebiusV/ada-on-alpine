@@ -1,18 +1,22 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libgpr
 pkgver=26.0.0_git20260518
-pkgrel=0
+pkgrel=1
 _commit="2781289e9e2bdc31350962211b7ef792d7d31c6f"
 pkgdesc="GPR project-file parser library (from gprbuild)"
 url="https://github.com/AdaCore/gprbuild"
 arch="all"
 license="GPL-3.0-or-later"
 depends="libgnat xmlada"
-makedepends="gcc-gnat gprbuild xmlada"
+makedepends="gcc-gnat gprbuild xmlada xmlada-static"
+subpackages="$pkgname-static"
 source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_commit.tar.gz"
 builddir="$srcdir/gprbuild-$_commit"
 
 build() {
+	# gpr.gpr splits Object_Dir/Library_Dir by Library_Type, so both kinds can
+	# build in one tree. No Library_Version, so the .so is unversioned.
+	gprbuild -p -P gpr/gpr.gpr -XLIBRARY_TYPE=relocatable -XBUILD=production
 	gprbuild -p -P gpr/gpr.gpr -XLIBRARY_TYPE=static -XBUILD=production
 }
 
@@ -29,6 +33,9 @@ package() {
 	gprinstall -p -f -P gpr/gpr.gpr -XLIBRARY_TYPE=static -XBUILD=production \
 		--prefix="$pkgdir"/usr --sources-subdir=include/gpr \
 		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -p -f -P gpr/gpr.gpr -XLIBRARY_TYPE=relocatable -XBUILD=production \
+		--prefix="$pkgdir"/usr --sources-subdir=include/gpr \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
 sha512sums="

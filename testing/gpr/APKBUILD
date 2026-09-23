@@ -12,7 +12,7 @@ url="https://github.com/AdaCore/gpr"
 arch="all"
 license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat gnatcoll gnatcoll-gmp gnatcoll-iconv xmlada"
-makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static gnatcoll-gmp gnatcoll-gmp-static gnatcoll-iconv gnatcoll-iconv-static xmlada"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static gnatcoll-gmp gnatcoll-gmp-static gnatcoll-iconv gnatcoll-iconv-static xmlada xmlada-static"
 source="gpr-$_commit.tar.gz::https://github.com/AdaCore/gpr/archive/$_commit.tar.gz
 	gprconfig_kb-$_kb_commit.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/$_kb_commit.tar.gz"
 builddir="$srcdir/gpr-$_commit"

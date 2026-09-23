@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=xmlada
 pkgver=26.0.0_git20260615
-pkgrel=0
+pkgrel=1
 _commit="9823ffb294187897a08b14bbce00743ff647cae1"
 pkgdesc="XML/Ada: XML, schema, and DOM parsing library for Ada"
 url="https://github.com/AdaCore/xmlada"
@@ -9,17 +9,21 @@ arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat build-base gprbuild which gawk"
+subpackages="$pkgname-static"
 source="xmlada-$_commit.tar.gz::https://github.com/AdaCore/xmlada/archive/$_commit.tar.gz"
 builddir="$srcdir/xmlada-$_commit"
 
 build() {
-	./configure --prefix=/usr --disable-shared
-	make static GPROPTS_EXTRA="-j${JOBS:-1} -cargs $CFLAGS -largs $LDFLAGS"
+	# Default --enable-shared builds static + relocatable + static-pic in one
+	# pass; each kind gets its own obj/<kind>/ + lib/<kind>/ (see the .gpr's
+	# `for Object_Dir use "obj/" & Project'Library_Kind`), so no -fPIC clash.
+	./configure --prefix=/usr
+	make GPROPTS_EXTRA="-j${JOBS:-1} -cargs $CFLAGS -largs $LDFLAGS"
 }
 
 check() {
 	# Upstream's tests need an installed XML/Ada; stage-install and point
-	# GPR_PROJECT_PATH at the staged tree.
+	# GPR_PROJECT_PATH at the staged tree (make test builds statically).
 	DESTDIR="$srcdir"/stage make -j1 install
 	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make test
 	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr make check
@@ -27,6 +31,17 @@ check() {
 
 package() {
 	make -j1 install DESTDIR="$pkgdir"
+
+	# gprinstall leaves the versioned SONAMEs (libxmlada_*.so.18.0w) as relative
+	# symlinks into usr/lib/xmlada/*.relocatable/. abuild's soname tracer runs
+	# `scanelf --soname` non-recursively over usr/lib and skips symlinks, so
+	# promote those versioned libs to real files at the top of usr/lib.
+	for _so in "$pkgdir"/usr/lib/*.so.*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="
