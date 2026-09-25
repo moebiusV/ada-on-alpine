@@ -1,0 +1,64 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=odin
+_tag="dev-2026-09"
+pkgver=2026.09
+pkgrel=0
+pkgdesc="Odin programming language compiler (C++ bootstrap against LLVM 18)"
+url="https://odin-lang.org/"
+# LLVM 18 is the version Odin's build script accepts that Alpine edge ships;
+# the C++ bootstrap (src/main.cpp) should build on every arch with llvm18-dev.
+arch="all"
+license="BSD-3-Clause"
+# build: clang++ (from clang18) + llvm-config-18 (llvm18-dev) + libLLVM.
+# runtime: libLLVM/libstdc++/libgcc (traced as so: deps) and clang18, which
+# Odin invokes as `clang` to link the programs it compiles.
+makedepends="llvm18-dev clang18"
+# clang18 (Odin's default linker, as `clang`), binutils (the `ld` clang
+# drives) and gcc (libgcc_s.so for -lgcc_s); scanelf auto-adds the odin
+# binary's own so:libLLVM/libstdc++/libgcc deps.
+depends="clang18 binutils gcc"
+# vendor/ bundles glibc/foreign-arch prebuilt libs; strip can't handle the
+# arm64 ones, so disable stripping (package() drops the .so, see below).
+options="!strip"
+source="odin-$_tag.tar.gz::https://github.com/odin-lang/Odin/archive/refs/tags/$_tag.tar.gz"
+builddir="$srcdir/Odin-$_tag"
+
+build() {
+	# build_odin.sh compiles the C++ bootstrap (src/main.cpp + libtommath.cpp)
+	# straight to the `odin` binary; no prebuilt Odin is needed.  Its own
+	# default is clang++ (next to llvm-config); abuild's env sets CXX=g++, and
+	# g++ 15 + abuild's hardening flags turn Odin's variadic inline helpers
+	# into errors.  Force clang++ and drop abuild's CFLAGS/CXXFLAGS/LDFLAGS.
+	unset CFLAGS CXXFLAGS LDFLAGS
+	export CXX=clang++-18
+	LLVM_CONFIG=llvm-config-18 ./build_odin.sh release
+}
+
+check() {
+	./odin version
+}
+
+package() {
+	# Odin finds its root (core/ + vendor/) next to the executable, so the
+	# binary and the libraries live together under /usr/lib/odin.
+	install -Dm755 odin "$pkgdir"/usr/lib/odin/odin
+	# Odin's root is the directory holding its library collections: core and
+	# base are required, vendor and shared provide the vendored C bindings.
+	for d in core base vendor shared; do
+		cp -a "$d" "$pkgdir"/usr/lib/odin/"$d"
+	done
+	# vendor/ (and shared/) ship glibc- and foreign-arch prebuilt .so for
+	# cross-compilation; they don't run on musl and abuild's scanelf trips on
+	# their NEEDED entries (ld-linux-aarch64.so.1 & co.).  Drop the .so, keep
+	# the static libs, headers and Odin bindings.
+	find "$pkgdir"/usr/lib/odin -type f \
+		\( -name '*.so' -o -name '*.so.*' \) -delete
+	mkdir -p "$pkgdir"/usr/bin
+	ln -sf /usr/lib/odin/odin "$pkgdir"/usr/bin/odin
+
+	# Odin's default linker is `clang`; Alpine ships clang-18 (no bare clang).
+	ln -sf clang-18 "$pkgdir"/usr/bin/clang
+}
+sha512sums="
+2966bc667090578f7c1b1b4d740b92daaed4189f81a512e6b00f10209a6597e0fb27a0c809ce2f10de70b1b6051193ed4b3a55b2618ffe85838771e68f46fce8  odin-dev-2026-09.tar.gz
+"
