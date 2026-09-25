@@ -4,7 +4,7 @@
 #
 # From Alpine's own repos (apk add):
 #   rust cargo zig          the three backends already present
-#   gcc-gdc ldc dub         D
+#   gcc-gdc ldc dub         D  (zlib-dev: ldc2's Phobos runtime links -lz)
 #   gfortran                Fortran
 #   nim nimble              Nim
 #   gcc-objc libobjc        Objective-C
@@ -39,7 +39,8 @@ COPY pkgs /pkgs
 # relationship.  The Alpine language packages and the local language aports
 # install as two steps, each its own apk solve.
 RUN apk update && apk add --no-cache rust cargo zig \
-        gcc-gdc ldc dub gfortran nim nimble gcc-objc libobjc ats2
+        gcc-gdc ldc dub gfortran nim nimble gcc-objc libobjc ats2 \
+        zlib-dev
 RUN for f in /pkgs/*.apk; do [ -e "$f" ] && apk add --no-cache --allow-untrusted "$f"; done
 EOF
 
