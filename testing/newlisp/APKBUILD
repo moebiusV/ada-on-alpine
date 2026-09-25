@@ -1,0 +1,55 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=newlisp
+pkgver=10.7.5
+pkgrel=0
+pkgdesc="Lisp-like scripting language (UTF-8, readline, IPv6)"
+url="http://www.newlisp.org/"
+# Only x86_64 is verified; the LP64 makefile hardcodes -m64.
+arch="x86_64"
+license="GPL-3.0-or-later"
+makedepends="readline-dev"
+subpackages="$pkgname-doc"
+# c23-function-pointer.patch: newlisp's FFI (nl-import.c) declares
+# `UINT (*function)()`, which C23 reads as `(void)`; GCC 15 then rejects the
+# 0–14-argument calls.  The patch casts fAddress to the exact signature at
+# each call site instead.
+source="newlisp-$pkgver.tgz::https://downloads.sourceforge.net/newlisp/newlisp-$pkgver.tgz
+	c23-function-pointer.patch"
+builddir="$srcdir/newlisp-$pkgver"
+
+build() {
+	# configure-alt bakes the ambient CFLAGS into makefile_build verbatim
+	# (`CFLAGS = ${CFLAGS:-...}`), and abuild's hardened CFLAGS carry no `-c`.
+	# Without it every `.c.o` rule compiles to `a.out` instead of the object
+	# file, so the final link finds nothing.  Restore `-c`.
+	export CFLAGS="$CFLAGS -c"
+	./configure-alt --enable-readline --enable-utf8
+	# readline on Alpine/musl pulls in curses for its termcap symbols, which
+	# configure-alt's detection does not add to the link line.
+	sed -i 's/^RLFLAGS = .*/RLFLAGS = -lreadline -lncurses/' makefile_build
+	make
+}
+
+check() {
+	# IPv6 is always compiled (the global ADDR_FAMILY defaults to 6) and UTF-8
+	# is enabled by --enable-utf8; confirm both, plus a clean startup/exit.
+	./newlisp -e '(exit (if (and (= 6 (net-ipv 6)) (= 5 (utf8len "héllo"))) 0 1))'
+}
+
+package() {
+	install -Dm755 newlisp "$pkgdir"/usr/bin/newlisp
+	install -Dm644 doc/COPYING "$pkgdir"/usr/share/licenses/$pkgname/COPYING
+}
+
+doc() {
+	install -Dm644 "$builddir"/doc/newlisp_manual.html \
+		"$subpkgdir"/usr/share/doc/newlisp/newlisp_manual.html
+	install -Dm644 "$builddir"/doc/newlisp.1 \
+		"$subpkgdir"/usr/share/man/man1/newlisp.1
+	# abuild requires man pages compressed.
+	gzip "$subpkgdir"/usr/share/man/man1/newlisp.1
+}
+sha512sums="
+1882c665ee8a7b683038622e0760b62386929a99afb17b197ea9243214070fae6622b83e56113738275587fcbe3cd6b127154a38dc0ff36bae2751f9e13a1209  newlisp-10.7.5.tgz
+2c405558ef2c3ba7a4ba7bc9d17bedd24a7d4d0a1e923ddcf078bb6e09ebd26851386c00cd4ae9ba55b74b4650d6afc33c16dc8227eac034e31d1ad9b222cc2f  c23-function-pointer.patch
+"

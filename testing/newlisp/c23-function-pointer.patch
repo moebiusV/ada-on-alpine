@@ -1,0 +1,84 @@
+--- a/nl-import.c
++++ b/nl-import.c
+@@ -247,66 +247,62 @@
+ 
+ UINT cdeclFunction(UINT fAddress, UINT * args, int count)
+ {
+-UINT (*function)();
+-
+-function = (UINT (*)())fAddress;
+-
+ switch(count)
+     {
+     case 0:
+-            return (*function)();
++            return ((UINT (*)())fAddress)();
+ 
+     case 1:
+-            return  (*function)(args[0]);
++            return ((UINT (*)(UINT))fAddress)(args[0]);
+ 
+     case 2:
+-            return  (*function)(args[0], args[1]);
++            return ((UINT (*)(UINT, UINT))fAddress)(args[0], args[1]);
+ 
+     case 3:
+             /* printf("args[0] %llx, args[1] %llx, args[2] %llx, args[1]-args[2] %llx\n ",
+                     args[0], args[1], args[2], args[1] - args[2]); */
+ 
+-            return  (*function)(args[0], args[1], args[2]);
++            return ((UINT (*)(UINT, UINT, UINT))fAddress)(args[0], args[1], args[2]);
+     case 4:
+ 
+-            return  (*function)(args[0], args[1], args[2], args[3]);
++            return ((UINT (*)(UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3]);
+ 
+     case 5:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4]);
+     case 6:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4], args[5]);
+     case 7:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4], args[5], args[6]);
+     case 8:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4], args[5], args[6], args[7]);
+ 
+     case 9:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4], args[5], args[6], args[7], args[8]);
+ 
+     case 10:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                      args[4], args[5], args[6], args[7], args[8], args[9]);
+     case 11:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                 args[4], args[5], args[6], args[7],
+                 args[8], args[9], args[10]);
+     case 12:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                 args[4], args[5], args[6], args[7],
+                 args[8], args[9], args[10], args[11]);
+ 
+     case 13:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                 args[4], args[5], args[6], args[7],
+                 args[8], args[9], args[10], args[11],
+                 args[12]);
+     case 14:
+-            return  (*function)(args[0], args[1], args[2], args[3],
++            return ((UINT (*)(UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT, UINT))fAddress)(args[0], args[1], args[2], args[3],
+                 args[4], args[5], args[6], args[7],
+                 args[8], args[9], args[10], args[11],
+                 args[12], args[13]);
