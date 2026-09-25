@@ -1,0 +1,73 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=vlang
+pkgver=0.5.2_git20260924
+pkgrel=0
+pkgdesc="The V programming language compiler"
+url="https://vlang.io/"
+# vc/v.c is a portable C snapshot and the self-compile drives the system cc,
+# so this builds on every native arch (only x86_64 tested so far).
+arch="all"
+license="MIT"
+# gc-dev: V's default GC is Boehm; the final bootstrap steps and any user
+# program compiled with -gc boehm do `#include <gc.h>` and link -lgc.
+# gcc + musl-dev: the C compiler V falls back to when no TCC is bundled.
+makedepends="gc-dev gcc musl-dev make bash"
+# Same set, minus make: `v` needs a C toolchain (gcc + musl-dev) and the Boehm
+# headers/lib to compile programs at runtime (gcc pulls binutils, gc-dev pulls
+# the gc runtime).
+depends="gc gc-dev gcc musl-dev"
+
+_vcommit="1b68924140b8b2e660b9a1bf0994b31d64b5aead"
+# vc is the C-translated bootstrap snapshot (a rolling repo with no tags); its
+# commit message records the V revision it was generated from, so pin the pair
+# together.  The `native` $if var left vlib between the two, which is why a
+# weekly tag does not pair with the current snapshot.
+_vccommit="9d59c143b6a68fc179d8b9f8eabe43e326653e16"
+source="v-$_vcommit.tar.gz::https://github.com/vlang/v/archive/$_vcommit.tar.gz
+	vc-$_vccommit.tar.gz::https://github.com/vlang/vc/archive/$_vccommit.tar.gz
+	vroot-executable.patch"
+builddir="$srcdir/v-$_vcommit"
+
+build() {
+	# make local=1 skips the git clones (vc/ and thirdparty/tcc) upstream does
+	# at build time; vc/v.c is vendored below and V falls back to the system
+	# `cc` (gcc) since no TCC is bundled.
+	mkdir -p vc
+	cp "$srcdir/vc-$_vccommit/v.c" vc/v.c
+	# abuild's hardened CFLAGS would be applied to the 23 MB generated vc/v.c
+	# (slow and memory-heavy) and V drives gcc itself for the self-compile, so
+	# drop them.  The bootstrap already compiles itself with -gc none.
+	unset CFLAGS CXXFLAGS LDFLAGS
+	# -prod embeds every $embed_file's bytes (the compiler's C prelude,
+	# vlib/v/gen/c/cleanc.v) instead of recording its absolute build path and
+	# re-reading it at runtime; a debug `v` moved out of $srcdir panics on
+	# startup because that path no longer exists.
+	make local=1 prod=1
+}
+
+check() {
+	./v version
+	# Compile + run a hello world: exercises the full toolchain (gcc + libgc).
+	printf 'fn main() { println("hello from v") }\n' > v_check.v
+	./v -o v_check v_check.v
+	./v_check
+	rm -f v_check v_check.v v_check.c
+}
+
+package() {
+	install -Dm755 v "$pkgdir"/usr/lib/vlang/v
+	# V finds its root (vlib/) next to the executable.
+	cp -a vlib "$pkgdir"/usr/lib/vlang/vlib
+	cp -a cmd "$pkgdir"/usr/lib/vlang/cmd
+	# Trim test/example artifacts (upstream's Dockerfile does the same).
+	find "$pkgdir"/usr/lib/vlang -type f \
+		\( -name '*_test.v' -o -name '*.vv' -o -name '*.out' \) -delete
+	mkdir -p "$pkgdir"/usr/bin
+	ln -sf /usr/lib/vlang/v "$pkgdir"/usr/bin/v
+	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}
+sha512sums="
+7e4e54b591524ca706dbcadc7de9de449bc8b8126d6bc1e3453b178ca4324165db9a60de6f3793baa628fdf210a15211ac83b025c4fd669bd99e78940058a7d0  v-1b68924140b8b2e660b9a1bf0994b31d64b5aead.tar.gz
+1cd4591e7a697435cd171b0e565e4a8d811e74da121e17eaf1d870795a11171ba16266462081f8155aa450a8c8bbf4f97587895dcd01b932fe544e791aaaca66  vc-9d59c143b6a68fc179d8b9f8eabe43e326653e16.tar.gz
+0489c2e00370e1ad6e5896523dfec31ea1ea3c89f8fe3bf19083ee80de47c57c3833d0b831d364ff06e6d078627d66e21644f61877979b5ed7ae9d18a94607f9  vroot-executable.patch
+"

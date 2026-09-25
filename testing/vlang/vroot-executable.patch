@@ -1,0 +1,20 @@
+--- a/vlib/v/pref/pref.v
++++ b/vlib/v/pref/pref.v
+@@ -330,6 +330,16 @@
+
+ // detect_vroot resolves detect vroot information for pref.
+ fn detect_vroot() string {
++	// A relocated `v` finds vlib next to its own (symlink-resolved) binary
++	// before the compile-time @VMODROOT, which names the build tree and is
++	// gone once the binary is installed elsewhere.
++	exe := os.executable()
++	if exe.len > 0 {
++		vroot := detect_vroot_from(exe)
++		if vroot.len > 0 {
++			return vroot
++		}
++	}
+ 	baked_root := @VMODROOT
+ 	if baked_root.len > 0 {
+ 		return baked_root
+ 	}
