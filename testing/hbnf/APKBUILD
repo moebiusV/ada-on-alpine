@@ -21,6 +21,14 @@ builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
 
 build() {
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
+	# hbnf_cli links -static (see hbnf_cli.gpr) so the shipped binary runs on
+	# glibc and musl alike. gprbuild emits -lgnat-15 (versioned), but Alpine
+	# ships the static runtime unversioned as libgnat.a — provide the versioned
+	# name so -static resolves.
+	ADALIB="$(gcc -print-file-name=adalib)"
+	GNAT_MAJOR="$(gcc -dumpversion | cut -d. -f1)"
+	ln -sf libgnat.a  "$ADALIB/libgnat-$GNAT_MAJOR.a"
+	ln -sf libgnarl.a "$ADALIB/libgnarl-$GNAT_MAJOR.a"
 	gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
 }
 
