@@ -25,3 +25,8 @@ sources/*/hbnf_cli
 sources/*/hbnf_cli.new
 sources/*/tests/*_check
 sources/*/tests/kline_send
+
+# local scratch notes + core dumps (never pushed)
+ada*.txt
+core
+core.*
