@@ -1,9 +1,9 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libsodium-ada
-pkgver=0.1.0
-pkgrel=1
+pkgver=0.2.0
+pkgrel=0
 _tag="libsodium-ada-v$pkgver"
-pkgdesc="Thin Ada binding to libsodium: ChaCha20-Poly1305 AEAD, HMAC-SHA256, randombytes"
+pkgdesc="Complete thin Ada binding to libsodium (randombytes, SHA-2, HMAC, AEAD, base64/hex, secure memory, and the full symmetric/asymmetric suites)"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
@@ -42,6 +42,8 @@ package() {
 	gprinstall -P crypto.gpr -p -f -XLIBRARY_TYPE=relocatable \
 		--prefix="$pkgdir/usr" --sources-subdir=include/crypto \
 		--build-name=relocatable --build-var=LIBRARY_TYPE
+	install -D -m644 "$builddir"/libsodium-ada.3 \
+		"$pkgdir"/usr/share/man/man3/libsodium-ada.3
 }
 
 sha512sums="81acef2f9804116d884970d0e6026a250bb898673e867ed97d71be035704999c762e46bed37951aa35a5dedad02683b02cd91c3bf150f7c1735c50d05f3f54b9  ada-on-alpine-$_tag.tar.gz"
