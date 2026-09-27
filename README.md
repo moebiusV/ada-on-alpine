@@ -15,7 +15,7 @@ and 19 `-static` subpackages.
 | `testing/gprbuild/` | `gprbuild` | Built: upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0 |
 | `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
-| `testing/libsodium-ada/` | `libsodium-ada` | Built: thin Ada binding to libsodium (ChaCha20-Poly1305, HMAC-SHA256) (static + shared) |
+| `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
 | `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
 | `testing/imsg/` | `imsg` | New: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |

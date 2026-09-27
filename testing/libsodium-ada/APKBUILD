@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libsodium-ada
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=0
 _tag="libsodium-ada-v$pkgver"
 pkgdesc="Complete thin Ada binding to libsodium (hashes, HMAC, AEAD, base64/hex, secure memory, and the full crypto suites)"
@@ -33,6 +33,17 @@ check() {
 		--build-name=static --build-var=LIBRARY_TYPE
 	test -f "$srcdir"/stage/usr/share/gpr/crypto.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'libcrypto_ada.a' | head -1)"
+
+	#  Crypto round-trip smoke test (AEAD, Ed25519, SHA-256, HMAC,
+	#  secretbox, base64).  Built against the source, linked to libsodium;
+	#  exits non-zero on any failure.
+	mkdir -p "$srcdir"/smoke
+	(
+		cd "$srcdir"/smoke
+		gnatmake -gnat2022 -gnatwa -gnatwe -I"$builddir" \
+			"$builddir"/tests/crypto_smoke.adb -largs -lsodium
+		./crypto_smoke
+	)
 }
 
 package() {

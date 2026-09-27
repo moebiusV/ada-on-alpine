@@ -11,16 +11,13 @@ with Crypto.Sign;
 with Crypto.Box;
 .Ed
 .Pp
-The library is linked with
-.Fl lcrypto_ada
-and
-.Fl lsodium ,
-and is selected in a GNAT project file with
+In a GNAT project file the library is selected with
 .Ql with "crypto";
+and it links against the system libsodium automatically.
 .Sh DESCRIPTION
 .Nm
 is a thin, complete Ada 2022 binding to
-.Xr libsodium 3 .
+.Lk https://doc.libsodium.org/ libsodium .
 It maps each libsodium primitive onto an idiomatic Ada package: fixed-size
 buffers are
 .Vt Crypto.Byte_Array
@@ -64,10 +61,11 @@ and a misuse handler
 .Pq Fn Set_Misuse_Handler .
 The guarded
 .Vt Secure_Buffer
-type wraps
-.Fn sodium_malloc / sodium_free
-storage with
-.Fn Mlock , Fn Munlock , Fn Protect , Fn Wipe , Fn Fill , and Fn Contents .
+type wraps libsodium's page-aligned guarded allocation
+.Pq Ql sodium_malloc
+with
+.Fn Secure_Alloc , Fn Secure_Free , Fn Fill , Fn Contents , Fn Wipe ,
+.Fn Mlock , Fn Munlock , Fn Protect , and Fn Length .
 .El
 .Sh CHILD PACKAGES
 .Bl -tag -width Ds
@@ -131,7 +129,7 @@ matching
 calls.
 .El
 .Sh SEE ALSO
-.Xr sodium 7
+.Lk https://doc.libsodium.org/ libsodium documentation
 .Pp
 The authoritative API reference is the package specifications themselves,
 installed with the library
