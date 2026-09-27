@@ -287,4 +287,18 @@ package body Imsg is
          Data   => Wire (Buf (1 .. Total_Off)));
    end Recv_Frame;
 
+   procedure Send_Fd
+     (Sock : GNAT.Sockets.Socket_Type;
+      B    : Wire;
+      Fd   : GNAT.Sockets.Socket_Type)
+   is
+   begin
+      Send_Frame (Sock, B, GNAT.Sockets.To_C (Fd));
+      GNAT.Sockets.Close_Socket (Fd);
+   exception
+      when others =>
+         GNAT.Sockets.Close_Socket (Fd);
+         raise;
+   end Send_Fd;
+
 end Imsg;

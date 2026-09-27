@@ -152,6 +152,55 @@ procedure Imsg_Check is
       GNAT.Sockets.Close_Socket (B);
    end Check_Fd_Passing;
 
+   procedure Check_Send_Fd is
+      use Ada.Streams;
+      A, B : GNAT.Sockets.Socket_Type;   --  transport pair
+      X, Y : GNAT.Sockets.Socket_Type;   --  the descriptor to hand over
+      F    : constant Imsg.Frame := Mk (43, 0, 0, [16#43#]);
+      W    : constant Imsg.Wire := Imsg.Encode (F);
+   begin
+      GNAT.Sockets.Create_Socket_Pair (A, B);
+      GNAT.Sockets.Create_Socket_Pair (X, Y);
+      Imsg.Send_Fd (A, W, X);            --  hands X over + closes it here
+
+      declare
+         R : constant Imsg.Received := Imsg.Recv_Frame (B);
+      begin
+         Checks := Checks + 1;
+         if R.Fd < 0 then
+            Failures := Failures + 1;
+            Ada.Text_IO.Put_Line ("FAIL: Send_Fd handoff (no descriptor)");
+         elsif not Frame_Equal (Imsg.Decode (R.Data), F) then
+            Failures := Failures + 1;
+            Ada.Text_IO.Put_Line ("FAIL: Send_Fd handoff (data mismatch)");
+         else
+            --  The handed-over descriptor is a live duplicate of X: a byte
+            --  written to Y arrives on it.
+            declare
+               Rfds : GNAT.Sockets.Socket_Type :=
+                 GNAT.Sockets.To_Ada (R.Fd);
+               Got  : Stream_Element_Array (1 .. 1);
+               Last : Stream_Element_Offset;
+            begin
+               GNAT.Sockets.Send_Socket (Y, [16#5B#], Last);
+               GNAT.Sockets.Receive_Socket (Rfds, Got, Last);
+               if Last >= Got'First and then Got (1) = 16#5B# then
+                  Ada.Text_IO.Put_Line ("ok: Send_Fd handoff");
+               else
+                  Failures := Failures + 1;
+                  Ada.Text_IO.Put_Line
+                    ("FAIL: Send_Fd handoff (dead descriptor)");
+               end if;
+               GNAT.Sockets.Close_Socket (Rfds);
+            end;
+         end if;
+      end;
+
+      GNAT.Sockets.Close_Socket (Y);
+      GNAT.Sockets.Close_Socket (A);
+      GNAT.Sockets.Close_Socket (B);
+   end Check_Send_Fd;
+
 begin
    Check_Roundtrip
      ("empty payload",
@@ -181,6 +230,7 @@ begin
 
    Check_Transport;
    Check_Fd_Passing;
+   Check_Send_Fd;
 
    Ada.Text_IO.Put_Line
      ("checks: " & Natural'Image (Checks) &

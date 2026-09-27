@@ -84,4 +84,15 @@ package Imsg is
    --  caller owns the received descriptor and must close it.
    function Recv_Frame (Sock : GNAT.Sockets.Socket_Type) return Received;
 
+   --  High-level descriptor handoff: transfer a descriptor to the peer over
+   --  Sock, attached to frame B, and then close the caller's copy (the peer
+   --  receives the kernel-installed duplicate).  Fd is closed here even when
+   --  the send raises, so handing a descriptor over never leaks the caller's
+   --  copy.  Use this instead of Send_Frame (Sock, B, To_C (Fd)) when the
+   --  descriptor is being given away, not shared.
+   procedure Send_Fd
+     (Sock : GNAT.Sockets.Socket_Type;
+      B    : Wire;
+      Fd   : GNAT.Sockets.Socket_Type);
+
 end Imsg;

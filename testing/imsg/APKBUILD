@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=imsg
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=0
 _tag="imsg-v$pkgver"
 pkgdesc="OpenBSD imsg message-passing protocol (portable imsg.c wire format) in Ada"
