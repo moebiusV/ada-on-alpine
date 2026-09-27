@@ -42,4 +42,6 @@ package() {
 		--build-name=relocatable --build-var=LIBRARY_TYPE
 }
 
-sha512sums="fb2540adb2bfa9119e609fd679cc330a204023d968c31dfd6db95edad319ce9909393b526a3fb33012d7466c759c58abbdf24ee633cabd9504a952a41bc306e1  ada-on-alpine-$_tag.tar.gz"
+sha512sums="
+77e3ec74f54b5de46a358abb6ea6918f55eef301c3704dc627790fc56fae7afc259bec430695c4e2b0d34b279b927170976f86ae239757e5b03515cb61e74f18  ada-on-alpine-imsg-v0.2.0.tar.gz
+"
