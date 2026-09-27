@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=imsg
-pkgver=0.1.0
-pkgrel=1
+pkgver=0.2.0
+pkgrel=0
 _tag="imsg-v$pkgver"
 pkgdesc="OpenBSD imsg message-passing protocol (portable imsg.c wire format) in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"

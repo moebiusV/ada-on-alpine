@@ -21,13 +21,16 @@ offset  size  field
 
 `len` includes the 16-byte header (a zero-payload frame has `len == 16`).
 The high bit of `len` (`IMSG_FD_Mark == 16#8000_0000#`) marks a `SCM_RIGHTS`
-descriptor; this port decodes that bit but does not yet transmit descriptors.
+descriptor attached with `sendmsg`/`recvmsg`, exactly as OpenBSD's imsg does.
 
 ## API
 
 - `Imsg.Encode` / `Imsg.Decode` — frame <-> wire codec.
-- `Imsg.Send_Frame` / `Imsg.Recv_Frame` — read/write one frame over a
-  connected `GNAT.Sockets` socket (partial I/O handled).
+- `Imsg.Send_Frame (Sock, B, Fd := -1)` — write one frame; `Fd /= -1`
+  attaches a descriptor via `SCM_RIGHTS` (the analogue of
+  `imsg_compose(..., fd, ...)`).
+- `Imsg.Recv_Frame (Sock)` returns `Imsg.Received` (`.Data` + `.Fd`) — the
+  analogue of `imsg_get()`'s `struct imsg` (`.fd`, `-1` when none).
 
 Malformed frames raise `Constraint_Error`; a clean end-of-stream or socket
 failure raises `Imsg.Transport_Error`.

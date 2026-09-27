@@ -1,6 +1,7 @@
 pragma Ada_2022;
 
 with Ada.Command_Line;
+with Ada.Streams;
 with Ada.Text_IO;
 with GNAT.Sockets;
 with Imsg;
@@ -89,7 +90,7 @@ procedure Imsg_Check is
    begin
       GNAT.Sockets.Create_Socket_Pair (A, B);
       Imsg.Send_Frame (A, W);
-      Got := Imsg.Recv_Frame (B);
+      Got := Imsg.Recv_Frame (B).Data;
       Checks := Checks + 1;
       if Got = W then
          Ada.Text_IO.Put_Line ("ok: transport round-trip");
@@ -100,6 +101,56 @@ procedure Imsg_Check is
       GNAT.Sockets.Close_Socket (A);
       GNAT.Sockets.Close_Socket (B);
    end Check_Transport;
+
+   procedure Check_Fd_Passing is
+      use Ada.Streams;
+      A, B : GNAT.Sockets.Socket_Type;   --  transport pair
+      X, Y : GNAT.Sockets.Socket_Type;   --  the descriptor to pass
+      F    : constant Imsg.Frame := Mk (42, 0, 0, [16#42#]);
+      W    : constant Imsg.Wire := Imsg.Encode (F);
+   begin
+      GNAT.Sockets.Create_Socket_Pair (A, B);
+      GNAT.Sockets.Create_Socket_Pair (X, Y);
+      Imsg.Send_Frame (A, W, GNAT.Sockets.To_C (X));
+      GNAT.Sockets.Close_Socket (X);
+
+      declare
+         R : constant Imsg.Received := Imsg.Recv_Frame (B);
+      begin
+         Checks := Checks + 1;
+         if R.Fd < 0 then
+            Failures := Failures + 1;
+            Ada.Text_IO.Put_Line ("FAIL: fd passing (no descriptor)");
+         elsif not Frame_Equal (Imsg.Decode (R.Data), F) then
+            Failures := Failures + 1;
+            Ada.Text_IO.Put_Line ("FAIL: fd passing (data mismatch)");
+         else
+            --  The descriptor must be a live duplicate of X: a byte written
+            --  to Y arrives on it.
+            declare
+               Rfds : GNAT.Sockets.Socket_Type :=
+                 GNAT.Sockets.To_Ada (R.Fd);
+               Got  : Stream_Element_Array (1 .. 1);
+               Last : Stream_Element_Offset;
+            begin
+               GNAT.Sockets.Send_Socket (Y, [16#5A#], Last);
+               GNAT.Sockets.Receive_Socket (Rfds, Got, Last);
+               if Last >= Got'First and then Got (1) = 16#5A# then
+                  Ada.Text_IO.Put_Line ("ok: fd passing");
+               else
+                  Failures := Failures + 1;
+                  Ada.Text_IO.Put_Line
+                    ("FAIL: fd passing (dead descriptor)");
+               end if;
+               GNAT.Sockets.Close_Socket (Rfds);
+            end;
+         end if;
+      end;
+
+      GNAT.Sockets.Close_Socket (Y);
+      GNAT.Sockets.Close_Socket (A);
+      GNAT.Sockets.Close_Socket (B);
+   end Check_Fd_Passing;
 
 begin
    Check_Roundtrip
@@ -129,6 +180,7 @@ begin
       [0, 0, 0, 1, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
    Check_Transport;
+   Check_Fd_Passing;
 
    Ada.Text_IO.Put_Line
      ("checks: " & Natural'Image (Checks) &

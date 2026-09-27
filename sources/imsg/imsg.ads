@@ -13,9 +13,9 @@ pragma Ada_2022;
 --
 --  Length is the TOTAL frame size including the 16-byte header (so a
 --  zero-payload frame has length 16).  The high bit (IMSG_FD_Mark) marks
---  an attached descriptor; this port decodes that bit but does not yet
---  transmit descriptors.  A malformed frame (short, oversized, or
---  length-mismatched) raises Constraint_Error.
+--  a descriptor attached with SCM_RIGHTS, exactly as OpenBSD's imsg does.
+--  A malformed frame (short, oversized, or length-mismatched) raises
+--  Constraint_Error.
 
 with Ada.Streams;
 with GNAT.Sockets;
@@ -63,8 +63,25 @@ package Imsg is
    --  malformed frame.
    Transport_Error : exception;
 
-   procedure Send_Frame (Sock : GNAT.Sockets.Socket_Type; B : Wire);
+   --  A received frame: the encoded wire form plus the descriptor it
+   --  carried (-1 when none), mirroring OpenBSD's struct imsg (.fd).
+   pragma Warnings (Off, "Storage_Error");
+   type Received (Length : Natural := 0) is record
+      Fd   : Integer := -1;
+      Data : Payload (1 .. Length);
+   end record;
+   pragma Warnings (On, "Storage_Error");
 
-   function Recv_Frame (Sock : GNAT.Sockets.Socket_Type) return Wire;
+   --  Send one frame.  When Fd /= -1 the descriptor is attached via
+   --  SCM_RIGHTS and the IMSG_FD_Mark bit is set in the header -- the
+   --  analogue of imsg_compose(..., fd, ...).  The peer receives a
+   --  duplicate; the caller keeps ownership of Fd.
+   procedure Send_Frame
+     (Sock : GNAT.Sockets.Socket_Type; B : Wire; Fd : Integer := -1);
+
+   --  Receive one frame and any attached descriptor (Fd = -1 when the frame
+   --  carried none) -- the analogue of imsg_get()'s struct imsg.fd.  The
+   --  caller owns the received descriptor and must close it.
+   function Recv_Frame (Sock : GNAT.Sockets.Socket_Type) return Received;
 
 end Imsg;
