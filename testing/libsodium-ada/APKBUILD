@@ -46,4 +46,6 @@ package() {
 		"$pkgdir"/usr/share/man/man3/libsodium-ada.3
 }
 
-sha512sums="81acef2f9804116d884970d0e6026a250bb898673e867ed97d71be035704999c762e46bed37951aa35a5dedad02683b02cd91c3bf150f7c1735c50d05f3f54b9  ada-on-alpine-$_tag.tar.gz"
+sha512sums="
+550d9456d64689fb6436e5f19455fde0db6acf69e9f9af76901ef536f3ee0c02f673702c5aeeb8a403af77e91b7482518f5e2e51c5d67f513f8a1c45e06d59b1  ada-on-alpine-libsodium-ada-v0.2.0.tar.gz
+"
