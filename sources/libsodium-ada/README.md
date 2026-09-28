@@ -20,6 +20,55 @@ The binding keeps the **C boundary faithful** and the **Ada side safe**:
 
 Call `Crypto.Init` once before use (it is idempotent).
 
+## Mapping from C
+
+If you already know libsodium, the shape is mechanical: `crypto_<family>_<op>`
+lives in child package `Crypto.<Family>`, and the output buffers / lengths
+become the return value. Representative examples:
+
+| libsodium C | Ada |
+|---|---|
+| `crypto_hash_sha256(in, inlen, out)` | `Crypto.Hash_Sha256 (Data)` |
+| `crypto_auth(out, in, inlen, k)` | `Crypto.Auth.Authenticate (Data, Key)` |
+| `crypto_secretbox_easy(c, m, mlen, n, k)` | `Crypto.Secretbox.Encrypt (Message, Nonce, Key)` |
+| `crypto_box_easy(c, m, mlen, n, pk, sk)` | `Crypto.Box.Encrypt (Message, Nonce, Public_Key, Secret_Key)` |
+| `crypto_aead_*_encrypt_detached(...)` | `Crypto.Aead.Seal (Message, Nonce, Key, Aad, Kind)` |
+| `crypto_sign_detached(sig, &siglen, m, mlen, sk)` | `Crypto.Sign.Sign (Message, Secret_Key)` |
+| `crypto_generichash(out, len, in, inlen, key, keylen)` | `Crypto.Generichash.Hash (Data, Length)` |
+| `crypto_pwhash_str(out, pw, pwlen, ops, mem)` | `Crypto.Pwhash.Str_Hash (Password, Ops, Mem)` |
+| `crypto_kdf_derive_from_key(subkey, len, id, ctx, key)` | `Crypto.Kdf.Derive_From_Key (Subkey_Length, Subkey_Id, Context, Key)` |
+| `crypto_scalarmult_curve25519_base(q, n)` | `Crypto.Scalarmult.Mult_Base (N)` |
+| `crypto_kem_mlkem768_keypair(pk, sk)` | `Crypto.Kem.Keygen (Mlkem768)` |
+| `randombytes_buf(buf, len)` | `Crypto.Random (N)` |
+| `sodium_malloc`/`sodium_mlock`/`sodium_mprotect_*` | `Crypto.Secure_Alloc` / `Secure_Buffer` |
+
+## Conveniences over the C API
+
+The binding is a thin layer, but the Ada side removes the C error-handling
+boilerplate:
+
+- **Exceptions instead of `int` returns** — a failed operation raises
+  `Crypto.Crypto_Error`; you never write `if (crypto_...() != 0) goto fail;`.
+  The `Verify` predicates are the only ones that return `Boolean` (`False`,
+  not a `-1`).
+- **Fixed sizes checked at the call** — a wrong-length key or nonce raises
+  `Crypto_Error` immediately, rather than relying on you to read the right
+  `crypto_*_KEYBYTES` constant and slice correctly.
+- **`Secure_Buffer` owns its guarded memory** — `Secure_Alloc` gives you
+  page-aligned, `mlock`ed memory that `Secure_Free` wipes (junk, then
+  `sodium_memzero`) and releases; there is no bare `sodium_free` to forget.
+- **Combined and detached in one place** — `Seal`/`Open` (detached tag) and
+  `Seal_Combined`/`Open_Combined` (ciphertext‖tag) are siblings, not separate
+  `_detached` name variants you must track down.
+- **Streaming state is opaque and right-sized** — `crypto_*_state` becomes a
+  private `State_Buffer` whose size is taken from the ABI-stable
+  `crypto_*_statebytes()`, not a magic `unsigned char[384]` you must match.
+- **`Crypto.Safe` strong types** — `Key`, `Nonce`, `Auth_Tag` and `Signature`
+  are distinct types, so the compiler rejects passing a nonce where a key is
+  expected; the raw `Byte_Array` layer is still there when you need it.
+- **No raw pointers escape** — every parameter is `Crypto.Byte_Array` plus
+  named size constants, and every return is a value or an exception.
+
 ## Quickstart
 
 Install the package (Alpine: `apk add libsodium-ada`), then `with "crypto";`

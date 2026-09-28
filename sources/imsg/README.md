@@ -21,6 +21,38 @@ unix-domain socket.
 Malformed frames raise `Constraint_Error`; a clean end-of-stream or socket
 failure raises `Imsg.Transport_Error`.
 
+## Mapping from C
+
+If you know OpenBSD's `imsg.c` / `imsg-buffer.c`, the mapping is one-to-one:
+
+| OpenBSD C | Ada |
+|---|---|
+| `imsg_compose(ibuf, type, peerid, pid, fd, data, datalen)` | `Connection.Compose (C, Kind, Peer, Pid, Fd, Data)` |
+| `imsg_composev(ibuf, ...)` | `Connection.Compose_V (C, Kind, Peer, Pid, Fd, Parts)` |
+| `imsg_create` + `imsg_add` + `imsg_close` | `Connection.Compose_Buffer (C, Kind, Len, ...)` + `Buffer.Add_*` + `Connection.Close` |
+| `imsg_flush(ibuf)` | `Connection.Flush (C)` |
+| `imsg_read(ibuf)` | `Connection.Read (C)` |
+| `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Data`, `.Fd`) |
+| `ibuf_add(buf, data, len)` | `Buffer.Add (B, Data)` |
+| `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_LE (B, V)` |
+| `ibuf_get_n32(buf)` | `Buffer.Get_U32_LE (B)` |
+| `ibuf_open` / `ibuf_dynamic` | `Buffer.Open_Buffer` / `Buffer.Dynamic_Buffer` |
+
+## Conveniences over the C API
+
+- **Value semantics, no `imsg_free`** — `Get` returns an owned `Received`, so
+  there is nothing to release by hand; the read buffer belongs to the
+  `Connection`.
+- **Exceptions instead of `-1` + `errno`** — a clean end-of-stream or socket
+  failure raises `Transport_Error`, a malformed frame raises `Constraint_Error`.
+- **Typed header fields** — `Message_Type`, `Peer_Id` and `Pid_Type` are
+  distinct `mod 2**32` types, so a peer id can't be passed where a message
+  type is expected.
+- **`Send_Fd` gives a descriptor away safely** — the caller's copy is closed
+  even when the send raises, so handing over a descriptor never leaks it.
+- **Typed get/put on `Buffer`** — `Add_U32_LE`/`Get_U64_BE` and friends replace
+  the `ibuf_add_n*`/`ibuf_get_n*` family with named, checked accessors.
+
 ## Quickstart
 
 Install the package (Alpine: `apk add imsg`), then `with "imsg";` from a GNAT
