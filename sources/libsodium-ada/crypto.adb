@@ -79,6 +79,19 @@ package body Crypto is
      (A, B : System.Address; Len : Interfaces.C.size_t)
      with Import, Convention => C, External_Name => "sodium_add";
 
+   procedure Sodium_Sub
+     (A, B : System.Address; Len : Interfaces.C.size_t)
+     with Import, Convention => C, External_Name => "sodium_sub";
+
+   function Sodium_Compare
+     (B1, B2 : System.Address; Len : Interfaces.C.size_t)
+     return Interfaces.C.int
+     with Import, Convention => C, External_Name => "sodium_compare";
+
+   function Sodium_Is_Zero
+     (P : System.Address; Len : Interfaces.C.size_t) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "sodium_is_zero";
+
    procedure Sodium_Memzero (Pnt : System.Address; Len : Interfaces.C.size_t)
      with Import, Convention => C, External_Name => "sodium_memzero";
 
@@ -585,6 +598,37 @@ package body Crypto is
       Sodium_Add
         (B (B'First)'Address, Addr (V), Interfaces.C.size_t (B'Length));
    end Add;
+
+   procedure Sub (B : in out Byte_Array; V : Byte_Array) is
+   begin
+      if B'Length = 0 or else B'Length /= V'Length then
+         raise Constraint_Error with "sub length";
+      end if;
+      Sodium_Sub
+        (B (B'First)'Address, Addr (V), Interfaces.C.size_t (B'Length));
+   end Sub;
+
+   function Is_Zero (B : Byte_Array) return Boolean is
+   begin
+      if B'Length = 0 then
+         return True;   --  vacuous: every byte (none) is zero
+      end if;
+      return Sodium_Is_Zero
+        (Addr (B), Interfaces.C.size_t (B'Length)) /= 0;
+   end Is_Zero;
+
+   function Compare (A, B : Byte_Array) return Integer is
+   begin
+      if A'Length /= B'Length then
+         raise Constraint_Error with "compare length";
+      end if;
+      if A'Length = 0 then
+         return 0;
+      end if;
+      return Integer
+        (Sodium_Compare (Addr (A), Addr (B),
+                         Interfaces.C.size_t (A'Length)));
+   end Compare;
 
    function Secure_Alloc (N : Natural) return Secure_Buffer is
    begin

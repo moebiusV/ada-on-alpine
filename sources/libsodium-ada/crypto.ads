@@ -87,10 +87,20 @@ package Crypto is
    function Constant_Time_Equal (A, B : Byte_Array) return Boolean;
 
    --  Little-endian big-number helpers over the leading bytes (nonce
-   --  management).  Add requires V'Length = B'Length.  Raise Constraint_Error
-   --  on a too-short or mismatched buffer.
+   --  management).  Add and Sub require V'Length = B'Length; Compare requires
+   --  A'Length = B'Length.  Raise Constraint_Error on a too-short or
+   --  mismatched buffer.
    procedure Increment (B : in out Byte_Array);
    procedure Add (B : in out Byte_Array; V : Byte_Array);
+   procedure Sub (B : in out Byte_Array; V : Byte_Array);
+
+   --  Constant-time test against zero (sodium_is_zero): True iff every byte
+   --  is zero (the empty buffer is all-zero).  Compare orders A against B as
+   --  unsigned little-endian integers, returning -1, 0, or 1; unlike
+   --  Constant_Time_Equal it is *not* constant-time and is meant for ordering
+   --  nonces and counters.
+   function Is_Zero (B : Byte_Array) return Boolean;
+   function Compare (A, B : Byte_Array) return Integer;
 
    --  Deterministic wipe (sodium_memzero): zeroes B in a way the compiler
    --  cannot optimize away.

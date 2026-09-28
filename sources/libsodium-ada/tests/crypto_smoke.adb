@@ -387,6 +387,36 @@ begin
       Check ("secure_alloc_array overflow", Overflowed);
    end;
 
+   --  Big-number helpers: Compare orders unsigned little-endian, Is_Zero is
+   --  constant-time, and Sub is Add's inverse with wraparound.
+   Check
+     ("compare equal",
+      Crypto.Compare (Crypto.Byte_Array'(16#01#, 16#02#),
+                      Crypto.Byte_Array'(16#01#, 16#02#)) = 0);
+   Check
+     ("compare less",
+      Crypto.Compare (Crypto.Byte_Array'(16#01#, 16#00#),
+                      Crypto.Byte_Array'(16#02#, 16#00#)) = -1);
+   Check
+     ("compare greater",
+      Crypto.Compare (Crypto.Byte_Array'(16#02#, 16#00#),
+                      Crypto.Byte_Array'(16#01#, 16#00#)) = 1);
+   Check ("is-zero all zero", Crypto.Is_Zero (Crypto.Byte_Array'(0, 0, 0)));
+   Check ("is-zero nonzero", not Crypto.Is_Zero (Crypto.Byte_Array'(0, 1, 0)));
+   Check ("is-zero empty", Crypto.Is_Zero (Empty));
+   declare
+      Buf : Crypto.Byte_Array := [16#05#, 16#00#];
+   begin
+      Crypto.Sub (Buf, Crypto.Byte_Array'(16#03#, 16#00#));
+      Check ("sub little-endian", Buf = Crypto.Byte_Array'(16#02#, 16#00#));
+   end;
+   declare
+      Buf : Crypto.Byte_Array := [0, 0];
+   begin
+      Crypto.Sub (Buf, Crypto.Byte_Array'(1, 0));
+      Check ("sub wraparound", Buf = Crypto.Byte_Array'(16#ff#, 16#ff#));
+   end;
+
    --  Generichash streaming equals the one-shot hash (and exercises the
    --  64-byte-aligned state path).
    declare
