@@ -188,6 +188,34 @@ package body Crypto is
           External_Name =>
             "crypto_aead_chacha20poly1305_ietf_decrypt_detached";
 
+   function Crypto_Aead_Chacha20poly1305_Ietf_Encrypt
+     (C      : System.Address;
+      C_Len  : System.Address;
+      M      : System.Address;
+      M_Len  : ULL;
+      Ad     : System.Address;
+      Ad_Len : ULL;
+      Nsec   : System.Address;
+      Npub   : System.Address;
+      K      : System.Address)
+     return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_aead_chacha20poly1305_ietf_encrypt";
+
+   function Crypto_Aead_Chacha20poly1305_Ietf_Decrypt
+     (M      : System.Address;
+      M_Len  : System.Address;
+      Nsec   : System.Address;
+      C      : System.Address;
+      C_Len  : ULL;
+      Ad     : System.Address;
+      Ad_Len : ULL;
+      Npub   : System.Address;
+      K      : System.Address)
+     return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_aead_chacha20poly1305_ietf_decrypt";
+
    function Sodium_Pad
      (Padded_Len   : System.Address;
       Buf          : System.Address;
@@ -746,6 +774,62 @@ package body Crypto is
       end if;
       return Plain;
    end Open;
+
+   function Seal_Combined
+     (Key, Nonce, Aad, Plaintext : Byte_Array) return Byte_Array
+   is
+      pragma Warnings (Off, "could be declared constant");
+      C     : aliased Byte_Array (1 .. Plaintext'Length + Tag_Size) :=
+                [others => 0];
+      pragma Warnings (On, "could be declared constant");
+      C_Len : aliased ULL := 0;
+   begin
+      if Key'Length /= Key_Size or else Nonce'Length /= Nonce_Size then
+         raise Crypto_Error with "bad key or nonce size";
+      end if;
+      if Crypto_Aead_Chacha20poly1305_Ietf_Encrypt
+        (Addr (C), C_Len'Address, Addr (Plaintext), ULL (Plaintext'Length),
+         Addr (Aad), ULL (Aad'Length), System.Null_Address, Addr (Nonce),
+         Addr (Key)) /= 0
+      then
+         raise Crypto_Error with "aead encrypt failed";
+      end if;
+      declare
+         Result : Byte_Array (1 .. Natural (C_Len));
+      begin
+         Result := C (1 .. Natural (C_Len));
+         return Result;
+      end;
+   end Seal_Combined;
+
+   function Open_Combined
+     (Key, Nonce, Aad, Ciphertext : Byte_Array) return Byte_Array
+   is
+      pragma Warnings (Off, "could be declared constant");
+      M     : aliased Byte_Array (1 .. Ciphertext'Length) := [others => 0];
+      pragma Warnings (On, "could be declared constant");
+      M_Len : aliased ULL := 0;
+   begin
+      if Key'Length /= Key_Size or else Nonce'Length /= Nonce_Size then
+         raise Crypto_Error with "bad key or nonce size";
+      end if;
+      if Ciphertext'Length < Tag_Size then
+         raise Crypto_Error with "ciphertext too short";
+      end if;
+      if Crypto_Aead_Chacha20poly1305_Ietf_Decrypt
+        (Addr (M), M_Len'Address, System.Null_Address, Addr (Ciphertext),
+         ULL (Ciphertext'Length), Addr (Aad), ULL (Aad'Length),
+         Addr (Nonce), Addr (Key)) /= 0
+      then
+         raise Crypto_Error with "authentication failed";
+      end if;
+      declare
+         Result : Byte_Array (1 .. Natural (M_Len));
+      begin
+         Result := M (1 .. Natural (M_Len));
+         return Result;
+      end;
+   end Open_Combined;
 
    function Pad (Data : Byte_Array; Block_Size : Positive) return Byte_Array is
       Buf    : Byte_Array (1 .. Data'Length + Block_Size);

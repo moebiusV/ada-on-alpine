@@ -139,6 +139,18 @@ package Crypto is
      (Key, Nonce, Aad : Byte_Array;
       Text            : Sealed_Text) return Byte_Array;
 
+   --  Combined-mode AEAD (crypto_aead_*_encrypt/decrypt): the ciphertext and
+   --  tag concatenated into one buffer, Ciphertext || Tag.  Seal_Combined
+   --  returns Plaintext'Length + Tag_Size bytes; Open_Combined takes that
+   --  buffer and recovers the plaintext, raising Crypto_Error on
+   --  authentication failure.  The detached Seal/Open remain for callers that
+   --  keep the tag separate.
+   function Seal_Combined
+     (Key, Nonce, Aad, Plaintext : Byte_Array) return Byte_Array;
+
+   function Open_Combined
+     (Key, Nonce, Aad, Ciphertext : Byte_Array) return Byte_Array;
+
    --  Constant-length deterministic padding (sodium_pad / sodium_unpad).
    --  Pad appends up to Block_Size bytes; Unpad reverses it.
    function Pad (Data : Byte_Array; Block_Size : Positive) return Byte_Array;

@@ -28,4 +28,17 @@ package Crypto.Aead is
       Text : Crypto.Sealed_Text;
       Kind : Aead_Kind) return Crypto.Byte_Array;
 
+   --  Combined-mode (crypto_aead_*_encrypt/decrypt): the ciphertext and tag
+   --  concatenated into one buffer, Ciphertext || Tag.  Seal_Combined returns
+   --  Message'Length + Crypto.Tag_Size bytes; Open_Combined recovers the
+   --  plaintext from that buffer, raising Crypto_Error on failure.
+   function Seal_Combined
+     (Message : Crypto.Byte_Array;
+      Nonce, Key, Aad : Crypto.Byte_Array;
+      Kind : Aead_Kind) return Crypto.Byte_Array;
+   function Open_Combined
+     (Key, Nonce, Aad : Crypto.Byte_Array;
+      Ciphertext : Crypto.Byte_Array;
+      Kind : Aead_Kind) return Crypto.Byte_Array;
+
 end Crypto.Aead;

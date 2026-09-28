@@ -6,6 +6,7 @@ with Ada.Text_IO;
 with Crypto;
 with Crypto.Aead;
 with Crypto.Generichash;
+with Crypto.Hash;
 with Crypto.Kdf;
 with Crypto.Pwhash;
 with Crypto.Secretbox;
@@ -94,6 +95,34 @@ begin
          Crypto.Open (Key, Nonce, Aad, Sealed) = Pt);
    end;
 
+   --  Combined mode: Seal_Combined is Ciphertext || Tag; the RFC 8439 vector's
+   --  combined form is its ciphertext and tag concatenated.
+   declare
+      Key   : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode
+          ("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
+      Nonce : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode ("070000004041424344454647");
+      Aad   : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode ("50515253c0c1c2c3c4c5c6c7");
+      Pt    : constant Crypto.Byte_Array :=
+        B ("Ladies and Gentlemen of the class of '99: If I could offer you "
+         & "only one tip for the future, sunscreen would be it.");
+   begin
+      Check
+        ("aead combined rfc8439",
+         Crypto.Hex_Encode (Crypto.Seal_Combined (Key, Nonce, Aad, Pt)) =
+           "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d6"
+         & "3dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b36"
+         & "92ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc"
+         & "3ff4def08e4b7a9de576d26586cec64b6116"
+         & "1ae10b594f09e26a7e902ecbd0600691");
+      Check
+        ("aead combined round-trip",
+         Crypto.Open_Combined
+           (Key, Nonce, Aad, Crypto.Seal_Combined (Key, Nonce, Aad, Pt)) = Pt);
+   end;
+
    ---------------------------------------------------------------
    --  Ed25519 signatures
    ---------------------------------------------------------------
@@ -162,6 +191,28 @@ begin
       Crypto.Hex_Encode (Crypto.Hash_Sha512 (B ("abc"))) =
         "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a"
       & "2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f");
+
+   --  Streaming SHA-2 equals the one-shot hash, fed in uneven chunks and
+   --  including a byte-at-a-time tail.
+   declare
+      Msg  : constant Crypto.Byte_Array := B ("The quick brown fox jumps over");
+      St256 : Crypto.Hash.Sha256_State := Crypto.Hash.Sha256_Init;
+      St512 : Crypto.Hash.Sha512_State := Crypto.Hash.Sha512_Init;
+   begin
+      Crypto.Hash.Sha256_Update (St256, B ("The quick brown fox "));
+      Crypto.Hash.Sha256_Update (St256, B ("jumps "));
+      Crypto.Hash.Sha256_Update (St256, B ("over"));
+      Check
+        ("sha256 streaming",
+         Crypto.Hash.Sha256_Final (St256) = Crypto.Hash_Sha256 (Msg));
+
+      Crypto.Hash.Sha512_Update (St512, B ("The quick "));
+      Crypto.Hash.Sha512_Update (St512, B ("brown fox jumps"));
+      Crypto.Hash.Sha512_Update (St512, B (" over"));
+      Check
+        ("sha512 streaming",
+         Crypto.Hash.Sha512_Final (St512) = Crypto.Hash_Sha512 (Msg));
+   end;
 
    ---------------------------------------------------------------
    --  HMAC (RFC 4231 test cases)
@@ -453,6 +504,22 @@ begin
    else
       Check ("aes256gcm unavailable (skipping round-trip)", True);
    end if;
+
+   --  Combined AEAD across kinds: the ciphertext||tag buffer round-trips, and
+   --  its length is Message'Length + Tag_Size.
+   declare
+      Key   : constant Crypto.Byte_Array := [1 .. Crypto.Aead.Key_Size => 7];
+      Nonce : constant Crypto.Byte_Array := [1 .. 12 => 3];
+      Msg   : constant Crypto.Byte_Array := B ("combined aead");
+      C     : constant Crypto.Byte_Array :=
+        Crypto.Aead.Seal_Combined (Msg, Nonce, Key, Empty, Crypto.Aead.Chacha20_Ietf);
+   begin
+      Check ("aead combined length", C'Length = Msg'Length + Crypto.Tag_Size);
+      Check
+        ("aead combined round-trip",
+         Crypto.Aead.Open_Combined
+           (Key, Nonce, Empty, C, Crypto.Aead.Chacha20_Ietf) = Msg);
+   end;
 
    ---------------------------------------------------------------
    --  Guarded storage
