@@ -568,6 +568,14 @@ package body Crypto is
             raise Crypto_Error with "sodium_malloc failed";
          end if;
          Sodium_Memzero (P, Interfaces.C.size_t (N));
+         --  sodium_malloc calls mlock(2) but silently returns the region
+         --  unlocked if that mlock fails (RLIMIT_MEMLOCK, unsupported
+         --  platform); pin it again and fail loudly so a secret is never
+         --  held unpinned.  Re-locking an already-locked region is a no-op.
+         if Sodium_Mlock (P, Interfaces.C.size_t (N)) /= 0 then
+            Sodium_Free (P);
+            raise Crypto_Error with "sodium_mlock failed";
+         end if;
          return (Data => P, Len => N);
       end;
    end Secure_Alloc;
@@ -586,6 +594,10 @@ package body Crypto is
             raise Crypto_Error with "sodium_allocarray failed";
          end if;
          Sodium_Memzero (P, Interfaces.C.size_t (N));
+         if Sodium_Mlock (P, Interfaces.C.size_t (N)) /= 0 then
+            Sodium_Free (P);
+            raise Crypto_Error with "sodium_mlock failed";
+         end if;
          return (Data => P, Len => N);
       end;
    end Secure_Alloc_Array;

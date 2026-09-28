@@ -96,12 +96,13 @@ package Crypto is
    --  cannot optimize away.
    procedure Memzero (B : in out Byte_Array);
 
-   --  Guarded storage for secrets: page-aligned sodium_malloc memory that can
-   --  be locked against swap (Mlock) and made read-only / no-access
-   --  (Protect).  Wipe overwrites with random junk then sodium_memzero;
-   --  Secure_Free wipes and releases.  A Secure_Buffer is a single-owner
-   --  handle: do not copy it (a copy would alias the same region and later
-   --  double-free).
+   --  Guarded storage for secrets: page-aligned sodium_malloc memory, pinned
+   --  against swap (mlock) by Secure_Alloc/Secure_Alloc_Array -- which raise
+   --  Crypto_Error if the region cannot be locked -- and made read-only /
+   --  no-access with Protect.  Wipe overwrites with random junk then
+   --  sodium_memzero; Secure_Free wipes and releases.  A Secure_Buffer is a
+   --  single-owner handle: do not copy it (a copy would alias the same region
+   --  and later double-free).
    type Secure_Buffer is private;
 
    type Protect_Mode is (No_Access, Read_Only, Read_Write);
