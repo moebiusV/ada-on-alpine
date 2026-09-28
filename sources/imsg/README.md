@@ -7,7 +7,33 @@ unix-domain socket.
 
 ## Introduction
 
-`Imsg` gives you three layers, each a faithful Ada rendering of the C:
+`Imsg` is a direct Ada rendering of OpenBSD's portable `imsg.c` /
+`imsg-buffer.c`, so a C programmer can read it the same way.  Each `struct`
+becomes an Ada type you hold by value, and each function that took a pointer to
+that struct takes it as an `in` / `in out` parameter:
+
+- `struct imsgbuf *` → a `Connection` (the buffered channel);
+- `struct ibuf *` → a `Buffer` (the growable byte buffer);
+- `imsg_compose(ibuf, type, peerid, pid, fd, data, datalen)` →
+  `Connection.Compose (C, Kind, Peer, Pid, Fd, Data)`;
+- `imsg_get(ibuf, &imsg)`, which filled a caller-owned `struct imsg`, becomes
+  `Connection.Get (C)` returning an owned `Received` — the message is a value
+  you own, with nothing to `imsg_free`.
+
+The safety comes from what that translation changes.  Error returns become
+exceptions: `-1` + `errno` is an `Imsg.Transport_Error`, and a malformed frame
+is `Constraint_Error` — there is no `errno` to read and no `-1` to miss.
+Because `Get` returns an owned `Received`, a message is a value you release by
+going out of scope, never a `struct imsg` you must remember to `imsg_free`.
+The header's `type`, `peerid` and `pid` are distinct `mod 2**32` types —
+`Message_Type`, `Peer_Id` and `Pid_Type` — so a peer id can't be passed where a
+message type is expected.  `Send_Fd` hands a descriptor over safely by closing
+the caller's copy even when the send raises, so a handed-over descriptor never
+leaks.  And the `ibuf_add_n*`/`ibuf_get_n*` family becomes named, checked
+accessors — `Add_U32_LE`, `Get_U64_BE` — instead of positional endian calls you
+must keep straight.
+
+There are three layers, each a faithful rendering of the C:
 
 1. **Codec** — `Encode` / `Decode` turn a `Frame` into its on-wire bytes and
    back, so a message is never copied across a process boundary by its
@@ -17,41 +43,6 @@ unix-domain socket.
 3. **Connection** (`imsgbuf`) — a buffered channel over a connected socket,
    with `Compose` / `Compose_Buffer` / `Flush` to send and `Read` / `Get` to
    receive, including `SCM_RIGHTS` descriptor passing.
-
-Malformed frames raise `Constraint_Error`; a clean end-of-stream or socket
-failure raises `Imsg.Transport_Error`.
-
-## Mapping from C
-
-If you know OpenBSD's `imsg.c` / `imsg-buffer.c`, the mapping is one-to-one:
-
-| OpenBSD C | Ada |
-|---|---|
-| `imsg_compose(ibuf, type, peerid, pid, fd, data, datalen)` | `Connection.Compose (C, Kind, Peer, Pid, Fd, Data)` |
-| `imsg_composev(ibuf, ...)` | `Connection.Compose_V (C, Kind, Peer, Pid, Fd, Parts)` |
-| `imsg_create` + `imsg_add` + `imsg_close` | `Connection.Compose_Buffer (C, Kind, Len, ...)` + `Buffer.Add_*` + `Connection.Close` |
-| `imsg_flush(ibuf)` | `Connection.Flush (C)` |
-| `imsg_read(ibuf)` | `Connection.Read (C)` |
-| `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Data`, `.Fd`) |
-| `ibuf_add(buf, data, len)` | `Buffer.Add (B, Data)` |
-| `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_LE (B, V)` |
-| `ibuf_get_n32(buf)` | `Buffer.Get_U32_LE (B)` |
-| `ibuf_open` / `ibuf_dynamic` | `Buffer.Open_Buffer` / `Buffer.Dynamic_Buffer` |
-
-## Conveniences over the C API
-
-- **Value semantics, no `imsg_free`** — `Get` returns an owned `Received`, so
-  there is nothing to release by hand; the read buffer belongs to the
-  `Connection`.
-- **Exceptions instead of `-1` + `errno`** — a clean end-of-stream or socket
-  failure raises `Transport_Error`, a malformed frame raises `Constraint_Error`.
-- **Typed header fields** — `Message_Type`, `Peer_Id` and `Pid_Type` are
-  distinct `mod 2**32` types, so a peer id can't be passed where a message
-  type is expected.
-- **`Send_Fd` gives a descriptor away safely** — the caller's copy is closed
-  even when the send raises, so handing over a descriptor never leaks it.
-- **Typed get/put on `Buffer`** — `Add_U32_LE`/`Get_U64_BE` and friends replace
-  the `ibuf_add_n*`/`ibuf_get_n*` family with named, checked accessors.
 
 ## Quickstart
 
@@ -104,6 +95,23 @@ end Hello;
 GPR_PROJECT_PATH=/usr/share/gpr gprbuild -P hello.gpr -p
 ./hello
 ```
+
+## Mapping from C
+
+If you know OpenBSD's `imsg.c` / `imsg-buffer.c`, the mapping is one-to-one:
+
+| OpenBSD C | Ada |
+|---|---|
+| `imsg_compose(ibuf, type, peerid, pid, fd, data, datalen)` | `Connection.Compose (C, Kind, Peer, Pid, Fd, Data)` |
+| `imsg_composev(ibuf, ...)` | `Connection.Compose_V (C, Kind, Peer, Pid, Fd, Parts)` |
+| `imsg_create` + `imsg_add` + `imsg_close` | `Connection.Compose_Buffer (C, Kind, Len, ...)` + `Buffer.Add_*` + `Connection.Close` |
+| `imsg_flush(ibuf)` | `Connection.Flush (C)` |
+| `imsg_read(ibuf)` | `Connection.Read (C)` |
+| `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Data`, `.Fd`) |
+| `ibuf_add(buf, data, len)` | `Buffer.Add (B, Data)` |
+| `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_LE (B, V)` |
+| `ibuf_get_n32(buf)` | `Buffer.Get_U32_LE (B)` |
+| `ibuf_open` / `ibuf_dynamic` | `Buffer.Open_Buffer` / `Buffer.Dynamic_Buffer` |
 
 ## Examples
 

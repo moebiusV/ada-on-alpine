@@ -8,66 +8,48 @@ behind private types. No raw pointers escape the binding.
 
 ## Introduction
 
-The binding keeps the **C boundary faithful** and the **Ada side safe**:
+The binding is a thin layer that keeps the **C boundary faithful** and the
+**Ada side safe**.  If you know libsodium, the mapping is mechanical.
 
-- *At the boundary*, it binds the libsodium symbols one-to-one — exact names,
-  raw `int` returns, copyable buffers — so it stays a thin layer you can reason
-  about against libsodium's own documentation.
-- *On the Ada side*, it raises exceptions instead of returning error codes,
-  validates every fixed-size buffer, wipes secret memory on free
-  (`Secure_Buffer`), and offers a strongly-typed layer (`Crypto.Safe`) where the
-  compiler rejects passing a nonce where a key is expected.
+A C call has three parts — an **output buffer**, the **input**, and an `int`
+return code you must check:
+
+```c
+unsigned char hash[crypto_hash_sha256_BYTES];
+crypto_hash_sha256(hash, data, data_len);
+```
+
+Ada collapses those three parts into a single return value and an exception:
+
+```ada
+Digest : constant Crypto.Byte_Array := Crypto.Hash_Sha256 (Data);
+```
+
+Every family follows the same rule: `crypto_<family>_<op>` becomes the child
+package `Crypto.<Family>`; the `unsigned char *out` + length parameters become
+the function's **return value**; and the `int` status code becomes either a
+**`Crypto_Error` exception** (on failure) or a **`Boolean`** (for the `Verify`
+predicates).  Inputs stay `Byte_Array`, and the magic `crypto_*_*BYTES`
+constants become named size constants (`Crypto.Hash256_Size`,
+`Crypto.Secretbox.Nonce_Size`, …).
+
+That translation is what makes the Ada side safe.  Because a failure raises
+rather than returning an `int`, there is no `if (crypto_...() != 0) goto fail;`
+chain to forget, and the `Verify` predicates are the ones that return `Boolean`
+(`False`, never a `-1`).  Because sizes are checked at the call, a wrong-length
+key or nonce raises `Crypto_Error` immediately instead of reading the wrong
+`*_KEYBYTES` constant and slicing past the end.  The C library's
+`crypto_*_state` blocks become private `State_Buffer`s sized from the
+ABI-stable `crypto_*_statebytes()`, so you never hand-maintain a magic
+`unsigned char[384]`.  Guarded secrets are a `Secure_Buffer` that pins its own
+`mlock`ed memory and wipes it on free — no bare `sodium_malloc`/`sodium_free`
+pair to get wrong.  Detached and combined modes are siblings (`Seal`/`Open` and
+`Seal_Combined`/`Open_Combined`) rather than scattered `_detached` variants,
+and an optional `Crypto.Safe` layer makes `Key`, `Nonce`, `Auth_Tag` and
+`Signature` distinct types so the compiler rejects a nonce passed where a key
+is expected.  No raw pointers ever escape the binding.
 
 Call `Crypto.Init` once before use (it is idempotent).
-
-## Mapping from C
-
-If you already know libsodium, the shape is mechanical: `crypto_<family>_<op>`
-lives in child package `Crypto.<Family>`, and the output buffers / lengths
-become the return value. Representative examples:
-
-| libsodium C | Ada |
-|---|---|
-| `crypto_hash_sha256(in, inlen, out)` | `Crypto.Hash_Sha256 (Data)` |
-| `crypto_auth(out, in, inlen, k)` | `Crypto.Auth.Authenticate (Data, Key)` |
-| `crypto_secretbox_easy(c, m, mlen, n, k)` | `Crypto.Secretbox.Encrypt (Message, Nonce, Key)` |
-| `crypto_box_easy(c, m, mlen, n, pk, sk)` | `Crypto.Box.Encrypt (Message, Nonce, Public_Key, Secret_Key)` |
-| `crypto_aead_*_encrypt_detached(...)` | `Crypto.Aead.Seal (Message, Nonce, Key, Aad, Kind)` |
-| `crypto_sign_detached(sig, &siglen, m, mlen, sk)` | `Crypto.Sign.Sign (Message, Secret_Key)` |
-| `crypto_generichash(out, len, in, inlen, key, keylen)` | `Crypto.Generichash.Hash (Data, Length)` |
-| `crypto_pwhash_str(out, pw, pwlen, ops, mem)` | `Crypto.Pwhash.Str_Hash (Password, Ops, Mem)` |
-| `crypto_kdf_derive_from_key(subkey, len, id, ctx, key)` | `Crypto.Kdf.Derive_From_Key (Subkey_Length, Subkey_Id, Context, Key)` |
-| `crypto_scalarmult_curve25519_base(q, n)` | `Crypto.Scalarmult.Mult_Base (N)` |
-| `crypto_kem_mlkem768_keypair(pk, sk)` | `Crypto.Kem.Keygen (Mlkem768)` |
-| `randombytes_buf(buf, len)` | `Crypto.Random (N)` |
-| `sodium_malloc`/`sodium_mlock`/`sodium_mprotect_*` | `Crypto.Secure_Alloc` / `Secure_Buffer` |
-
-## Conveniences over the C API
-
-The binding is a thin layer, but the Ada side removes the C error-handling
-boilerplate:
-
-- **Exceptions instead of `int` returns** — a failed operation raises
-  `Crypto.Crypto_Error`; you never write `if (crypto_...() != 0) goto fail;`.
-  The `Verify` predicates are the only ones that return `Boolean` (`False`,
-  not a `-1`).
-- **Fixed sizes checked at the call** — a wrong-length key or nonce raises
-  `Crypto_Error` immediately, rather than relying on you to read the right
-  `crypto_*_KEYBYTES` constant and slice correctly.
-- **`Secure_Buffer` owns its guarded memory** — `Secure_Alloc` gives you
-  page-aligned, `mlock`ed memory that `Secure_Free` wipes (junk, then
-  `sodium_memzero`) and releases; there is no bare `sodium_free` to forget.
-- **Combined and detached in one place** — `Seal`/`Open` (detached tag) and
-  `Seal_Combined`/`Open_Combined` (ciphertext‖tag) are siblings, not separate
-  `_detached` name variants you must track down.
-- **Streaming state is opaque and right-sized** — `crypto_*_state` becomes a
-  private `State_Buffer` whose size is taken from the ABI-stable
-  `crypto_*_statebytes()`, not a magic `unsigned char[384]` you must match.
-- **`Crypto.Safe` strong types** — `Key`, `Nonce`, `Auth_Tag` and `Signature`
-  are distinct types, so the compiler rejects passing a nonce where a key is
-  expected; the raw `Byte_Array` layer is still there when you need it.
-- **No raw pointers escape** — every parameter is `Crypto.Byte_Array` plus
-  named size constants, and every return is a value or an exception.
 
 ## Quickstart
 
@@ -113,6 +95,27 @@ end Hash_Message;
 GPR_PROJECT_PATH=/usr/share/gpr gprbuild -P hash_message.gpr -p
 ./hash_message   # 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
 ```
+
+## Mapping from C
+
+With the principles in the Introduction you can usually guess the Ada name;
+this is the reference for the common ones:
+
+| libsodium C | Ada |
+|---|---|
+| `crypto_hash_sha256(in, inlen, out)` | `Crypto.Hash_Sha256 (Data)` |
+| `crypto_auth(out, in, inlen, k)` | `Crypto.Auth.Authenticate (Data, Key)` |
+| `crypto_secretbox_easy(c, m, mlen, n, k)` | `Crypto.Secretbox.Encrypt (Message, Nonce, Key)` |
+| `crypto_box_easy(c, m, mlen, n, pk, sk)` | `Crypto.Box.Encrypt (Message, Nonce, Public_Key, Secret_Key)` |
+| `crypto_aead_*_encrypt_detached(...)` | `Crypto.Aead.Seal (Message, Nonce, Key, Aad, Kind)` |
+| `crypto_sign_detached(sig, &siglen, m, mlen, sk)` | `Crypto.Sign.Sign (Message, Secret_Key)` |
+| `crypto_generichash(out, len, in, inlen, key, keylen)` | `Crypto.Generichash.Hash (Data, Length)` |
+| `crypto_pwhash_str(out, pw, pwlen, ops, mem)` | `Crypto.Pwhash.Str_Hash (Password, Ops, Mem)` |
+| `crypto_kdf_derive_from_key(subkey, len, id, ctx, key)` | `Crypto.Kdf.Derive_From_Key (Subkey_Length, Subkey_Id, Context, Key)` |
+| `crypto_scalarmult_curve25519_base(q, n)` | `Crypto.Scalarmult.Mult_Base (N)` |
+| `crypto_kem_mlkem768_keypair(pk, sk)` | `Crypto.Kem.Keygen (Mlkem768)` |
+| `randombytes_buf(buf, len)` | `Crypto.Random (N)` |
+| `sodium_malloc`/`sodium_mlock`/`sodium_mprotect_*` | `Crypto.Secure_Alloc` / `Secure_Buffer` |
 
 ## Examples
 
