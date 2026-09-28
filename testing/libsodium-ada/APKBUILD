@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libsodium-ada
-pkgver=0.2.5
+pkgver=0.2.6
 pkgrel=0
 _tag="libsodium-ada-v$pkgver"
 pkgdesc="Complete thin Ada binding to libsodium (hashes, HMAC, AEAD, base64/hex, secure memory, and the full crypto suites)"
@@ -34,16 +34,12 @@ check() {
 	test -f "$srcdir"/stage/usr/share/gpr/crypto.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'libcrypto_ada.a' | head -1)"
 
-	#  Crypto round-trip smoke test (AEAD, Ed25519, SHA-256, HMAC,
-	#  secretbox, base64).  Built against the source, linked to libsodium;
-	#  exits non-zero on any failure.
-	mkdir -p "$srcdir"/smoke
-	(
-		cd "$srcdir"/smoke
-		gnatmake -gnat2022 -gnatwa -gnatwe -I"$builddir" \
-			"$builddir"/tests/crypto_smoke.adb -largs -lsodium
-		./crypto_smoke
-	)
+	#  Known-answer vector suite (RFC 4231/8032/8439, NIST SHA, RFC 4648),
+	#  built against the *installed* crypto.gpr so it links libcrypto_ada
+	#  rather than recompiling the binding sources; exits non-zero on failure.
+	GPR_PROJECT_PATH="$srcdir"/stage/usr/share/gpr \
+		gprbuild -P "$builddir"/tests/smoke.gpr -p
+	"$builddir"/tests/crypto_smoke
 }
 
 package() {
@@ -62,5 +58,5 @@ doc() {
 }
 
 sha512sums="
-e087f0bb3054c159d96758396e5da099912ed9c4e6baaf461b1da9c41a6561081dfa51c749fa120168cfece2e58c42d86a54f2c2f6c322d1b497f8898f031ef2  ada-on-alpine-libsodium-ada-v0.2.5.tar.gz
+77b11a67fb4db67f30fe71887e2efedeee6a6c900c70aebd3ec0ae801cf4f1a21127b24363bb0131194944d986e9a100f9e63f256b6386fba537f77c45741ae9  ada-on-alpine-libsodium-ada-v0.2.6.tar.gz
 "
