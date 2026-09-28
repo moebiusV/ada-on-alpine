@@ -10,6 +10,7 @@ with Crypto.Hash;
 with Crypto.Kdf;
 with Crypto.Pwhash;
 with Crypto.Raw;
+with Crypto.Safe;
 with Crypto.Secretbox;
 with Crypto.Secretstream;
 with Crypto.Sign;
@@ -599,6 +600,86 @@ begin
      ("raw secretstream statebytes",
       Natural (Crypto.Raw.Query_Secretstream_Statebytes) =
         Crypto.Raw.Secretstream_Statebytes);
+
+   ---------------------------------------------------------------
+   --  Strongly-typed Safe layer
+   ---------------------------------------------------------------
+
+   declare
+      K   : constant Crypto.Safe.Key := Crypto.Safe.Random_Key;
+      N   : constant Crypto.Safe.Nonce := Crypto.Safe.Random_Nonce;
+      Msg : constant Crypto.Byte_Array := B ("safe layer");
+   begin
+      Check
+        ("safe seal/open round-trip",
+         Crypto.Safe.Open (K, N, Empty, Crypto.Safe.Seal (K, N, Empty, Msg))
+           = Msg);
+   end;
+
+   --  Safe.Seal is a faithful wrapper: the same key/nonce yields the same
+   --  ciphertext and tag as the raw binding.
+   declare
+      Kb  : constant Crypto.Byte_Array := [1 .. 32 => 7];
+      Nb  : constant Crypto.Byte_Array := [1 .. 12 => 3];
+      K   : constant Crypto.Safe.Key := Crypto.Safe.Key (Kb);
+      N   : constant Crypto.Safe.Nonce := Crypto.Safe.Nonce (Nb);
+      Msg : constant Crypto.Byte_Array := B ("cross-check");
+      Aad : constant Crypto.Byte_Array := B ("aad");
+      S   : constant Crypto.Safe.Sealed_Text :=
+        Crypto.Safe.Seal (K, N, Aad, Msg);
+      R   : constant Crypto.Sealed_Text := Crypto.Seal (Kb, Nb, Aad, Msg);
+   begin
+      Check
+        ("safe seal matches raw",
+         S.Ciphertext = R.Ciphertext and Crypto.Safe.Bytes (S.Tag) = R.Tag);
+   end;
+
+   --  Ed25519 with typed keys and signature.
+   declare
+      Kp  : constant Crypto.Safe.Keypair := Crypto.Safe.Keygen;
+      Msg : constant Crypto.Byte_Array := B ("typed sign");
+   begin
+      Check
+        ("safe sign/verify round-trip",
+         Crypto.Safe.Verify
+           (Crypto.Safe.Sign (Msg, Kp.Secret), Msg, Kp.Public));
+   end;
+
+   --  Deterministic seed keypair matches the raw binding's (RFC 8032 seed).
+   declare
+      Sd  : constant Crypto.Safe.Seed :=
+        Crypto.Safe.Seed
+          (Crypto.Hex_Decode
+             ("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"));
+      Kp1 : constant Crypto.Safe.Keypair := Crypto.Safe.Seed_Keypair (Sd);
+      Kp2 : constant Crypto.Safe.Keypair := Crypto.Safe.Seed_Keypair (Sd);
+      Raw : constant Crypto.Sign.Keypair :=
+        Crypto.Sign.Seed_Keypair
+          (Crypto.Hex_Decode
+             ("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"));
+   begin
+      Check
+        ("safe seed keypair deterministic",
+         Crypto.Safe.Bytes (Kp1.Public) = Crypto.Safe.Bytes (Kp2.Public));
+      Check
+        ("safe seed keypair matches raw",
+         Crypto.Safe.Bytes (Kp1.Public) = Raw.Public);
+   end;
+
+   --  Random key/nonce have the fixed widths, and Bytes round-trips.
+   declare
+      K : constant Crypto.Safe.Key := Crypto.Safe.Random_Key;
+      N : constant Crypto.Safe.Nonce := Crypto.Safe.Random_Nonce;
+   begin
+      Check
+        ("safe random widths",
+         Crypto.Safe.Bytes (K)'Length = 32
+         and Crypto.Safe.Bytes (N)'Length = 12);
+      Check
+        ("safe bytes round-trip",
+         Crypto.Safe.Bytes (Crypto.Safe.Key (Crypto.Safe.Bytes (K)))
+           = Crypto.Safe.Bytes (K));
+   end;
 
    ---------------------------------------------------------------
    --  Guarded storage
