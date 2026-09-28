@@ -17,7 +17,7 @@ and 19 `-static` subpackages.
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
 | `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
-| `testing/imsg/` | `imsg` | New: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
+| `testing/imsg-ada/` | `imsg-ada` | New: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
@@ -51,7 +51,7 @@ and 19 `-static` subpackages.
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 | `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
-`imsg` is a complete aport whose source lives in this repo (`sources/imsg/`,
+`imsg-ada` is a complete aport whose source lives in this repo (`sources/imsg-ada/`,
 same self-referential tarball trick as `hbnf`).
 
 The full set builds with `./build.sh` (`libadalang` needs ≥8 GB RAM for its
@@ -84,7 +84,7 @@ gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ─�
                         ├─► bracke-cryptolib ──► bracke-zlib
                         ├─► libsodium-ada
                         ├─► hbnf          (self-referential source)
-                        └─► imsg          (self-referential source)
+                        └─► imsg-ada      (self-referential source)
 ```
 
 The langkit / GPR2 spine:
@@ -129,7 +129,7 @@ that shape: 19 libraries build `static + shared` and ship their archive in a
 `<name>-static` subpackage —
 
     adasat, aws, bracke-cryptolib, bracke-zlib, gnatcoll, gnatcoll-db,
-    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg, langkit, libgpr,
+    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgpr,
     libsodium-ada, prettier-ada, spawn, templates-parser, vss, xdiff, xmlada
 
 Consumers that link statically declare the matching `-static` package in their
@@ -163,7 +163,7 @@ build a new one.
   libadalang, ada-markdown, vss, vss-extra, gnatformat, lal-refactor.
 - Apache-2.0: adasat.
 - MIT: bracke-cryptolib, bracke-zlib.
-- ISC: libsodium-ada, hbnf, imsg.
+- ISC: libsodium-ada, hbnf, imsg-ada.
 - GPL-3.0: xdiff.
 - GPL-3.0-only: py3-e3-core, py3-e3-testsuite.
 - AGPL-3.0-or-later AND Apache-2.0: afl++.

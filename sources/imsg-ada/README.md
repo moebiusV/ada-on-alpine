@@ -1,4 +1,4 @@
-# imsg
+# imsg-ada
 
 A port of OpenBSD's `imsg` message-passing protocol (the portable `imsg.c` /
 `imsg-buffer.c` wire format) to Ada, so a C peer using the portable `imsg.c`
@@ -46,7 +46,7 @@ There are three layers, each a faithful rendering of the C:
 
 ## Quickstart
 
-Install the package (Alpine: `apk add imsg`), then `with "imsg";` from a GNAT
+Install the package (Alpine: `apk add imsg-ada`), then `with "imsg";` from a GNAT
 project file. It is pure Ada on the GNAT runtime — no C dependencies.
 
 ```ada
