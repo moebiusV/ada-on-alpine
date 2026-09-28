@@ -52,6 +52,8 @@ package Crypto is
    --  SHA-256/SHA-512 hash so keys of any length work).
    function Hash_Sha256 (Data : Byte_Array) return Byte_Array;
    function Hash_Sha512 (Data : Byte_Array) return Byte_Array;
+   function Hash_Sha3_256 (Data : Byte_Array) return Byte_Array;
+   function Hash_Sha3_512 (Data : Byte_Array) return Byte_Array;
    function Hmac_Sha256 (Key, Data : Byte_Array) return Byte_Array;
    function Hmac_Sha512 (Key, Data : Byte_Array) return Byte_Array;
 

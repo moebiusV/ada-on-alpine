@@ -93,7 +93,7 @@ higher-level suites are child packages:
 
 | Package | Primitive(s) |
 |---|---|
-| `Crypto` | init/version, random bytes, SHA-256/512, HMAC, base-64/hex, constant-time compare, big-number helpers, `memzero`, ChaCha20-Poly1305 AEAD, pad/unpad, `runtime_has_*`, misuse handler, `Secure_Buffer` (`sodium_malloc`/`mlock`/`mprotect`) |
+| `Crypto` | init/version, random bytes, SHA-256/512/SHA-3, HMAC, base-64/hex, constant-time compare, big-number helpers, `memzero`, ChaCha20-Poly1305 AEAD, pad/unpad, `runtime_has_*`, misuse handler, `Secure_Buffer` (`sodium_malloc`/`mlock`/`mprotect`) |
 | `Crypto.Raw` | the ABI-stable `crypto_*_statebytes()` size queries the state sizes derive from |
 | `Crypto.Safe` | strongly-typed `Key`/`Nonce`/`Auth_Tag`/`Signature`/keys over the raw binding |
 | `Crypto.Sign` | Ed25519 signatures (detached/attached/streaming, key conversion) |
@@ -109,8 +109,10 @@ higher-level suites are child packages:
 | `Crypto.Pwhash` | Argon2id/Argon2i and scrypt (raw + encoded-string) |
 | `Crypto.Stream` | XSalsa20 / XChaCha20 / ChaCha20 / Salsa20 (keygen, keystream, XOR) |
 | `Crypto.Aead` | ChaCha20-Poly1305, XChaCha20-Poly1305, AES-256-GCM, AEGIS-128L/256 |
-| `Crypto.Hash` | streaming SHA-256 / SHA-512 |
-| `Crypto.Kdf` | BLAKE2b key derivation |
+| `Crypto.Hash` | streaming SHA-256 / SHA-512 / SHA-3-256 / SHA-3-512 |
+| `Crypto.Xof` | SHAKE128 / SHAKE256 extendable-output functions |
+| `Crypto.Kdf` | BLAKE2b + HKDF-SHA256/SHA512 key derivation |
+| `Crypto.Kem` | ML-KEM-768 / X-Wing key encapsulation |
 
 The package specifications themselves (installed with the library) are the
 authoritative API reference; see `libsodium-ada(3)` for the man-page overview.

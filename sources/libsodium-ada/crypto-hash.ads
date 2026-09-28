@@ -22,4 +22,20 @@ package Crypto.Hash is
    procedure Sha512_Update (State : in out Sha512_State; Chunk : Crypto.Byte_Array);
    function Sha512_Final (State : Sha512_State) return Crypto.Byte_Array;
 
+   --  Streaming SHA-3-256 / SHA-3-512 (crypto_hash_sha3256/512_init/update/
+   --  final); the state is 256 bytes for both.
+   Sha3_256_State_Size : constant := 256;
+   Sha3_512_State_Size : constant := 256;
+
+   subtype Sha3_256_State is Crypto.State_Buffer (Sha3_256_State_Size);
+   subtype Sha3_512_State is Crypto.State_Buffer (Sha3_512_State_Size);
+
+   function Sha3_256_Init return Sha3_256_State;
+   procedure Sha3_256_Update (State : in out Sha3_256_State; Chunk : Crypto.Byte_Array);
+   function Sha3_256_Final (State : Sha3_256_State) return Crypto.Byte_Array;
+
+   function Sha3_512_Init return Sha3_512_State;
+   procedure Sha3_512_Update (State : in out Sha3_512_State; Chunk : Crypto.Byte_Array);
+   function Sha3_512_Final (State : Sha3_512_State) return Crypto.Byte_Array;
+
 end Crypto.Hash;

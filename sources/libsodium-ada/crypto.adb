@@ -58,6 +58,20 @@ package body Crypto is
      return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_hash_sha512";
 
+   function Crypto_Hash_Sha3_256
+     (Digest  : System.Address;
+      Msg     : System.Address;
+      Msg_Len : ULL)
+     return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3256";
+
+   function Crypto_Hash_Sha3_512
+     (Digest  : System.Address;
+      Msg     : System.Address;
+      Msg_Len : ULL)
+     return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3512";
+
    function Crypto_Verify_16 (X, Y : System.Address) return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_verify_16";
 
@@ -356,6 +370,30 @@ package body Crypto is
       end if;
       return Digest;
    end Hash_Sha512;
+
+   function Hash_Sha3_256 (Data : Byte_Array) return Byte_Array is
+      Digest : Byte_Array (1 .. Hash256_Size);
+      Rc     : Interfaces.C.int;
+   begin
+      Rc := Crypto_Hash_Sha3_256
+        (Digest (1)'Address, Addr (Data), ULL (Data'Length));
+      if Rc /= 0 then
+         raise Crypto_Error with "sha3-256 failed";
+      end if;
+      return Digest;
+   end Hash_Sha3_256;
+
+   function Hash_Sha3_512 (Data : Byte_Array) return Byte_Array is
+      Digest : Byte_Array (1 .. Hash512_Size);
+      Rc     : Interfaces.C.int;
+   begin
+      Rc := Crypto_Hash_Sha3_512
+        (Digest (1)'Address, Addr (Data), ULL (Data'Length));
+      if Rc /= 0 then
+         raise Crypto_Error with "sha3-512 failed";
+      end if;
+      return Digest;
+   end Hash_Sha3_512;
 
    procedure Memzero (B : in out Byte_Array) is
    begin

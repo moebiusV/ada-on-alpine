@@ -9,6 +9,7 @@ with Crypto.Auth;
 with Crypto.Generichash;
 with Crypto.Hash;
 with Crypto.Kdf;
+with Crypto.Kem;
 with Crypto.Pwhash;
 with Crypto.Raw;
 with Crypto.Safe;
@@ -16,6 +17,7 @@ with Crypto.Secretbox;
 with Crypto.Secretstream;
 with Crypto.Sign;
 with Crypto.Stream;
+with Crypto.Xof;
 use type Crypto.Byte_Array;
 use type Crypto.Secretstream.Tag;
 
@@ -237,6 +239,52 @@ begin
       Check
         ("sha512 streaming",
          Crypto.Hash.Sha512_Final (St512) = Crypto.Hash_Sha512 (Msg));
+   end;
+
+   --  SHA-3 (NIST known-answer tests).
+   Check
+     ("sha3-256 empty",
+      Crypto.Hex_Encode (Crypto.Hash_Sha3_256 (Empty)) =
+        "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+   Check
+     ("sha3-256 abc",
+      Crypto.Hex_Encode (Crypto.Hash_Sha3_256 (B ("abc"))) =
+        "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+   Check
+     ("sha3-512 abc",
+      Crypto.Hex_Encode (Crypto.Hash_Sha3_512 (B ("abc"))) =
+        "b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e"
+      & "10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0");
+
+   --  Streaming SHA-3 equals the one-shot.
+   declare
+      S : Crypto.Hash.Sha3_256_State := Crypto.Hash.Sha3_256_Init;
+   begin
+      Crypto.Hash.Sha3_256_Update (S, B ("The quick "));
+      Crypto.Hash.Sha3_256_Update (S, B ("brown fox"));
+      Check
+        ("sha3-256 streaming",
+         Crypto.Hash.Sha3_256_Final (S) =
+           Crypto.Hash_Sha3_256 (B ("The quick brown fox")));
+   end;
+
+   --  SHAKE (NIST known-answer tests, empty input, 32-byte output).
+   Check
+     ("shake128 empty",
+      Crypto.Hex_Encode (Crypto.Xof.Shake128 (Empty, 32)) =
+        "7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26");
+   Check
+     ("shake256 empty",
+      Crypto.Hex_Encode (Crypto.Xof.Shake256 (Empty, 32)) =
+        "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f");
+   declare
+      S : Crypto.Xof.Shake128_State := Crypto.Xof.Shake128_Init;
+   begin
+      Crypto.Xof.Shake128_Update (S, B ("abc"));
+      Check
+        ("shake128 streaming",
+         Crypto.Xof.Shake128_Squeeze (S, 32) =
+           Crypto.Xof.Shake128 (B ("abc"), 32));
    end;
 
    ---------------------------------------------------------------
@@ -513,6 +561,56 @@ begin
    begin
       Check ("kdf deterministic", S1 = S1b);
       Check ("kdf distinct subkey ids", S1 /= S2);
+   end;
+
+   --  HKDF-SHA256 (RFC 5869 test case 1).
+   declare
+      Ikm  : constant Crypto.Byte_Array := [1 .. 22 => 16#0b#];
+      Salt : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode ("000102030405060708090a0b0c");
+      Info : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode ("f0f1f2f3f4f5f6f7f8f9");
+      Prk  : constant Crypto.Byte_Array :=
+        Crypto.Kdf.Hkdf_Sha256_Extract (Salt, Ikm);
+      Okm  : constant Crypto.Byte_Array :=
+        Crypto.Kdf.Hkdf_Sha256_Expand (Prk, Info, 42);
+   begin
+      Check
+        ("hkdf-sha256 rfc5869 prk",
+         Crypto.Hex_Encode (Prk) =
+           "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5");
+      Check
+        ("hkdf-sha256 rfc5869 okm",
+         Crypto.Hex_Encode (Okm) =
+           "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5b"
+         & "f34007208d5b887185865");
+   end;
+
+   --  KEM (ML-KEM-768 and X-Wing): encapsulate/decapsulate agree.
+   for Alg in Crypto.Kem.Algorithm loop
+      declare
+         Kp     : constant Crypto.Kem.Keypair := Crypto.Kem.Keygen (Alg);
+         Sealed : constant Crypto.Kem.Sealed :=
+           Crypto.Kem.Encapsulate (Kp.Public, Alg);
+         Shared : constant Crypto.Byte_Array :=
+           Crypto.Kem.Decapsulate (Sealed.Ciphertext, Kp.Secret, Alg);
+      begin
+         Check
+           ("kem" & Crypto.Kem.Algorithm'Image (Alg) & " round-trip",
+            Shared = Sealed.Shared);
+      end;
+   end loop;
+
+   --  Deterministic seed keypair.
+   declare
+      Seed : constant Crypto.Byte_Array :=
+        [1 .. Crypto.Kem.Seed_Size (Crypto.Kem.Mlkem768) => 7];
+      Kp1  : constant Crypto.Kem.Keypair :=
+        Crypto.Kem.Seed_Keypair (Seed, Crypto.Kem.Mlkem768);
+      Kp2  : constant Crypto.Kem.Keypair :=
+        Crypto.Kem.Seed_Keypair (Seed, Crypto.Kem.Mlkem768);
+   begin
+      Check ("kem seed keypair deterministic", Kp1.Public = Kp2.Public);
    end;
 
    --  Secretstream: round-trip with a manual key ratchet on both sides.

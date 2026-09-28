@@ -41,8 +41,8 @@ once before use (it is idempotent).
 .It Vt Crypto
 Library initialisation and version, random bytes
 .Pq Fn Random , Fn Random_Uniform , Fn Random_Deterministic ,
-SHA-256/SHA-512
-.Pq Fn Hash_Sha256 , Fn Hash_Sha512 ,
+SHA-256/SHA-512/SHA-3
+.Pq Fn Hash_Sha256 , Fn Hash_Sha512 , Fn Hash_Sha3_256 , Fn Hash_Sha3_512 ,
 HMAC
 .Pq Fn Hmac_Sha256 , Fn Hmac_Sha512 ,
 base-64 and hex encoding, constant-time comparison
@@ -103,6 +103,20 @@ keygen, keystream and XOR.
 The AEAD primitives (ChaCha20-Poly1305 IETF/non-IETF, XChaCha20-Poly1305,
 AES-256-GCM, AEGIS-128L/256) under a single variant type with per-kind key,
 nonce and tag sizes.
+.It Vt Crypto.Hash
+Streaming SHA-256/SHA-512 and SHA-3-256/SHA-3-512.
+.It Vt Crypto.Xof
+SHAKE128/SHAKE256 extendable-output functions.
+.It Vt Crypto.Kdf
+BLAKE2b key derivation and HKDF-SHA256/SHA512.
+.It Vt Crypto.Kem
+ML-KEM-768 and X-Wing key encapsulation.
+.It Vt Crypto.Raw
+The ABI-stable
+.Fn crypto_*_statebytes
+size queries the state types derive from.
+.It Vt Crypto.Safe
+Strongly-typed keys, nonces, tags and signatures.
 .El
 .Sh CONVENTIONS
 .Bl -tag -width Ds

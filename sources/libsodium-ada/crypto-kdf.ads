@@ -24,4 +24,23 @@ package Crypto.Kdf is
       Context       : Crypto.Byte_Array;
       Key           : Crypto.Byte_Array) return Crypto.Byte_Array;
 
+   --  HKDF (RFC 5869) over SHA-256/SHA-512 (crypto_kdf_hkdf_sha256/512_*).
+   --  Extract turns input keying material (and an optional salt) into a
+   --  fixed-length pseudorandom key; Expand derives output keying material of
+   --  any length from that PRK and an info/context string.
+   Hkdf_Sha256_Key_Size : constant := 32;
+   Hkdf_Sha512_Key_Size : constant := 64;
+
+   function Hkdf_Sha256_Extract (Salt, Ikm : Crypto.Byte_Array)
+      return Crypto.Byte_Array;
+   function Hkdf_Sha256_Expand
+     (Prk, Info : Crypto.Byte_Array; Length : Natural) return Crypto.Byte_Array;
+   function Hkdf_Sha256_Keygen return Crypto.Byte_Array;
+
+   function Hkdf_Sha512_Extract (Salt, Ikm : Crypto.Byte_Array)
+      return Crypto.Byte_Array;
+   function Hkdf_Sha512_Expand
+     (Prk, Info : Crypto.Byte_Array; Length : Natural) return Crypto.Byte_Array;
+   function Hkdf_Sha512_Keygen return Crypto.Byte_Array;
+
 end Crypto.Kdf;

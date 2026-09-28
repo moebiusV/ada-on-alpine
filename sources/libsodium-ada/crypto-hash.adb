@@ -47,6 +47,30 @@ package body Crypto.Hash is
      (State : System.Address; Dg : System.Address) return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_hash_sha512_final";
 
+   function C_Sha3_256_Init (State : System.Address) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3256_init";
+
+   function C_Sha3_256_Update
+     (State : System.Address; Inp : System.Address; Inp_Len : ULL)
+     return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3256_update";
+
+   function C_Sha3_256_Final
+     (State : System.Address; Dg : System.Address) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3256_final";
+
+   function C_Sha3_512_Init (State : System.Address) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3512_init";
+
+   function C_Sha3_512_Update
+     (State : System.Address; Inp : System.Address; Inp_Len : ULL)
+     return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3512_update";
+
+   function C_Sha3_512_Final
+     (State : System.Address; Dg : System.Address) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "crypto_hash_sha3512_final";
+
    function Sha256_Init return Sha256_State is
       S : Sha256_State;
    begin
@@ -100,5 +124,59 @@ package body Crypto.Hash is
       end if;
       return D;
    end Sha512_Final;
+
+   function Sha3_256_Init return Sha3_256_State is
+      S : Sha3_256_State;
+   begin
+      if C_Sha3_256_Init (S.Data (1)'Address) /= 0 then
+         Fail ("sha3-256 init failed");
+      end if;
+      return S;
+   end Sha3_256_Init;
+
+   procedure Sha3_256_Update (State : in out Sha3_256_State; Chunk : Crypto.Byte_Array) is
+   begin
+      if C_Sha3_256_Update
+        (State.Data (1)'Address, Addr (Chunk), ULL (Chunk'Length)) /= 0
+      then
+         Fail ("sha3-256 update failed");
+      end if;
+   end Sha3_256_Update;
+
+   function Sha3_256_Final (State : Sha3_256_State) return Crypto.Byte_Array is
+      D : Crypto.Byte_Array (1 .. Crypto.Hash256_Size);
+   begin
+      if C_Sha3_256_Final (State.Data (1)'Address, D (1)'Address) /= 0 then
+         Fail ("sha3-256 final failed");
+      end if;
+      return D;
+   end Sha3_256_Final;
+
+   function Sha3_512_Init return Sha3_512_State is
+      S : Sha3_512_State;
+   begin
+      if C_Sha3_512_Init (S.Data (1)'Address) /= 0 then
+         Fail ("sha3-512 init failed");
+      end if;
+      return S;
+   end Sha3_512_Init;
+
+   procedure Sha3_512_Update (State : in out Sha3_512_State; Chunk : Crypto.Byte_Array) is
+   begin
+      if C_Sha3_512_Update
+        (State.Data (1)'Address, Addr (Chunk), ULL (Chunk'Length)) /= 0
+      then
+         Fail ("sha3-512 update failed");
+      end if;
+   end Sha3_512_Update;
+
+   function Sha3_512_Final (State : Sha3_512_State) return Crypto.Byte_Array is
+      D : Crypto.Byte_Array (1 .. Crypto.Hash512_Size);
+   begin
+      if C_Sha3_512_Final (State.Data (1)'Address, D (1)'Address) /= 0 then
+         Fail ("sha3-512 final failed");
+      end if;
+      return D;
+   end Sha3_512_Final;
 
 end Crypto.Hash;
