@@ -43,5 +43,5 @@ package() {
 }
 
 sha512sums="
-adb7ac513f193787db2d686e8d4993912f81fa57566bc6b14071b86388e14dfdc1912cbc8d02446d0a045318344645abb8970aab76df7d3ca6d74cf87a6f7c42    ada-on-alpine-imsg-v0.3.3.tar.gz
+da17dce5b3f7d5dd5b0e28ea67b99dc00250777d96525e1dd465dc958fde65eeb3f5ea1e6e83890500b6bcd3d821637b43d51b1643939f2eaee57beed3264cbd    ada-on-alpine-imsg-ada-v0.3.3.tar.gz
 "
