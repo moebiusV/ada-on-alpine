@@ -4,6 +4,7 @@ with Ada.Command_Line;
 with Ada.Streams;
 with Ada.Text_IO;
 with Crypto;
+with Crypto.Generichash;
 with Crypto.Secretbox;
 with Crypto.Sign;
 use type Crypto.Byte_Array;
@@ -293,6 +294,55 @@ begin
    Check
      ("hex decode round-trip",
       Crypto.Hex_Decode ("666f6f626172") = B ("foobar"));
+
+   ---------------------------------------------------------------
+   --  Utils: constant-time compare, pad/unpad, alloc-array bounds
+   ---------------------------------------------------------------
+
+   --  Equal empty arrays are equal; this must not call memcmp(NULL,NULL,0).
+   Check ("constant-time-equal empty",
+          Crypto.Constant_Time_Equal (Empty, Empty));
+
+   --  Unpad on an input whose 'First /= 1 (must slice relative to 'First).
+   declare
+      Msg   : constant Crypto.Byte_Array := B ("hello");
+      Padded : constant Crypto.Byte_Array := Crypto.Pad (Msg, 16);
+      Shift : Crypto.Byte_Array (5 .. 4 + Padded'Length);
+   begin
+      Shift := Padded;
+      Check ("unpad slice-safe", Crypto.Unpad (Shift, 16) = Msg);
+   end;
+
+   --  Count * Size overflow is rejected before sodium_allocarray runs.
+   declare
+      Overflowed : Boolean := False;
+   begin
+      begin
+         declare
+            X : Crypto.Secure_Buffer :=
+              Crypto.Secure_Alloc_Array (Natural'Last, 2);
+         begin
+            Crypto.Secure_Free (X);
+         end;
+      exception
+         when Crypto.Crypto_Error =>
+            Overflowed := True;
+      end;
+      Check ("secure_alloc_array overflow", Overflowed);
+   end;
+
+   --  Generichash streaming equals the one-shot hash (and exercises the
+   --  64-byte-aligned state path).
+   declare
+      Msg : constant Crypto.Byte_Array := B ("The quick brown fox");
+      St  : Crypto.Generichash.Stream_State := Crypto.Generichash.New_State;
+   begin
+      Crypto.Generichash.Update (St, B ("The quick "));
+      Crypto.Generichash.Update (St, B ("brown fox"));
+      Check
+        ("generichash streaming",
+         Crypto.Generichash.Final (St) = Crypto.Generichash.Hash (Msg));
+   end;
 
    ---------------------------------------------------------------
    --  Guarded storage

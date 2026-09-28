@@ -533,6 +533,9 @@ package body Crypto is
       if A'Length /= B'Length then
          raise Constraint_Error with "length mismatch";
       end if;
+      if A'Length = 0 then
+         return True;   --  sodium_memcmp (NULL, NULL, 0) is C-undefined
+      end if;
       return Sodium_Memcmp
         (Addr (A), Addr (B), Interfaces.C.size_t (A'Length)) = 0;
    end Constant_Time_Equal;
@@ -584,6 +587,11 @@ package body Crypto is
    begin
       if Count = 0 or else Size = 0 then
          return (Data => System.Null_Address, Len => 0);
+      end if;
+      --  Ada multiplication wraps; sodium_allocarray checks overflow in C but
+      --  the Ada Len field is ours, so reject the wrap before multiplying.
+      if Count > Natural'Last / Size then
+         raise Crypto_Error with "sodium_allocarray size overflow";
       end if;
       declare
          P : constant System.Address := Sodium_Allocarray
@@ -774,9 +782,14 @@ package body Crypto is
          raise Crypto_Error with "unpad failed";
       end if;
       declare
-         Result : Byte_Array (1 .. Natural (Unpadded));
+         N      : constant Natural := Natural (Unpadded);
+         Result : Byte_Array (1 .. N);
       begin
-         Result := Data (1 .. Natural (Unpadded));
+         if N > 0 then
+            --  Slice relative to Data'First: Byte_Array is `Natural range <>`,
+            --  so the input need not start at 1.
+            Result := Data (Data'First .. Data'First + N - 1);
+         end if;
          return Result;
       end;
    end Unpad;

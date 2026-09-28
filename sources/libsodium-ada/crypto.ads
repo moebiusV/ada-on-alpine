@@ -118,14 +118,16 @@ package Crypto is
    procedure Munlock (B : Secure_Buffer);
    procedure Protect (B : Secure_Buffer; Mode : Protect_Mode);
 
-   --  Opaque, 8-byte-aligned storage for libsodium's streaming state structs
+   --  Opaque, 64-byte-aligned storage for libsodium's streaming state structs
    --  (crypto_sign_state, crypto_generichash_state, ...).  Child packages use
    --  this as their state type; the C library reads/writes it as its own POD
-   --  struct, so callers only ever pass it back by reference.
+   --  struct, so callers only ever pass it back by reference.  64 matches
+   --  sodium's CRYPTO_ALIGN(64): BLAKE2b's state needs it, and over-alignment
+   --  is harmless for the smaller states.
    type State_Buffer (Size : Natural) is record
       Data : Byte_Array (1 .. Size);
    end record;
-   for State_Buffer'Alignment use 8;
+   for State_Buffer'Alignment use 64;
 
    --  ChaCha20-Poly1305 seal/open.  Key and Nonce must be Key_Size and
    --  Nonce_Size bytes; Aad may be empty.  Ciphertext has the plaintext
