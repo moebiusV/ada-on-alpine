@@ -109,8 +109,8 @@ If you know OpenBSD's `imsg.c` / `imsg-buffer.c`, the mapping is one-to-one:
 | `imsg_read(ibuf)` | `Connection.Read (C)` |
 | `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Data`, `.Fd`) |
 | `ibuf_add(buf, data, len)` | `Buffer.Add (B, Data)` |
-| `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_LE (B, V)` |
-| `ibuf_get_n32(buf)` | `Buffer.Get_U32_LE (B)` |
+| `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_BE (B, V)` |
+| `ibuf_get_n32(buf)` | `Buffer.Get_U32_BE (B)` |
 | `ibuf_open` / `ibuf_dynamic` | `Buffer.Open_Buffer` / `Buffer.Dynamic_Buffer` |
 
 ## Examples
