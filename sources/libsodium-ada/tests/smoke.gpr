@@ -1,0 +1,15 @@
+--  Builds crypto_smoke against the *installed* crypto.gpr (found via
+--  GPR_PROJECT_PATH), so the test links libcrypto_ada rather than recompiling
+--  the binding sources beside the tree.  The APKBUILD check() installs crypto
+--  to a stage dir and points GPR_PROJECT_PATH there.
+with "crypto";
+
+project Smoke is
+   for Source_Dirs use (".");
+   for Object_Dir use "../smoke-obj";
+   for Exec_Dir use ".";
+   for Main use ("crypto_smoke.adb");
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+end Smoke;
