@@ -44,6 +44,16 @@ procedure Imsg_Check is
         and then A.Data = B.Data;
    end Frame_Equal;
 
+   function Received_Matches (R : Imsg.Received; F : Imsg.Frame)
+      return Boolean is
+   begin
+      return R.Length = F.Length
+        and then R.Kind = F.Kind
+        and then R.Peer = F.Peer
+        and then R.Pid = F.Pid
+        and then R.Data = F.Data;
+   end Received_Matches;
+
    procedure Check_Roundtrip (Name : String; F : Imsg.Frame) is
       OK : constant Boolean :=
         Frame_Equal (F, Imsg.Decode (Imsg.Encode (F)));
@@ -91,18 +101,20 @@ procedure Imsg_Check is
       A, B : GNAT.Sockets.Socket_Type;
       F    : constant Imsg.Frame := Mk (99, 0, 0, [16#01#, 16#02#, 16#03#]);
       W    : constant Imsg.Wire := Imsg.Encode (F);
-      Got  : Imsg.Wire (W'Range);
    begin
       GNAT.Sockets.Create_Socket_Pair (A, B);
       Imsg.Send_Frame (A, W);
-      Got := Imsg.Recv_Frame (B).Data;
-      Checks := Checks + 1;
-      if Got = W then
-         Ada.Text_IO.Put_Line ("ok: transport round-trip");
-      else
-         Failures := Failures + 1;
-         Ada.Text_IO.Put_Line ("FAIL: transport round-trip");
-      end if;
+      declare
+         R : constant Imsg.Received := Imsg.Recv_Frame (B);
+      begin
+         Checks := Checks + 1;
+         if R.Fd = -1 and then Received_Matches (R, F) then
+            Ada.Text_IO.Put_Line ("ok: transport round-trip");
+         else
+            Failures := Failures + 1;
+            Ada.Text_IO.Put_Line ("FAIL: transport round-trip");
+         end if;
+      end;
       GNAT.Sockets.Close_Socket (A);
       GNAT.Sockets.Close_Socket (B);
    end Check_Transport;
@@ -126,7 +138,7 @@ procedure Imsg_Check is
          if R.Fd < 0 then
             Failures := Failures + 1;
             Ada.Text_IO.Put_Line ("FAIL: fd passing (no descriptor)");
-         elsif not Frame_Equal (Imsg.Decode (R.Data), F) then
+         elsif not Received_Matches (R, F) then
             Failures := Failures + 1;
             Ada.Text_IO.Put_Line ("FAIL: fd passing (data mismatch)");
          else
@@ -175,7 +187,7 @@ procedure Imsg_Check is
          if R.Fd < 0 then
             Failures := Failures + 1;
             Ada.Text_IO.Put_Line ("FAIL: Send_Fd handoff (no descriptor)");
-         elsif not Frame_Equal (Imsg.Decode (R.Data), F) then
+         elsif not Received_Matches (R, F) then
             Failures := Failures + 1;
             Ada.Text_IO.Put_Line ("FAIL: Send_Fd handoff (data mismatch)");
          else
@@ -455,10 +467,9 @@ procedure Imsg_Check is
       Imsg.Read (Cb);
       declare
          R : constant Imsg.Received := Imsg.Get (Cb);
-         F : constant Imsg.Frame := Imsg.Decode (R.Data);
       begin
-         Pass ("connection kind", F.Kind = 7);
-         Pass ("connection payload", F.Data = [16#01#, 16#02#, 16#03#]);
+         Pass ("connection kind", R.Kind = 7);
+         Pass ("connection payload", R.Data = [16#01#, 16#02#, 16#03#]);
          Pass ("connection no fd", R.Fd = -1);
       end;
 
@@ -473,11 +484,10 @@ procedure Imsg_Check is
          Imsg.Read (Cb);
          declare
             R : constant Imsg.Received := Imsg.Get (Cb);
-            F : constant Imsg.Frame := Imsg.Decode (R.Data);
          begin
-            Pass ("connection compose_buffer kind", F.Kind = 11);
+            Pass ("connection compose_buffer kind", R.Kind = 11);
             Pass ("connection compose_buffer payload",
-              F.Data = [16#EF#, 16#BE#, 16#AD#, 16#DE#]);
+              R.Data = [16#EF#, 16#BE#, 16#AD#, 16#DE#]);
          end;
       end;
 
@@ -489,11 +499,9 @@ procedure Imsg_Check is
       declare
          R1 : constant Imsg.Received := Imsg.Get (Cb);
          R2 : constant Imsg.Received := Imsg.Get (Cb);
-         F1 : constant Imsg.Frame := Imsg.Decode (R1.Data);
-         F2 : constant Imsg.Frame := Imsg.Decode (R2.Data);
       begin
-         Pass ("connection multi first", F1.Kind = 20);
-         Pass ("connection multi second", F2.Kind = 21);
+         Pass ("connection multi first", R1.Kind = 20);
+         Pass ("connection multi second", R2.Kind = 21);
       end;
 
       --  get raises Not_Complete on an empty read queue
@@ -521,6 +529,7 @@ procedure Imsg_Check is
          GNAT.Sockets.Create_Socket_Pair (X, Y);
          Imsg.Compose (Ca, 9, 0, 0, GNAT.Sockets.To_C (X), [16#42#]);
          Imsg.Flush (Ca);   --  sends the fd and closes X here
+         Imsg.Allow_Fd_Pass (Cb);
          Imsg.Read (Cb);
          declare
             R : constant Imsg.Received := Imsg.Get (Cb);
@@ -561,10 +570,9 @@ procedure Imsg_Check is
          Imsg.Read (Cd);
          declare
             R : constant Imsg.Received := Imsg.Get (Cd);
-            F : constant Imsg.Frame := Imsg.Decode (R.Data);
          begin
-            Pass ("connection forward kind", F.Kind = 30);
-            Pass ("connection forward payload", F.Data = [16#55#, 16#66#]);
+            Pass ("connection forward kind", R.Kind = 30);
+            Pass ("connection forward payload", R.Data = [16#55#, 16#66#]);
          end;
          GNAT.Sockets.Close_Socket (C2);
          GNAT.Sockets.Close_Socket (D2);
@@ -581,9 +589,8 @@ procedure Imsg_Check is
          Imsg.Read (Cb);
          declare
             R : constant Imsg.Received := Imsg.Get (Cb);
-            F : constant Imsg.Frame := Imsg.Decode (R.Data);
          begin
-            Pass ("connection compose_v", F.Data = [16#AA#, 16#BB#, 16#CC#]);
+            Pass ("connection compose_v", R.Data = [16#AA#, 16#BB#, 16#CC#]);
          end;
       end;
 

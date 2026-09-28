@@ -71,11 +71,10 @@ begin
    Imsg.Read (Cb);
    declare
       R : constant Imsg.Received := Imsg.Get (Cb);
-      F : constant Imsg.Frame := Imsg.Decode (R.Data);
    begin
       Ada.Text_IO.Put_Line
-        ("kind=" & Imsg.Message_Type'Image (F.Kind)
-         & " payload=" & Natural'Image (F.Data'Length) & " bytes");
+        ("kind=" & Imsg.Message_Type'Image (R.Kind)
+         & " payload=" & Natural'Image (R.Data'Length) & " bytes");
    end;
 end Hello;
 ```
@@ -107,7 +106,7 @@ If you know OpenBSD's `imsg.c` / `imsg-buffer.c`, the mapping is one-to-one:
 | `imsg_create` + `imsg_add` + `imsg_close` | `Connection.Compose_Buffer (C, Kind, Len, ...)` + `Buffer.Add_*` + `Connection.Close` |
 | `imsg_flush(ibuf)` | `Connection.Flush (C)` |
 | `imsg_read(ibuf)` | `Connection.Read (C)` |
-| `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Data`, `.Fd`) |
+| `imsg_get(ibuf, &imsg)` | `Connection.Get (C)` → `Received` (`.Kind`, `.Peer`, `.Pid`, `.Data`, `.Fd`) |
 | `ibuf_add(buf, data, len)` | `Buffer.Add (B, Data)` |
 | `ibuf_add_n32(buf, v)` | `Buffer.Add_U32_BE (B, V)` |
 | `ibuf_get_n32(buf)` | `Buffer.Get_U32_BE (B)` |
@@ -148,8 +147,9 @@ descriptor attached with `sendmsg`/`recvmsg`, exactly as OpenBSD's imsg does.
 - `Imsg.Send_Frame (Sock, B, Fd := -1)` — write one frame; `Fd /= -1`
   attaches a descriptor via `SCM_RIGHTS` (the analogue of
   `imsg_compose(..., fd, ...)`).
-- `Imsg.Recv_Frame (Sock)` returns `Imsg.Received` (`.Data` + `.Fd`) — the
-  analogue of `imsg_get()`'s `struct imsg` (`.fd`, `-1` when none).
+- `Imsg.Recv_Frame (Sock)` returns `Imsg.Received`, the frame decoded into
+  `.Kind`/`.Peer`/`.Pid`/`.Data` plus `.Fd` (-1 when none) — the analogue of
+  `imsg_get()`'s `struct imsg`.
 - `Imsg.Send_Fd` — transfer a descriptor to the peer, closing the caller's copy
   even on failure.
 - `Imsg.Buffer` — the growable `ibuf`, with `Add_U*_LE/BE`, `Get_U*_LE/BE`,

@@ -31,6 +31,14 @@ build() {
 check() {
 	gprbuild -P tests/check.gpr -p
 	./tests/imsg_check
+
+	# C <-> Ada interop: a C harness hand-rolls one frame exactly as portable
+	# imsg.c's imsg_compose does and writes it to stdout; the Ada c_interop
+	# decodes it, proving the two sides agree byte-for-byte.
+	gprbuild -P tests/c_interop.gpr -p
+	cc -o tests/c_compose tests/c_compose.c
+	./tests/c_compose > tests/c_frame.bin
+	./tests/c_interop tests/c_frame.bin
 }
 
 package() {

@@ -58,11 +58,10 @@ begin
       Imsg.Read (Cb);
       declare
          R : constant Imsg.Received := Imsg.Get (Cb);
-         F : constant Imsg.Frame := Imsg.Decode (R.Data);
       begin
          Ada.Text_IO.Put_Line
-           ("received: kind=" & Imsg.Message_Type'Image (F.Kind)
-            & " payload=" & Natural'Image (F.Data'Length) & " bytes"
+           ("received: kind=" & Imsg.Message_Type'Image (R.Kind)
+            & " payload=" & Natural'Image (R.Data'Length) & " bytes"
             & " fd=" & Integer'Image (R.Fd));
       end;
    end;

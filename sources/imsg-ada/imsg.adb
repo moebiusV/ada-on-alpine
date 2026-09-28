@@ -118,7 +118,8 @@ package body Imsg is
    pragma Convention (C, Cmsghdr);
 
    --  A cmsghdr immediately followed by one int (the SCM_RIGHTS data):
-   --  20 bytes total (CMSG_LEN == CMSG_SPACE for a single int).
+   --  CMSG_LEN is 20 bytes (cmsghdr + one int); the control buffer must be
+   --  CMSG_SPACE, which rounds that up to the next size_t alignment (24).
    type Cmsg_With_Fd is record
       Hdr : Cmsghdr;
       Fd  : int;
@@ -144,7 +145,8 @@ package body Imsg is
    SCM_RIGHTS       : constant := 1;
    MSG_CMSG_CLOEXEC : constant := 16#4000_0000#;
 
-   Cmsg_Space : constant size_t := 20;   --  CMSG_SPACE(sizeof(int))
+   Cmsg_Len   : constant size_t := 20;  --  CMSG_LEN: hdr + one int
+   Cmsg_Space : constant size_t := 24;  --  CMSG_SPACE: aligned
 
    function C_Sendmsg (S : int; Msg : access Msghdr; Flags : int)
      return long;
@@ -206,7 +208,7 @@ package body Imsg is
 
       Iov := (Iov_Base => Marked (Marked'First)'Address,
               Iov_Len  => size_t (Marked'Length));
-      Ctrl := (Hdr => (Cmsg_Len   => Cmsg_Space,
+      Ctrl := (Hdr => (Cmsg_Len   => Cmsg_Len,
                        Cmsg_Level => SOL_SOCKET,
                        Cmsg_Type  => SCM_RIGHTS),
                Fd  => int (Fd));
@@ -242,7 +244,7 @@ package body Imsg is
    begin
       Iov := (Iov_Base => Buf (Buf'First)'Address,
               Iov_Len  => size_t (Buf'Length));
-      Ctrl := (Hdr => (Cmsg_Len   => Cmsg_Space,
+      Ctrl := (Hdr => (Cmsg_Len   => Cmsg_Len,
                        Cmsg_Level => SOL_SOCKET,
                        Cmsg_Type  => SCM_RIGHTS),
                Fd  => -1);
@@ -263,7 +265,7 @@ package body Imsg is
 
       --  The kernel fills the cmsg and installs the descriptor; had the buffer
       --  been too small (it is not, for one fd) the fd is closed + MSG_CTRUNC.
-      if Ctrl.Hdr.Cmsg_Len >= Cmsg_Space
+      if Ctrl.Hdr.Cmsg_Len >= Cmsg_Len
         and then Ctrl.Hdr.Cmsg_Type = SCM_RIGHTS
       then
          Fd := Integer (Ctrl.Fd);
@@ -303,10 +305,17 @@ package body Imsg is
          end;
       end if;
 
-      return Received'
-        (Length => Total,
-         Fd     => Fd,
-         Data   => Wire (Buf (1 .. Total_Off)));
+      declare
+         F : constant Frame := Decode (Wire (Buf (1 .. Total_Off)));
+      begin
+         return Received'
+           (Length => F.Data'Length,
+            Fd     => Fd,
+            Kind   => F.Kind,
+            Peer   => F.Peer,
+            Pid    => F.Pid,
+            Data   => F.Data);
+      end;
    end Recv_Frame;
 
    procedure Send_Fd
@@ -958,34 +967,47 @@ package body Imsg is
       Got         : long;
       Sfd         : constant int := int (GNAT.Sockets.To_C (C.Sock));
       Iov         : aliased Iovec;
-      Ctrl        : aliased Cmsg_With_Fd;
+      Ctrl        : aliased Cmsg_With_Fd :=
+        (Hdr => (Cmsg_Len   => Cmsg_Len,
+                 Cmsg_Level => SOL_SOCKET,
+                 Cmsg_Type  => SCM_RIGHTS),
+         Fd  => -1);
       Msg         : aliased Msghdr;
    begin
       if C.Read_Buf = null then
          C.Read_Buf := new Payload (1 .. Read_Size);
       end if;
 
-      --  Receive into the free tail of Read_Buf, capturing a descriptor.
+      --  Receive into the free tail of Read_Buf.  A descriptor is captured
+      --  only when the caller has opted in via Allow_Fd_Pass; otherwise the
+      --  kernel drops any SCM_RIGHTS the peer attached.
       Iov := (Iov_Base => C.Read_Buf.all (C.Read_Len + 1)'Address,
               Iov_Len  => size_t (Read_Size - C.Read_Len));
-      Ctrl := (Hdr => (Cmsg_Len   => Cmsg_Space,
-                       Cmsg_Level => SOL_SOCKET,
-                       Cmsg_Type  => SCM_RIGHTS),
-               Fd  => -1);
-      Msg := (Msg_Name       => System.Null_Address,
-              Msg_Namelen    => 0,
-              Msg_Iov        => Iov'Address,
-              Msg_Iovlen     => 1,
-              Msg_Control    => Ctrl'Address,
-              Msg_Controllen => Cmsg_Space,
-              Msg_Flags      => 0);
+      if C.Allow_Fd then
+         Msg := (Msg_Name       => System.Null_Address,
+                 Msg_Namelen    => 0,
+                 Msg_Iov        => Iov'Address,
+                 Msg_Iovlen     => 1,
+                 Msg_Control    => Ctrl'Address,
+                 Msg_Controllen => Cmsg_Space,
+                 Msg_Flags      => 0);
+      else
+         Msg := (Msg_Name       => System.Null_Address,
+                 Msg_Namelen    => 0,
+                 Msg_Iov        => Iov'Address,
+                 Msg_Iovlen     => 1,
+                 Msg_Control    => System.Null_Address,
+                 Msg_Controllen => 0,
+                 Msg_Flags      => 0);
+      end if;
       Got := C_Recvmsg (Sfd, Msg'Access, MSG_CMSG_CLOEXEC);
       if Got < 0 then
          raise Transport_Error with "recvmsg failed";
       elsif Got = 0 then
          raise Connection_Closed;
       end if;
-      if Ctrl.Hdr.Cmsg_Len >= Cmsg_Space
+      if C.Allow_Fd
+        and then Ctrl.Hdr.Cmsg_Len >= Cmsg_Len
         and then Ctrl.Hdr.Cmsg_Type = SCM_RIGHTS
       then
          Incoming_Fd := Integer (Ctrl.Fd);
@@ -1067,12 +1089,16 @@ package body Imsg is
       declare
          Wire_Bytes : constant Payload := Data (Msg.all);
          Fd         : constant Integer := Take_Fd (Msg.all);
+         F          : constant Frame := Decode (Wire_Bytes);
       begin
          Free (Msg.all);
          Free_Buffer (Msg);
-         return Received'(Length => Wire_Bytes'Length,
+         return Received'(Length => F.Data'Length,
                           Fd     => Fd,
-                          Data   => Wire_Bytes);
+                          Kind   => F.Kind,
+                          Peer   => F.Peer,
+                          Pid    => F.Pid,
+                          Data   => F.Data);
       end;
    end Get;
 
@@ -1136,12 +1162,11 @@ package body Imsg is
    end Compose;
 
    procedure Forward (C : in out Connection; Msg : Received) is
-      F : constant Frame := Decode (Msg.Data);
    begin
       if Msg.Fd >= 0 then
          GNAT.Sockets.Close_Socket (GNAT.Sockets.To_Ada (Msg.Fd));
       end if;
-      Compose (C, F.Kind, F.Peer, F.Pid, -1, F.Data);
+      Compose (C, Msg.Kind, Msg.Peer, Msg.Pid, -1, Msg.Data);
    end Forward;
 
    procedure Compose_V

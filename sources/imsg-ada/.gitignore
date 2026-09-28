@@ -1,6 +1,10 @@
 obj/
 obj-check/
+obj-cinterop/
 lib/
 *.o
 *.ali
 tests/imsg_check
+tests/c_compose
+tests/c_interop
+tests/c_frame.bin

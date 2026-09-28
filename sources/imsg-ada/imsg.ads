@@ -71,11 +71,15 @@ package Imsg is
    --  malformed frame.
    Transport_Error : exception;
 
-   --  A received frame: the encoded wire form plus the descriptor it
-   --  carried (-1 when none), mirroring OpenBSD's struct imsg (.fd).
+   --  A received message: the frame decoded into its fields -- Kind, Peer,
+   --  Pid and the payload -- plus the descriptor it carried (-1 when none),
+   --  mirroring OpenBSD's struct imsg.  No separate Decode call is needed.
    pragma Warnings (Off, "Storage_Error");
    type Received (Length : Natural := 0) is record
       Fd   : Integer := -1;
+      Kind : Message_Type;
+      Peer : Peer_Id;
+      Pid  : Pid_Type;
       Data : Payload (1 .. Length);
    end record;
    pragma Warnings (On, "Storage_Error");
@@ -87,9 +91,9 @@ package Imsg is
    procedure Send_Frame
      (Sock : GNAT.Sockets.Socket_Type; B : Wire; Fd : Integer := -1);
 
-   --  Receive one frame and any attached descriptor (Fd = -1 when the frame
-   --  carried none) -- the analogue of imsg_get()'s struct imsg.fd.  The
-   --  caller owns the received descriptor and must close it.
+   --  Receive one frame, decoded into its fields, and any attached descriptor
+   --  (Fd = -1 when the frame carried none) -- the analogue of imsg_get()'s
+   --  struct imsg.  The caller owns the received descriptor and must close it.
    function Recv_Frame (Sock : GNAT.Sockets.Socket_Type) return Received;
 
    --  High-level descriptor handoff: transfer a descriptor to the peer over
