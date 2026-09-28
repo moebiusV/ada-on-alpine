@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libsodium-ada
-pkgver=0.2.14
+pkgver=0.2.15
 pkgrel=0
 _tag="libsodium-ada-v$pkgver"
 pkgdesc="Complete thin Ada binding to libsodium (hashes, HMAC, AEAD, base64/hex, secure memory, and the full crypto suites)"
@@ -58,5 +58,5 @@ doc() {
 }
 
 sha512sums="
-d3ec9521706e0d5df415542f80a329635b7881ff9126b8327f0a578194b02f87ec25f290459989ffbd841a0675a030e311f1acde89a37f39719dea92baa397bd    ada-on-alpine-libsodium-ada-v0.2.14.tar.gz
+c28d8df4a8f1c085140c0eedc2bfa8b93d6de977beb83eddc20a9237f676ed6cf16262a5fe27990331045805607bfeb9bef6cc046cc4ac9f5faa8bb6d84d70eb    ada-on-alpine-libsodium-ada-v0.2.15.tar.gz
 "
