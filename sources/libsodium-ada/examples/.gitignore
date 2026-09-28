@@ -1,0 +1,7 @@
+# compiled example binaries (sources: *.adb)
+obj/
+hash
+aead
+sign
+pwhash
+safe
