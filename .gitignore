@@ -25,6 +25,7 @@ sources/*/smoke/
 sources/*/smoke-obj/
 sources/*/stage/
 sources/*/tests/crypto_smoke
+sources/*/.cross/
 sources/*/hbnf_cli
 sources/*/hbnf_cli.new
 sources/*/tests/*_check
