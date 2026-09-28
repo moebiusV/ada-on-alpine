@@ -1,5 +1,7 @@
 pragma Ada_2022;
 
+with Crypto.Raw;
+
 
 --  Encrypted streams (crypto_secretstream_xchacha20poly1305_*): a sequence of
 --  messages authenticated and encrypted under one key, with an explicit tag
@@ -9,7 +11,7 @@ package Crypto.Secretstream is
    Key_Size    : constant := 32;
    Header_Size : constant := 24;
    ABytes      : constant := 17;   --  ciphertext is message length + ABytes
-   State_Size  : constant := 52;
+   State_Size  : constant := Crypto.Raw.Secretstream_Statebytes;
 
    type Tag is (Message, Push, Rekey, Final);
    for Tag use (Message => 0, Push => 1, Rekey => 2, Final => 3);

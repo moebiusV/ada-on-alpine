@@ -1,5 +1,7 @@
 pragma Ada_2022;
 
+with Crypto.Raw;
+
 
 --  Ed25519 signatures (crypto_sign_*): key generation, detached and attached
 --  signing, and verification.  A detached signature is Signature_Size bytes; an
@@ -12,7 +14,7 @@ package Crypto.Sign is
    Seed_Size       : constant := 32;
    Public_Key_Size : constant := 32;
    Secret_Key_Size : constant := 64;
-   State_Size      : constant := 512;
+   State_Size      : constant := Crypto.Raw.Sign_Statebytes;
 
    type Keypair is record
       Public : Crypto.Byte_Array (1 .. Public_Key_Size);

@@ -9,6 +9,7 @@ with Crypto.Generichash;
 with Crypto.Hash;
 with Crypto.Kdf;
 with Crypto.Pwhash;
+with Crypto.Raw;
 with Crypto.Secretbox;
 with Crypto.Secretstream;
 with Crypto.Sign;
@@ -157,6 +158,27 @@ begin
            "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155"
          & "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b");
       Check ("ed25519 rfc8032 verify", Crypto.Sign.Verify (Sig, Empty, Kp.Public));
+   end;
+
+   --  Streaming sign (ed25519ph) round-trip, exercising the state buffer at its
+   --  exact crypto_sign_statebytes size (208, not the old oversized 512).
+   declare
+      Kp : constant Crypto.Sign.Keypair := Crypto.Sign.Keygen;
+      St : Crypto.Sign.Sign_State := Crypto.Sign.New_State;
+   begin
+      Crypto.Sign.Update (St, B ("streaming "));
+      Crypto.Sign.Update (St, B ("ed25519ph"));
+      declare
+         Sig : constant Crypto.Byte_Array :=
+           Crypto.Sign.Final_Create (St, Kp.Secret);
+         Vst : Crypto.Sign.Sign_State := Crypto.Sign.New_State;
+      begin
+         Crypto.Sign.Update (Vst, B ("streaming "));
+         Crypto.Sign.Update (Vst, B ("ed25519ph"));
+         Check
+           ("sign streaming round-trip",
+            Crypto.Sign.Final_Verify (Vst, Sig, Kp.Public));
+      end;
    end;
 
    ---------------------------------------------------------------
@@ -550,6 +572,33 @@ begin
          Crypto.Aead.Open_Combined
            (Key, Nonce, Empty, C, Crypto.Aead.Chacha20_Ietf) = Msg);
    end;
+
+   ---------------------------------------------------------------
+   --  Raw state sizes match the linked libsodium ABI
+   ---------------------------------------------------------------
+
+   --  Each static statebytes constant must equal its runtime query, and the
+   --  high-level packages must have derived their state sizes from them.
+   Check
+     ("raw sha256 statebytes",
+      Natural (Crypto.Raw.Query_Hash_Sha256_Statebytes) =
+        Crypto.Raw.Hash_Sha256_Statebytes);
+   Check
+     ("raw sha512 statebytes",
+      Natural (Crypto.Raw.Query_Hash_Sha512_Statebytes) =
+        Crypto.Raw.Hash_Sha512_Statebytes);
+   Check
+     ("raw generichash statebytes",
+      Natural (Crypto.Raw.Query_Generichash_Statebytes) =
+        Crypto.Raw.Generichash_Statebytes);
+   Check
+     ("raw sign statebytes",
+      Natural (Crypto.Raw.Query_Sign_Statebytes) =
+        Crypto.Raw.Sign_Statebytes);
+   Check
+     ("raw secretstream statebytes",
+      Natural (Crypto.Raw.Query_Secretstream_Statebytes) =
+        Crypto.Raw.Secretstream_Statebytes);
 
    ---------------------------------------------------------------
    --  Guarded storage

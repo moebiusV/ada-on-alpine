@@ -1,5 +1,7 @@
 pragma Ada_2022;
 
+with Crypto.Raw;
+
 
 --  BLAKE2b (crypto_generichash_*): a keyed or unkeyed hash of configurable
 --  output length, with one-shot and streaming forms.
@@ -11,7 +13,7 @@ package Crypto.Generichash is
    Key_Size     : constant := 32;
    Key_Size_Min : constant := 16;
    Key_Size_Max : constant := 64;
-   State_Size   : constant := 384;
+   State_Size   : constant := Crypto.Raw.Generichash_Statebytes;
 
    type Stream_State is record
       State  : Crypto.State_Buffer (State_Size);
