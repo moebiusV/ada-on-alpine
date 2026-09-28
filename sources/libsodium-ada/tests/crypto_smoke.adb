@@ -4,10 +4,15 @@ with Ada.Command_Line;
 with Ada.Streams;
 with Ada.Text_IO;
 with Crypto;
+with Crypto.Aead;
 with Crypto.Generichash;
+with Crypto.Kdf;
+with Crypto.Pwhash;
 with Crypto.Secretbox;
+with Crypto.Secretstream;
 with Crypto.Sign;
 use type Crypto.Byte_Array;
+use type Crypto.Secretstream.Tag;
 
 --  Packaging smoke test, run by the a port check() function: round-trips and
 --  known-answer vectors (RFC 4231 HMAC, NIST SHA-256/512, RFC 8439 AEAD,
@@ -343,6 +348,111 @@ begin
         ("generichash streaming",
          Crypto.Generichash.Final (St) = Crypto.Generichash.Hash (Msg));
    end;
+
+   ---------------------------------------------------------------
+   --  KDF, secretstream rekey, scrypt rehash, AES-GCM probe
+   ---------------------------------------------------------------
+
+   --  KDF: deterministic, and distinct subkeys per id.
+   declare
+      Key : constant Crypto.Byte_Array := Crypto.Kdf.Keygen;
+      Ctx : constant Crypto.Byte_Array := [1 .. Crypto.Kdf.Context_Size => 1];
+      S1  : constant Crypto.Byte_Array :=
+        Crypto.Kdf.Derive_From_Key (32, 1, Ctx, Key);
+      S1b : constant Crypto.Byte_Array :=
+        Crypto.Kdf.Derive_From_Key (32, 1, Ctx, Key);
+      S2  : constant Crypto.Byte_Array :=
+        Crypto.Kdf.Derive_From_Key (32, 2, Ctx, Key);
+   begin
+      Check ("kdf deterministic", S1 = S1b);
+      Check ("kdf distinct subkey ids", S1 /= S2);
+   end;
+
+   --  Secretstream: round-trip with a manual key ratchet on both sides.
+   declare
+      Key : constant Crypto.Byte_Array := Crypto.Secretstream.Keygen;
+      Pi  : constant Crypto.Secretstream.Push_Init :=
+        Crypto.Secretstream.Init_Push (Key);
+      St  : Crypto.Secretstream.Stream_State := Pi.State;
+      C1  : constant Crypto.Byte_Array :=
+        Crypto.Secretstream.Push
+          (St, B ("one"), Empty, Crypto.Secretstream.Message);
+   begin
+      Crypto.Secretstream.Rekey (St);
+      declare
+         C2 : constant Crypto.Byte_Array :=
+           Crypto.Secretstream.Push
+             (St, B ("two"), Empty, Crypto.Secretstream.Message);
+         C3 : constant Crypto.Byte_Array :=
+           Crypto.Secretstream.Push
+             (St, B ("three"), Empty, Crypto.Secretstream.Final);
+         Pr : Crypto.Secretstream.Stream_State :=
+           Crypto.Secretstream.Init_Pull (Pi.Header, Key);
+      begin
+         declare
+            M1 : constant Crypto.Secretstream.Pulled :=
+              Crypto.Secretstream.Pull (Pr, C1, Empty);
+         begin
+            Crypto.Secretstream.Rekey (Pr);
+            declare
+               M2 : constant Crypto.Secretstream.Pulled :=
+                 Crypto.Secretstream.Pull (Pr, C2, Empty);
+               M3 : constant Crypto.Secretstream.Pulled :=
+                 Crypto.Secretstream.Pull (Pr, C3, Empty);
+            begin
+               Check
+                 ("secretstream rekey round-trip",
+                  M1.Message = B ("one") and M2.Message = B ("two")
+                  and M3.Message = B ("three")
+                  and M3.Kind = Crypto.Secretstream.Final);
+            end;
+         end;
+      end;
+   end;
+
+   --  scrypt needs_rehash: a string hashed at the interactive preset wants
+   --  rehashing at a higher ops cost, and not at its own cost.
+   declare
+      Pwd : constant Crypto.Byte_Array := B ("correct horse battery staple");
+      S   : constant String :=
+        Crypto.Pwhash.Scrypt_Str_Hash
+          (Pwd,
+           Crypto.Pwhash.Scrypt_Ops_Interactive,
+           Crypto.Pwhash.Scrypt_Mem_Interactive);
+   begin
+      Check ("scrypt str verify", Crypto.Pwhash.Scrypt_Str_Verify (S, Pwd));
+      Check
+        ("scrypt str needs_rehash",
+         Crypto.Pwhash.Scrypt_Str_Needs_Rehash
+           (S,
+            Crypto.Pwhash.Scrypt_Ops_Interactive * 2,
+            Crypto.Pwhash.Scrypt_Mem_Interactive));
+      Check
+        ("scrypt str no rehash",
+         not Crypto.Pwhash.Scrypt_Str_Needs_Rehash
+           (S,
+            Crypto.Pwhash.Scrypt_Ops_Interactive,
+            Crypto.Pwhash.Scrypt_Mem_Interactive));
+   end;
+
+   --  AES-256-GCM: probe availability, and round-trip when it is available
+   --  (it is on any AES-NI x86-64).
+   if Crypto.Aead.Aes256gcm_Available then
+      declare
+         Key   : constant Crypto.Byte_Array := [1 .. Crypto.Aead.Key_Size => 7];
+         Nonce : constant Crypto.Byte_Array := [1 .. 12 => 3];
+         Msg   : constant Crypto.Byte_Array := B ("aes");
+         T     : constant Crypto.Sealed_Text :=
+           Crypto.Aead.Seal (Msg, Nonce, Key, Empty, Crypto.Aead.Aes256gcm);
+      begin
+         Check
+           ("aes256gcm round-trip",
+            Crypto.Aead.Open (Key, Nonce, Empty, T, Crypto.Aead.Aes256gcm)
+              = Msg);
+      end;
+   else
+      Check ("aes256gcm unavailable (skipping round-trip)", True);
+   end if;
 
    ---------------------------------------------------------------
    --  Guarded storage

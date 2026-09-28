@@ -47,5 +47,7 @@ package Crypto.Pwhash is
      (Password : Crypto.Byte_Array; Ops, Mem : Natural) return String;
    function Scrypt_Str_Verify
      (Str : String; Password : Crypto.Byte_Array) return Boolean;
+   function Scrypt_Str_Needs_Rehash
+     (Str : String; Ops, Mem : Natural) return Boolean;
 
 end Crypto.Pwhash;

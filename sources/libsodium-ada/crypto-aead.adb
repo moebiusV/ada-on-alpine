@@ -79,6 +79,13 @@ package body Crypto.Aead is
      with Import, Convention => C,
           External_Name => "crypto_aead_aes256gcm_decrypt_detached";
 
+   function C_Aes256gcm_Available return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_aead_aes256gcm_is_available";
+
+   function Aes256gcm_Available return Boolean is
+     (C_Aes256gcm_Available /= 0);
+
    function Seal
      (Message : Crypto.Byte_Array;
       Nonce, Key, Aad : Crypto.Byte_Array;

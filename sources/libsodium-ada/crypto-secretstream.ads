@@ -46,4 +46,10 @@ package Crypto.Secretstream is
       Ciphertext : Crypto.Byte_Array;
       Additional : Crypto.Byte_Array) return Pulled;
 
+   --  Ratchet the key forward (crypto_secretstream_*_rekey): the sender calls
+   --  this then tags its next message Rekey; the receiver calls it after
+   --  pulling a message tagged Rekey.  Both sides must rekey at the same
+   --  point in the stream.
+   procedure Rekey (State : in out Stream_State);
+
 end Crypto.Secretstream;

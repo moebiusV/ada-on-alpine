@@ -15,6 +15,10 @@ package Crypto.Aead is
         when Chacha20       => 8,
         when others         => 12);
 
+   --  AES-256-GCM needs the AES-NI instructions; on a CPU without them this
+   --  is False and Seal/Open with Aes256gcm will fail.  Probe before use.
+   function Aes256gcm_Available return Boolean;
+
    function Seal
      (Message : Crypto.Byte_Array;
       Nonce, Key, Aad : Crypto.Byte_Array;

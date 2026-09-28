@@ -67,6 +67,12 @@ package body Crypto.Pwhash is
      with Import, Convention => C,
           External_Name => "crypto_pwhash_scryptsalsa208sha256_str_verify";
 
+   function C_Scrypt_Str_Needs_Rehash
+     (Str : Interfaces.C.Strings.chars_ptr;
+      Ops : ULL; Mem : Interfaces.C.size_t) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_pwhash_scryptsalsa208sha256_str_needs_rehash";
+
    function Hash
      (Password, Salt : Crypto.Byte_Array;
       Length : Natural;
@@ -172,5 +178,18 @@ package body Crypto.Pwhash is
       Free (C);
       return Rc = 0;
    end Scrypt_Str_Verify;
+
+   function Scrypt_Str_Needs_Rehash (Str : String; Ops, Mem : Natural)
+      return Boolean
+   is
+      use Interfaces.C;
+      use Interfaces.C.Strings;
+      C  : chars_ptr := New_String (Str);
+      Rc : Interfaces.C.int;
+   begin
+      Rc := C_Scrypt_Str_Needs_Rehash (C, ULL (Ops), size_t (Mem));
+      Free (C);
+      return Rc /= 0;
+   end Scrypt_Str_Needs_Rehash;
 
 end Crypto.Pwhash;

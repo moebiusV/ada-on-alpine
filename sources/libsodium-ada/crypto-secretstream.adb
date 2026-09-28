@@ -55,6 +55,10 @@ package body Crypto.Secretstream is
      with Import, Convention => C,
           External_Name => "crypto_secretstream_xchacha20poly1305_pull";
 
+   procedure C_Rekey (State : System.Address)
+     with Import, Convention => C,
+          External_Name => "crypto_secretstream_xchacha20poly1305_rekey";
+
    function Keygen return Crypto.Byte_Array is
       K : Crypto.Byte_Array (1 .. Key_Size);
    begin
@@ -142,5 +146,10 @@ package body Crypto.Secretstream is
          return Result;
       end;
    end Pull;
+
+   procedure Rekey (State : in out Stream_State) is
+   begin
+      C_Rekey (State.Data (1)'Address);
+   end Rekey;
 
 end Crypto.Secretstream;
