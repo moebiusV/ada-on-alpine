@@ -57,6 +57,30 @@ package body Crypto.Box is
       N, Pk, Sk : System.Address) return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_box_open_detached";
 
+   function C_Easy_Xchacha
+     (C : System.Address; M : System.Address; M_Len : ULL;
+      N, Pk, Sk : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_box_curve25519xchacha20poly1305_easy";
+
+   function C_Open_Easy_Xchacha
+     (M : System.Address; C : System.Address; C_Len : ULL;
+      N, Pk, Sk : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_box_curve25519xchacha20poly1305_open_easy";
+
+   function C_Detached_Xchacha
+     (C, Mac, M : System.Address; M_Len : ULL;
+      N, Pk, Sk : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_box_curve25519xchacha20poly1305_detached";
+
+   function C_Open_Detached_Xchacha
+     (M, C, Mac : System.Address; C_Len : ULL;
+      N, Pk, Sk : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_box_curve25519xchacha20poly1305_open_detached";
+
    function C_Beforenm
      (K, Pk, Sk : System.Address) return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_box_beforenm";
@@ -106,10 +130,11 @@ package body Crypto.Box is
    end Seed_Keypair;
 
    function Encrypt
-     (Message, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array)
-      return Crypto.Byte_Array
+     (Message, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      C : Crypto.Byte_Array (1 .. Mac_Size + Message'Length);
+      C  : Crypto.Byte_Array (1 .. Mac_Size + Message'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       if Public_Key'Length /= Public_Key_Size
@@ -117,20 +142,27 @@ package body Crypto.Box is
       then
          Fail ("key size");
       end if;
-      if C_Easy
-        (C (1)'Address, Addr (Message), ULL (Message'Length),
-         Addr (Nonce), Addr (Public_Key), Addr (Secret_Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Easy (C (1)'Address, Addr (Message), ULL (Message'Length),
+                          Addr (Nonce), Addr (Public_Key), Addr (Secret_Key));
+         when Xchacha20 =>
+            Rc := C_Easy_Xchacha (C (1)'Address, Addr (Message),
+                                  ULL (Message'Length), Addr (Nonce),
+                                  Addr (Public_Key), Addr (Secret_Key));
+      end case;
+      if Rc /= 0 then
          Fail ("box encrypt failed");
       end if;
       return C;
    end Encrypt;
 
    function Decrypt
-     (Ciphertext, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array)
-      return Crypto.Byte_Array
+     (Ciphertext, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      M : Crypto.Byte_Array (1 .. Ciphertext'Length);
+      M  : Crypto.Byte_Array (1 .. Ciphertext'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       if Public_Key'Length /= Public_Key_Size
@@ -139,10 +171,17 @@ package body Crypto.Box is
       then
          Fail ("key or ciphertext size");
       end if;
-      if C_Open_Easy
-        (M (1)'Address, Addr (Ciphertext), ULL (Ciphertext'Length),
-         Addr (Nonce), Addr (Public_Key), Addr (Secret_Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Open_Easy (M (1)'Address, Addr (Ciphertext),
+                               ULL (Ciphertext'Length), Addr (Nonce),
+                               Addr (Public_Key), Addr (Secret_Key));
+         when Xchacha20 =>
+            Rc := C_Open_Easy_Xchacha (M (1)'Address, Addr (Ciphertext),
+                                       ULL (Ciphertext'Length), Addr (Nonce),
+                                       Addr (Public_Key), Addr (Secret_Key));
+      end case;
+      if Rc /= 0 then
          Fail ("box decrypt failed");
       end if;
       declare
@@ -154,11 +193,12 @@ package body Crypto.Box is
    end Decrypt;
 
    function Encrypt_Detached
-     (Message, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array)
-      return Detached_Text
+     (Message, Nonce, Public_Key, Secret_Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Detached_Text
    is
-      C : Crypto.Byte_Array (1 .. Message'Length);
-      T : Detached_Text (Message'Length);
+      C  : Crypto.Byte_Array (1 .. Message'Length);
+      T  : Detached_Text (Message'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       if Public_Key'Length /= Public_Key_Size
@@ -166,11 +206,18 @@ package body Crypto.Box is
       then
          Fail ("key size");
       end if;
-      if C_Detached
-        (C (1)'Address, T.Mac (1)'Address, Addr (Message),
-         ULL (Message'Length), Addr (Nonce), Addr (Public_Key),
-         Addr (Secret_Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Detached (C (1)'Address, T.Mac (1)'Address, Addr (Message),
+                              ULL (Message'Length), Addr (Nonce),
+                              Addr (Public_Key), Addr (Secret_Key));
+         when Xchacha20 =>
+            Rc := C_Detached_Xchacha (C (1)'Address, T.Mac (1)'Address,
+                                      Addr (Message), ULL (Message'Length),
+                                      Addr (Nonce), Addr (Public_Key),
+                                      Addr (Secret_Key));
+      end case;
+      if Rc /= 0 then
          Fail ("box detached encrypt failed");
       end if;
       T.Ciphertext := C;
@@ -181,9 +228,11 @@ package body Crypto.Box is
      (Text       : Detached_Text;
       Nonce      : Crypto.Byte_Array;
       Public_Key : Crypto.Byte_Array;
-      Secret_Key : Crypto.Byte_Array) return Crypto.Byte_Array
+      Secret_Key : Crypto.Byte_Array;
+      V          : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      M : Crypto.Byte_Array (1 .. Text.Ciphertext'Length);
+      M  : Crypto.Byte_Array (1 .. Text.Ciphertext'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       if Public_Key'Length /= Public_Key_Size
@@ -191,11 +240,21 @@ package body Crypto.Box is
       then
          Fail ("key size");
       end if;
-      if C_Open_Detached
-        (M (1)'Address, Addr (Text.Ciphertext), Addr (Text.Mac),
-         ULL (Text.Ciphertext'Length), Addr (Nonce), Addr (Public_Key),
-         Addr (Secret_Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Open_Detached (M (1)'Address, Addr (Text.Ciphertext),
+                                   Addr (Text.Mac), ULL (Text.Ciphertext'Length),
+                                   Addr (Nonce), Addr (Public_Key),
+                                   Addr (Secret_Key));
+         when Xchacha20 =>
+            Rc := C_Open_Detached_Xchacha (M (1)'Address,
+                                           Addr (Text.Ciphertext),
+                                           Addr (Text.Mac),
+                                           ULL (Text.Ciphertext'Length),
+                                           Addr (Nonce), Addr (Public_Key),
+                                           Addr (Secret_Key));
+      end case;
+      if Rc /= 0 then
          Fail ("box detached decrypt failed");
       end if;
       return M;

@@ -18,4 +18,12 @@ package Crypto.Scalarmult is
    function Ristretto_Mult (N, P : Crypto.Byte_Array)
       return Crypto.Byte_Array;
 
+   --  Ed25519 (crypto_scalarmult_ed25519_*): the same 32-byte scalar/element
+   --  shape over the Ed25519 group.  Mult_Base is q = n * B; Mult is q = n * p
+   --  (clamped); Mult_Noclamp skips the scalar clamping.
+   function Ed25519_Mult_Base (N : Crypto.Byte_Array) return Crypto.Byte_Array;
+   function Ed25519_Mult (N, P : Crypto.Byte_Array) return Crypto.Byte_Array;
+   function Ed25519_Mult_Noclamp (N, P : Crypto.Byte_Array)
+      return Crypto.Byte_Array;
+
 end Crypto.Scalarmult;

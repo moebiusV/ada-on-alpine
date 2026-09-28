@@ -97,10 +97,10 @@ higher-level suites are child packages:
 | `Crypto.Raw` | the ABI-stable `crypto_*_statebytes()` size queries the state sizes derive from |
 | `Crypto.Safe` | strongly-typed `Key`/`Nonce`/`Auth_Tag`/`Signature`/keys over the raw binding |
 | `Crypto.Sign` | Ed25519 signatures (detached/attached/streaming, key conversion) |
-| `Crypto.Box` | Curve25519-XSalsa20-Poly1305 public-key encryption, sealed boxes |
-| `Crypto.Scalarmult` | Curve25519 / Ristretto255 scalar multiplication |
+| `Crypto.Box` | Curve25519-XSalsa20/XChaCha20-Poly1305 public-key encryption, sealed boxes |
+| `Crypto.Scalarmult` | Curve25519 / Ristretto255 / Ed25519 scalar multiplication |
 | `Crypto.Kx` | X25519 key exchange |
-| `Crypto.Secretbox` | XSalsa20-Poly1305 symmetric authenticated encryption |
+| `Crypto.Secretbox` | XSalsa20/XChaCha20-Poly1305 symmetric authenticated encryption |
 | `Crypto.Secretstream` | XChaCha20-Poly1305 encrypted streams with per-message tags |
 | `Crypto.Generichash` | BLAKE2b (keyed/unkeyed, one-shot/streaming) |
 | `Crypto.Shorthash` | SipHash-2-4 |
@@ -113,6 +113,8 @@ higher-level suites are child packages:
 | `Crypto.Xof` | SHAKE128 / SHAKE256 extendable-output functions |
 | `Crypto.Kdf` | BLAKE2b + HKDF-SHA256/SHA512 key derivation |
 | `Crypto.Kem` | ML-KEM-768 / X-Wing key encapsulation |
+| `Crypto.Ipcrypt` | 16-byte deterministic block cipher for anonymising fixed-size values |
+| `Crypto.Core` | low-level `crypto_core_*` primitives (Salsa cores, Ed25519/Ristretto255 point & scalar arithmetic, Keccak-1600) |
 
 The package specifications themselves (installed with the library) are the
 authoritative API reference; see `libsodium-ada(3)` for the man-page overview.

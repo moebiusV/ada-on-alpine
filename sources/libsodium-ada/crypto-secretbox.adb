@@ -58,34 +58,75 @@ package body Crypto.Secretbox is
      with Import, Convention => C,
           External_Name => "crypto_secretbox_open_detached";
 
-   function Encrypt (Message, Nonce, Key : Crypto.Byte_Array)
-      return Crypto.Byte_Array
+   function C_Easy_Xchacha
+     (C : System.Address; M : System.Address; M_Len : ULL;
+      N, K : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_secretbox_xchacha20poly1305_easy";
+
+   function C_Open_Easy_Xchacha
+     (M : System.Address; C : System.Address; C_Len : ULL;
+      N, K : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_secretbox_xchacha20poly1305_open_easy";
+
+   function C_Detached_Xchacha
+     (C, Mac, M : System.Address; M_Len : ULL;
+      N, K : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_secretbox_xchacha20poly1305_detached";
+
+   function C_Open_Detached_Xchacha
+     (M, C, Mac : System.Address; C_Len : ULL;
+      N, K : System.Address) return Interfaces.C.int
+     with Import, Convention => C,
+          External_Name => "crypto_secretbox_xchacha20poly1305_open_detached";
+
+   function Encrypt
+     (Message, Nonce, Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      C : Crypto.Byte_Array (1 .. Mac_Size + Message'Length);
+      C  : Crypto.Byte_Array (1 .. Mac_Size + Message'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       Check_Key (Key);
-      if C_Easy (C (1)'Address, Addr (Message), ULL (Message'Length),
-                 Addr (Nonce), Addr (Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Easy (C (1)'Address, Addr (Message), ULL (Message'Length),
+                          Addr (Nonce), Addr (Key));
+         when Xchacha20 =>
+            Rc := C_Easy_Xchacha (C (1)'Address, Addr (Message),
+                                  ULL (Message'Length), Addr (Nonce), Addr (Key));
+      end case;
+      if Rc /= 0 then
          Fail ("secretbox encrypt failed");
       end if;
       return C;
    end Encrypt;
 
-   function Decrypt (Ciphertext, Nonce, Key : Crypto.Byte_Array)
-      return Crypto.Byte_Array
+   function Decrypt
+     (Ciphertext, Nonce, Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      M : Crypto.Byte_Array (1 .. Ciphertext'Length);
+      M  : Crypto.Byte_Array (1 .. Ciphertext'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       Check_Key (Key);
       if Ciphertext'Length < Mac_Size then
          Fail ("ciphertext size");
       end if;
-      if C_Open_Easy (M (1)'Address, Addr (Ciphertext),
-                      ULL (Ciphertext'Length), Addr (Nonce), Addr (Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Open_Easy (M (1)'Address, Addr (Ciphertext),
+                               ULL (Ciphertext'Length), Addr (Nonce), Addr (Key));
+         when Xchacha20 =>
+            Rc := C_Open_Easy_Xchacha (M (1)'Address, Addr (Ciphertext),
+                                       ULL (Ciphertext'Length), Addr (Nonce),
+                                       Addr (Key));
+      end case;
+      if Rc /= 0 then
          Fail ("secretbox decrypt failed");
       end if;
       declare
@@ -96,17 +137,26 @@ package body Crypto.Secretbox is
       end;
    end Decrypt;
 
-   function Encrypt_Detached (Message, Nonce, Key : Crypto.Byte_Array)
-      return Detached_Text
+   function Encrypt_Detached
+     (Message, Nonce, Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Detached_Text
    is
-      C : Crypto.Byte_Array (1 .. Message'Length);
-      T : Detached_Text (Message'Length);
+      C  : Crypto.Byte_Array (1 .. Message'Length);
+      T  : Detached_Text (Message'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       Check_Key (Key);
-      if C_Detached (C (1)'Address, T.Mac (1)'Address, Addr (Message),
-                     ULL (Message'Length), Addr (Nonce), Addr (Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Detached (C (1)'Address, T.Mac (1)'Address, Addr (Message),
+                              ULL (Message'Length), Addr (Nonce), Addr (Key));
+         when Xchacha20 =>
+            Rc := C_Detached_Xchacha (C (1)'Address, T.Mac (1)'Address,
+                                      Addr (Message), ULL (Message'Length),
+                                      Addr (Nonce), Addr (Key));
+      end case;
+      if Rc /= 0 then
          Fail ("secretbox detached encrypt failed");
       end if;
       T.Ciphertext := C;
@@ -114,17 +164,26 @@ package body Crypto.Secretbox is
    end Encrypt_Detached;
 
    function Decrypt_Detached
-     (Text : Detached_Text; Nonce, Key : Crypto.Byte_Array)
-      return Crypto.Byte_Array
+     (Text : Detached_Text; Nonce, Key : Crypto.Byte_Array;
+      V : Variant := Xsalsa20) return Crypto.Byte_Array
    is
-      M : Crypto.Byte_Array (1 .. Text.Ciphertext'Length);
+      M  : Crypto.Byte_Array (1 .. Text.Ciphertext'Length);
+      Rc : Interfaces.C.int;
    begin
       Check_Nonce (Nonce);
       Check_Key (Key);
-      if C_Open_Detached (M (1)'Address, Addr (Text.Ciphertext),
-                          Addr (Text.Mac), ULL (Text.Ciphertext'Length),
-                          Addr (Nonce), Addr (Key)) /= 0
-      then
+      case V is
+         when Xsalsa20 =>
+            Rc := C_Open_Detached (M (1)'Address, Addr (Text.Ciphertext),
+                                   Addr (Text.Mac), ULL (Text.Ciphertext'Length),
+                                   Addr (Nonce), Addr (Key));
+         when Xchacha20 =>
+            Rc := C_Open_Detached_Xchacha (M (1)'Address, Addr (Text.Ciphertext),
+                                           Addr (Text.Mac),
+                                           ULL (Text.Ciphertext'Length),
+                                           Addr (Nonce), Addr (Key));
+      end case;
+      if Rc /= 0 then
          Fail ("secretbox detached decrypt failed");
       end if;
       return M;

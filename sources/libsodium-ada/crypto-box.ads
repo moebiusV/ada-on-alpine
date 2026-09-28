@@ -19,6 +19,8 @@ package Crypto.Box is
       Secret : Crypto.Byte_Array (1 .. Secret_Key_Size);
    end record;
 
+   type Variant is (Xsalsa20, Xchacha20);
+
    type Detached_Text (Length : Natural) is record
       Ciphertext : Crypto.Byte_Array (1 .. Length);
       Mac        : Crypto.Byte_Array (1 .. Mac_Size);
@@ -33,24 +35,28 @@ package Crypto.Box is
      (Message    : Crypto.Byte_Array;
       Nonce      : Crypto.Byte_Array;
       Public_Key : Crypto.Byte_Array;
-      Secret_Key : Crypto.Byte_Array) return Crypto.Byte_Array;
+      Secret_Key : Crypto.Byte_Array;
+      V          : Variant := Xsalsa20) return Crypto.Byte_Array;
    function Decrypt
      (Ciphertext : Crypto.Byte_Array;
       Nonce      : Crypto.Byte_Array;
       Public_Key : Crypto.Byte_Array;
-      Secret_Key : Crypto.Byte_Array) return Crypto.Byte_Array;
+      Secret_Key : Crypto.Byte_Array;
+      V          : Variant := Xsalsa20) return Crypto.Byte_Array;
 
    --  Detached encryption/decryption (ciphertext and MAC kept separate).
    function Encrypt_Detached
      (Message    : Crypto.Byte_Array;
       Nonce      : Crypto.Byte_Array;
       Public_Key : Crypto.Byte_Array;
-      Secret_Key : Crypto.Byte_Array) return Detached_Text;
+      Secret_Key : Crypto.Byte_Array;
+      V          : Variant := Xsalsa20) return Detached_Text;
    function Decrypt_Detached
      (Text       : Detached_Text;
       Nonce      : Crypto.Byte_Array;
       Public_Key : Crypto.Byte_Array;
-      Secret_Key : Crypto.Byte_Array) return Crypto.Byte_Array;
+      Secret_Key : Crypto.Byte_Array;
+      V          : Variant := Xsalsa20) return Crypto.Byte_Array;
 
    --  Precompute the shared key, then use the *After_Shared forms to skip the
    --  scalar multiplication on each message.

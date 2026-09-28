@@ -73,14 +73,14 @@ with
 Ed25519 signatures: key generation, detached and attached signing,
 verification, key conversion, and a streaming (pre-hashed) form.
 .It Vt Crypto.Box
-Public-key authenticated encryption (Curve25519-XSalsa20-Poly1305), combined
+Public-key authenticated encryption (Curve25519-XSalsa20/XChaCha20-Poly1305), combined
 and detached modes, a precomputed shared key, and anonymous sealed boxes.
 .It Vt Crypto.Scalarmult
-Scalar multiplication over Curve25519 and Ristretto255.
+Scalar multiplication over Curve25519, Ristretto255 and Ed25519.
 .It Vt Crypto.Kx
 X25519 key exchange, deriving per-side session-key pairs.
 .It Vt Crypto.Secretbox
-Symmetric authenticated encryption (XSalsa20-Poly1305).
+Symmetric authenticated encryption (XSalsa20/XChaCha20-Poly1305).
 .It Vt Crypto.Secretstream
 Encrypted streams (XChaCha20-Poly1305) with per-message tags.
 .It Vt Crypto.Generichash
@@ -117,6 +117,13 @@ The ABI-stable
 size queries the state types derive from.
 .It Vt Crypto.Safe
 Strongly-typed keys, nonces, tags and signatures.
+.It Vt Crypto.Ipcrypt
+A deterministic 16-byte block cipher for anonymising fixed-size values.
+.It Vt Crypto.Core
+The low-level
+.Fn crypto_core_*
+primitives: Salsa cores, Ed25519/Ristretto255 point and scalar arithmetic,
+and Keccak-1600.
 .El
 .Sh CONVENTIONS
 .Bl -tag -width Ds

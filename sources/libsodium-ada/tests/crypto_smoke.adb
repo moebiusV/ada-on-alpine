@@ -6,13 +6,17 @@ with Ada.Text_IO;
 with Crypto;
 with Crypto.Aead;
 with Crypto.Auth;
+with Crypto.Box;
+with Crypto.Core;
 with Crypto.Generichash;
 with Crypto.Hash;
+with Crypto.Ipcrypt;
 with Crypto.Kdf;
 with Crypto.Kem;
 with Crypto.Pwhash;
 with Crypto.Raw;
 with Crypto.Safe;
+with Crypto.Scalarmult;
 with Crypto.Secretbox;
 with Crypto.Secretstream;
 with Crypto.Sign;
@@ -866,6 +870,85 @@ begin
         ("safe bytes round-trip",
          Crypto.Safe.Bytes (Crypto.Safe.Key (Crypto.Safe.Bytes (K)))
            = Crypto.Safe.Bytes (K));
+   end;
+
+   ---------------------------------------------------------------
+   --  Variant primitives + low-level core
+   ---------------------------------------------------------------
+
+   --  Secretbox and Box XChaCha20-Poly1305 variants.
+   declare
+      Key   : constant Crypto.Byte_Array := [1 .. Crypto.Secretbox.Key_Size => 7];
+      Nonce : constant Crypto.Byte_Array := [1 .. Crypto.Secretbox.Nonce_Size => 1];
+      Msg   : constant Crypto.Byte_Array := B ("xchacha secretbox");
+      C     : constant Crypto.Byte_Array :=
+        Crypto.Secretbox.Encrypt (Msg, Nonce, Key, Crypto.Secretbox.Xchacha20);
+   begin
+      Check
+        ("secretbox xchacha round-trip",
+         Crypto.Secretbox.Decrypt (C, Nonce, Key, Crypto.Secretbox.Xchacha20)
+           = Msg);
+   end;
+   declare
+      Kp    : constant Crypto.Box.Keypair := Crypto.Box.Keygen;
+      Nonce : constant Crypto.Byte_Array := [1 .. Crypto.Box.Nonce_Size => 1];
+      Msg   : constant Crypto.Byte_Array := B ("xchacha box");
+      C     : constant Crypto.Byte_Array :=
+        Crypto.Box.Encrypt (Msg, Nonce, Kp.Public, Kp.Secret, Crypto.Box.Xchacha20);
+   begin
+      Check
+        ("box xchacha round-trip",
+         Crypto.Box.Decrypt (C, Nonce, Kp.Public, Kp.Secret, Crypto.Box.Xchacha20)
+           = Msg);
+   end;
+
+   --  Ed25519 scalar multiplication: the base multiple and a further multiply
+   --  both produce valid points.
+   declare
+      N : constant Crypto.Byte_Array := [1 .. 32 => 3];
+      Q : constant Crypto.Byte_Array := Crypto.Scalarmult.Ed25519_Mult_Base (N);
+   begin
+      Check ("ed25519 base is valid point", Crypto.Core.Ed25519_Is_Valid_Point (Q));
+      Check
+        ("ed25519 mult is valid point",
+         Crypto.Core.Ed25519_Is_Valid_Point
+           (Crypto.Scalarmult.Ed25519_Mult (N, Q)));
+   end;
+
+   --  ipcrypt: a deterministic 16-byte block cipher.
+   declare
+      Key   : constant Crypto.Byte_Array := Crypto.Ipcrypt.Keygen;
+      Block : constant Crypto.Byte_Array :=
+        Crypto.Hex_Decode ("00112233445566778899aabbccddeeff");
+      C     : constant Crypto.Byte_Array := Crypto.Ipcrypt.Encrypt (Block, Key);
+   begin
+      Check ("ipcrypt round-trip", Crypto.Ipcrypt.Decrypt (C, Key) = Block);
+   end;
+
+   --  Core: the salsa core is deterministic and 64 bytes; the Ed25519/Ristretto
+   --  scalar subtraction annihilates; the Keccak permutation produces output.
+   declare
+      Inp   : constant Crypto.Byte_Array := [1 .. 16 => 0];
+      Key   : constant Crypto.Byte_Array := [1 .. 32 => 1];
+      Const : constant Crypto.Byte_Array := [1 .. 16 => 2];
+      O1    : constant Crypto.Byte_Array := Crypto.Core.Salsa20 (Inp, Key, Const);
+      O2    : constant Crypto.Byte_Array := Crypto.Core.Salsa20 (Inp, Key, Const);
+      S     : constant Crypto.Byte_Array := [1 .. 32 => 5];
+      Zero  : constant Crypto.Byte_Array := [1 .. 32 => 0];
+      St    : Crypto.Core.Keccak_State := Crypto.Core.Keccak_Init;
+   begin
+      Check ("salsa20 core length", O1'Length = 64);
+      Check ("salsa20 core deterministic", O1 = O2);
+      Check
+        ("ed25519 scalar sub invariant",
+         Crypto.Core.Ed25519_Scalar_Sub (S, S) = Zero);
+      Check
+        ("ristretto scalar sub invariant",
+         Crypto.Core.Ristretto_Scalar_Sub (S, S) = Zero);
+      Crypto.Core.Keccak_Xor_Bytes (St, B ("keccak"));
+      Crypto.Core.Keccak_Permute_24 (St);
+      Check ("keccak extract length",
+             Crypto.Core.Keccak_Extract_Bytes (St, 32)'Length = 32);
    end;
 
    ---------------------------------------------------------------
