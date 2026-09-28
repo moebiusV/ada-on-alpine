@@ -67,6 +67,9 @@ package body Imsg is
    subtype Bytes is Ada.Streams.Stream_Element_Array;
 
    --  Read exactly B'Length bytes into B, blocking across partial reads.
+   --  Receive_Socket returns a short count (Last < First) on a clean close,
+   --  but raises Socket_Error on a reset/error; map the latter to
+   --  Transport_Error so a dead channel always signals the same way.
    procedure Read_Exact
      (Sock : GNAT.Sockets.Socket_Type; B : out Bytes) is
       use Ada.Streams;
@@ -78,7 +81,13 @@ package body Imsg is
             Rest : Bytes (1 .. B'Last - Pos + 1);
             N    : Stream_Element_Offset;
          begin
-            GNAT.Sockets.Receive_Socket (Sock, Rest, Last);
+            begin
+               GNAT.Sockets.Receive_Socket (Sock, Rest, Last);
+            exception
+               when GNAT.Sockets.Socket_Error =>
+                  raise Transport_Error
+                    with "receive failed: peer closed or broken";
+            end;
             if Last < Rest'First then
                raise Transport_Error with "receive closed by peer";
             end if;
@@ -146,6 +155,10 @@ package body Imsg is
    pragma Import (C, C_Recvmsg, "recvmsg");
 
    --  Send B (Pos .. B'Last) to Sock, blocking across partial writes.
+   --  A peer that has closed the connection makes Send_Socket raise
+   --  GNAT.Sockets.Socket_Error (EPIPE), not return a short count, so map it
+   --  to Transport_Error so every caller sees one consistent "channel is
+   --  gone" signal.
    procedure Send_All
      (Sock : GNAT.Sockets.Socket_Type;
       B    : Bytes;
@@ -156,7 +169,12 @@ package body Imsg is
       Last : Stream_Element_Offset;
    begin
       while P <= B'Last loop
-         GNAT.Sockets.Send_Socket (Sock, B (P .. B'Last), Last);
+         begin
+            GNAT.Sockets.Send_Socket (Sock, B (P .. B'Last), Last);
+         exception
+            when GNAT.Sockets.Socket_Error =>
+               raise Transport_Error with "send failed: peer closed or broken";
+         end;
          if Last < P then
             raise Transport_Error with "send closed by peer";
          end if;
@@ -920,6 +938,11 @@ package body Imsg is
          Free (C.Pending.all);
          Free_Buffer (C.Pending);
          C.Pending := null;
+      end if;
+      if C.Read_Buf /= null then
+         C.Read_Buf.all := [others => 0];  --  freezero: zero before releasing
+         Free_Array (C.Read_Buf);
+         C.Read_Buf := null;
       end if;
       C.Read_Len := 0;
    end Clear;

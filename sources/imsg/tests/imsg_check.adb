@@ -217,6 +217,46 @@ procedure Imsg_Check is
       end if;
    end Pass;
 
+   --  A peer that has closed its end: sends and receives must both signal
+   --  Transport_Error (not the raw GNAT.Sockets.Socket_Error), so a caller
+   --  sees one consistent "channel gone" exception.
+   procedure Check_Closed_Peer is
+      A, B             : GNAT.Sockets.Socket_Type;
+      F                : constant Imsg.Frame := Mk (50, 0, 0, [16#01#, 16#02#]);
+      W                : constant Imsg.Wire := Imsg.Encode (F);
+      Sent_Ok, Recv_Ok : Boolean := False;
+   begin
+      GNAT.Sockets.Create_Socket_Pair (A, B);
+      GNAT.Sockets.Close_Socket (B);
+
+      begin
+         Imsg.Send_Frame (A, W);
+      exception
+         when Imsg.Transport_Error =>
+            Sent_Ok := True;
+         when others =>
+            null;
+      end;
+      Pass ("closed peer: send raises Transport_Error", Sent_Ok);
+
+      begin
+         declare
+            R : constant Imsg.Received := Imsg.Recv_Frame (A);
+            pragma Unreferenced (R);
+         begin
+            null;
+         end;
+      exception
+         when Imsg.Transport_Error =>
+            Recv_Ok := True;
+         when others =>
+            null;
+      end;
+      Pass ("closed peer: recv raises Transport_Error", Recv_Ok);
+
+      GNAT.Sockets.Close_Socket (A);
+   end Check_Closed_Peer;
+
    procedure Check_Buffer is
       B    : Imsg.Buffer;
       U8   : Interfaces.Unsigned_8;
@@ -581,6 +621,7 @@ begin
    Check_Transport;
    Check_Fd_Passing;
    Check_Send_Fd;
+   Check_Closed_Peer;
    Check_Buffer;
    Check_Connection;
 
