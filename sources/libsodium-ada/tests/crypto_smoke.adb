@@ -88,6 +88,22 @@ begin
            (Crypto.Byte_Array'(16#de#, 16#ad#, 16#be#, 16#ef#))) =
         Crypto.Byte_Array'(16#de#, 16#ad#, 16#be#, 16#ef#));
 
+   --  Guarded storage: Wipe / Secure_Free must not fault on a buffer that has
+   --  been Protect'd read-only or no-access (Wipe restores write access first;
+   --  a raw write into a read-only page would SIGSEGV).  Reaching the Check
+   --  line is itself the assertion: a fault or propagated exception would
+   --  abort the process.
+   declare
+      B : Crypto.Secure_Buffer := Crypto.Secure_Alloc (16);
+   begin
+      Crypto.Fill (B, [1 .. 16 => 16#2a#]);
+      Crypto.Protect (B, Crypto.Read_Only);
+      Crypto.Wipe (B);
+      Crypto.Protect (B, Crypto.No_Access);
+      Crypto.Secure_Free (B);
+      Check ("wipe protected guarded buffer", True);
+   end;
+
    if Failures = 0 then
       Ada.Text_IO.Put_Line ("all crypto smoke checks passed");
    else

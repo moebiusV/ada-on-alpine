@@ -21,6 +21,7 @@ sources/*/lib-hbnf/
 sources/*/obj-check/
 sources/*/obj-cli/
 sources/*/obj-kline/
+sources/*/smoke/
 sources/*/hbnf_cli
 sources/*/hbnf_cli.new
 sources/*/tests/*_check

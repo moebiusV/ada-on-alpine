@@ -385,7 +385,20 @@ package body Crypto is
          raise Crypto_Error with "outer-hash failed";
       end if;
 
+      --  The HMAC key and its pad-XORed forms must not outlive the call; the
+      --  caller's digest (Result) is deliberately left intact.
+      Memzero (Key_Norm);
+      Memzero (Inner);
+      Memzero (Outer);
+      Memzero (Inner_Hash);
       return Result;
+   exception
+      when others =>
+         Memzero (Key_Norm);
+         Memzero (Inner);
+         Memzero (Outer);
+         Memzero (Inner_Hash);
+         raise;
    end Hmac;
 
    function Hmac_Sha256 (Key, Data : Byte_Array) return Byte_Array is
@@ -615,6 +628,17 @@ package body Crypto is
       Junk : constant Byte_Array := Random (B.Len);
    begin
       if B.Data /= System.Null_Address and then B.Len > 0 then
+         --  The page may have been Protect'd read-only or no-access; restore
+         --  write access before junking and zeroing, else the write faults.
+         --  A failed mprotect (page already writable) is harmless: the wipe
+         --  is attempted best-effort regardless.
+         declare
+            Rc : constant Interfaces.C.int :=
+              Sodium_Mprotect_Readwrite (B.Data);
+            pragma Unreferenced (Rc);
+         begin
+            null;
+         end;
          C_Memcpy (B.Data, Addr (Junk), Interfaces.C.size_t (B.Len));
          Sodium_Memzero (B.Data, Interfaces.C.size_t (B.Len));
       end if;
