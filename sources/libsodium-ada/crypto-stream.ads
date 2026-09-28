@@ -13,6 +13,9 @@ package Crypto.Stream is
 
    function Nonce_Size (Kind : Stream_Kind) return Natural;
 
+   --  Fresh random 32-byte key (crypto_stream_keygen).
+   function Keygen return Crypto.Byte_Array;
+
    --  Length bytes of keystream (for the given nonce/key), or the message
    --  XORed with the keystream (Encrypt is self-inverse, so the same call
    --  decrypts).

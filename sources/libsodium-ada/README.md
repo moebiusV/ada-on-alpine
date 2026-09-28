@@ -104,11 +104,11 @@ higher-level suites are child packages:
 | `Crypto.Secretstream` | XChaCha20-Poly1305 encrypted streams with per-message tags |
 | `Crypto.Generichash` | BLAKE2b (keyed/unkeyed, one-shot/streaming) |
 | `Crypto.Shorthash` | SipHash-2-4 |
-| `Crypto.Auth` | HMAC-SHA512-256 |
+| `Crypto.Auth` | HMAC-SHA512-256 (`crypto_auth`) + streaming HMAC-SHA256/SHA512/SHA512-256 |
 | `Crypto.Onetimeauth` | Poly1305 one-time authentication |
 | `Crypto.Pwhash` | Argon2id/Argon2i and scrypt (raw + encoded-string) |
-| `Crypto.Stream` | XSalsa20 / XChaCha20 / ChaCha20 / Salsa20 |
-| `Crypto.Aead` | ChaCha20-Poly1305, XChaCha20-Poly1305, AES-256-GCM |
+| `Crypto.Stream` | XSalsa20 / XChaCha20 / ChaCha20 / Salsa20 (keygen, keystream, XOR) |
+| `Crypto.Aead` | ChaCha20-Poly1305, XChaCha20-Poly1305, AES-256-GCM, AEGIS-128L/256 |
 | `Crypto.Hash` | streaming SHA-256 / SHA-512 |
 | `Crypto.Kdf` | BLAKE2b key derivation |
 

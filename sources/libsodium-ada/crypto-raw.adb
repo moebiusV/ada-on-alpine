@@ -18,6 +18,18 @@ package body Crypto.Raw is
      with Import, Convention => C,
           External_Name => "crypto_secretstream_xchacha20poly1305_statebytes";
 
+   function C_Auth_Hmac_Sha256_Statebytes return Interfaces.C.size_t
+     with Import, Convention => C,
+          External_Name => "crypto_auth_hmacsha256_statebytes";
+
+   function C_Auth_Hmac_Sha512_Statebytes return Interfaces.C.size_t
+     with Import, Convention => C,
+          External_Name => "crypto_auth_hmacsha512_statebytes";
+
+   function C_Auth_Hmac_Sha512256_Statebytes return Interfaces.C.size_t
+     with Import, Convention => C,
+          External_Name => "crypto_auth_hmacsha512256_statebytes";
+
    function Query_Hash_Sha256_Statebytes  return Interfaces.C.size_t
      is (C_Hash_Sha256_Statebytes);
    function Query_Hash_Sha512_Statebytes  return Interfaces.C.size_t
@@ -28,5 +40,11 @@ package body Crypto.Raw is
      is (C_Sign_Statebytes);
    function Query_Secretstream_Statebytes return Interfaces.C.size_t
      is (C_Secretstream_Statebytes);
+   function Query_Auth_Hmac_Sha256_Statebytes return Interfaces.C.size_t
+     is (C_Auth_Hmac_Sha256_Statebytes);
+   function Query_Auth_Hmac_Sha512_Statebytes return Interfaces.C.size_t
+     is (C_Auth_Hmac_Sha512_Statebytes);
+   function Query_Auth_Hmac_Sha512256_Statebytes return Interfaces.C.size_t
+     is (C_Auth_Hmac_Sha512256_Statebytes);
 
 end Crypto.Raw;

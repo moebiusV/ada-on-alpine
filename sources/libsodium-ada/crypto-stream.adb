@@ -88,6 +88,16 @@ package body Crypto.Stream is
      return Interfaces.C.int
      with Import, Convention => C, External_Name => "crypto_stream_salsa208_xor";
 
+   procedure C_Keygen (K : System.Address)
+     with Import, Convention => C, External_Name => "crypto_stream_keygen";
+
+   function Keygen return Crypto.Byte_Array is
+      K : Crypto.Byte_Array (1 .. Key_Size);
+   begin
+      C_Keygen (K (1)'Address);
+      return K;
+   end Keygen;
+
    function Nonce_Size (Kind : Stream_Kind) return Natural is
      (case Kind is
         when XSalsa20 | XChacha20 => 24,

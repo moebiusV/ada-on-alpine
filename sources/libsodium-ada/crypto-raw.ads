@@ -19,6 +19,9 @@ package Crypto.Raw is
    Generichash_Statebytes  : constant Natural := 384;
    Sign_Statebytes         : constant Natural := 208;
    Secretstream_Statebytes : constant Natural := 52;
+   Auth_Hmac_Sha256_Statebytes    : constant Natural := 208;
+   Auth_Hmac_Sha512_Statebytes    : constant Natural := 416;
+   Auth_Hmac_Sha512256_Statebytes : constant Natural := 416;
 
    --  Runtime size queries (the crypto_*_statebytes() functions).  Use these
    --  to verify the constants above against the linked libsodium.
@@ -27,5 +30,8 @@ package Crypto.Raw is
    function Query_Generichash_Statebytes  return Interfaces.C.size_t;
    function Query_Sign_Statebytes         return Interfaces.C.size_t;
    function Query_Secretstream_Statebytes return Interfaces.C.size_t;
+   function Query_Auth_Hmac_Sha256_Statebytes    return Interfaces.C.size_t;
+   function Query_Auth_Hmac_Sha512_Statebytes    return Interfaces.C.size_t;
+   function Query_Auth_Hmac_Sha512256_Statebytes return Interfaces.C.size_t;
 
 end Crypto.Raw;

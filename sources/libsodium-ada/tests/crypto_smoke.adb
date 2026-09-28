@@ -5,6 +5,7 @@ with Ada.Streams;
 with Ada.Text_IO;
 with Crypto;
 with Crypto.Aead;
+with Crypto.Auth;
 with Crypto.Generichash;
 with Crypto.Hash;
 with Crypto.Kdf;
@@ -14,6 +15,7 @@ with Crypto.Safe;
 with Crypto.Secretbox;
 with Crypto.Secretstream;
 with Crypto.Sign;
+with Crypto.Stream;
 use type Crypto.Byte_Array;
 use type Crypto.Secretstream.Tag;
 
@@ -326,6 +328,47 @@ begin
         "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944"
       & "b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58");
 
+   --  Streaming HMAC (crypto_auth_hmacsha*_init/update/final) equals the
+   --  one-shot HMAC for any key length; the SHA512-256 form matches crypto_auth.
+   declare
+      Msg  : constant Crypto.Byte_Array := B ("The quick brown fox");
+      KeyA : constant Crypto.Byte_Array := B ("arbitrary length key");
+      Key32 : constant Crypto.Byte_Array := [1 .. 32 => 5];
+      S256 : Crypto.Auth.Hmac_Sha256_State := Crypto.Auth.Hmac_Sha256_Init (KeyA);
+      S512 : Crypto.Auth.Hmac_Sha512_State := Crypto.Auth.Hmac_Sha512_Init (KeyA);
+      S2   : Crypto.Auth.Hmac_Sha512_State :=
+        Crypto.Auth.Hmac_Sha512_256_Init (Key32);
+   begin
+      Crypto.Auth.Hmac_Sha256_Update (S256, B ("The quick "));
+      Crypto.Auth.Hmac_Sha256_Update (S256, B ("brown fox"));
+      Crypto.Auth.Hmac_Sha512_Update (S512, B ("The quick "));
+      Crypto.Auth.Hmac_Sha512_Update (S512, B ("brown fox"));
+      Crypto.Auth.Hmac_Sha512_256_Update (S2, B ("The quick "));
+      Crypto.Auth.Hmac_Sha512_256_Update (S2, B ("brown fox"));
+      Check
+        ("hmac-sha256 streaming",
+         Crypto.Auth.Hmac_Sha256_Final (S256) = Crypto.Hmac_Sha256 (KeyA, Msg));
+      Check
+        ("hmac-sha512 streaming",
+         Crypto.Auth.Hmac_Sha512_Final (S512) = Crypto.Hmac_Sha512 (KeyA, Msg));
+      Check
+        ("hmac-sha512256 streaming",
+         Crypto.Auth.Hmac_Sha512_256_Final (S2) =
+           Crypto.Auth.Authenticate (Msg, Key32));
+   end;
+
+   --  Stream keygen + keystream XOR is self-inverse (round-trips).
+   declare
+      Key   : constant Crypto.Byte_Array := Crypto.Stream.Keygen;
+      Nonce : constant Crypto.Byte_Array := [1 .. 24 => 1];
+      Msg   : constant Crypto.Byte_Array := B ("stream");
+   begin
+      Check
+        ("stream keygen/encrypt round-trip",
+         Crypto.Stream.Encrypt (Crypto.Stream.Encrypt (Msg, Nonce, Key), Nonce, Key)
+           = Msg);
+   end;
+
    ---------------------------------------------------------------
    --  Secretbox
    ---------------------------------------------------------------
@@ -543,10 +586,10 @@ begin
    --  (it is on any AES-NI x86-64).
    if Crypto.Aead.Aes256gcm_Available then
       declare
-         Key   : constant Crypto.Byte_Array := [1 .. Crypto.Aead.Key_Size => 7];
+         Key   : constant Crypto.Byte_Array := [1 .. 32 => 7];
          Nonce : constant Crypto.Byte_Array := [1 .. 12 => 3];
          Msg   : constant Crypto.Byte_Array := B ("aes");
-         T     : constant Crypto.Sealed_Text :=
+         T     : constant Crypto.Aead.Sealed_Text :=
            Crypto.Aead.Seal (Msg, Nonce, Key, Empty, Crypto.Aead.Aes256gcm);
       begin
          Check
@@ -561,7 +604,7 @@ begin
    --  Combined AEAD across kinds: the ciphertext||tag buffer round-trips, and
    --  its length is Message'Length + Tag_Size.
    declare
-      Key   : constant Crypto.Byte_Array := [1 .. Crypto.Aead.Key_Size => 7];
+      Key   : constant Crypto.Byte_Array := [1 .. 32 => 7];
       Nonce : constant Crypto.Byte_Array := [1 .. 12 => 3];
       Msg   : constant Crypto.Byte_Array := B ("combined aead");
       C     : constant Crypto.Byte_Array :=
@@ -572,6 +615,40 @@ begin
         ("aead combined round-trip",
          Crypto.Aead.Open_Combined
            (Key, Nonce, Empty, C, Crypto.Aead.Chacha20_Ietf) = Msg);
+   end;
+
+   --  AEGIS-128L/256: 32-byte tags, and Aegis128l takes a 16-byte key.
+   declare
+      Key   : constant Crypto.Byte_Array := [1 .. 16 => 7];
+      Nonce : constant Crypto.Byte_Array := [1 .. 16 => 3];
+      Msg   : constant Crypto.Byte_Array := B ("aegis128l");
+      T     : constant Crypto.Aead.Sealed_Text :=
+        Crypto.Aead.Seal (Msg, Nonce, Key, Empty, Crypto.Aead.Aegis128l);
+   begin
+      Check ("aegis128l tag size", T.Tag'Length = 32);
+      Check
+        ("aegis128l round-trip",
+         Crypto.Aead.Open (Key, Nonce, Empty, T, Crypto.Aead.Aegis128l) = Msg);
+      Check
+        ("aegis128l combined round-trip",
+         Crypto.Aead.Open_Combined
+           (Key, Nonce, Empty,
+            Crypto.Aead.Seal_Combined
+              (Msg, Nonce, Key, Empty, Crypto.Aead.Aegis128l),
+            Crypto.Aead.Aegis128l) = Msg);
+   end;
+   declare
+      Key   : constant Crypto.Byte_Array := [1 .. 32 => 9];
+      Nonce : constant Crypto.Byte_Array := [1 .. 32 => 4];
+      Msg   : constant Crypto.Byte_Array := B ("aegis256");
+      C     : constant Crypto.Byte_Array :=
+        Crypto.Aead.Seal_Combined (Msg, Nonce, Key, Empty, Crypto.Aead.Aegis256);
+   begin
+      Check ("aegis256 combined length", C'Length = Msg'Length + 32);
+      Check
+        ("aegis256 combined round-trip",
+         Crypto.Aead.Open_Combined (Key, Nonce, Empty, C, Crypto.Aead.Aegis256)
+           = Msg);
    end;
 
    ---------------------------------------------------------------
@@ -600,6 +677,18 @@ begin
      ("raw secretstream statebytes",
       Natural (Crypto.Raw.Query_Secretstream_Statebytes) =
         Crypto.Raw.Secretstream_Statebytes);
+   Check
+     ("raw auth-hmacsha256 statebytes",
+      Natural (Crypto.Raw.Query_Auth_Hmac_Sha256_Statebytes) =
+        Crypto.Raw.Auth_Hmac_Sha256_Statebytes);
+   Check
+     ("raw auth-hmacsha512 statebytes",
+      Natural (Crypto.Raw.Query_Auth_Hmac_Sha512_Statebytes) =
+        Crypto.Raw.Auth_Hmac_Sha512_Statebytes);
+   Check
+     ("raw auth-hmacsha512256 statebytes",
+      Natural (Crypto.Raw.Query_Auth_Hmac_Sha512256_Statebytes) =
+        Crypto.Raw.Auth_Hmac_Sha512256_Statebytes);
 
    ---------------------------------------------------------------
    --  Strongly-typed Safe layer

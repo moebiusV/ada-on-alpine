@@ -88,16 +88,21 @@ BLAKE2b, keyed or unkeyed, one-shot or streaming.
 .It Vt Crypto.Shorthash
 SipHash-2-4, a short keyed hash.
 .It Vt Crypto.Auth
-HMAC-SHA512-256 message authentication.
+HMAC-SHA512-256
+.Pq Fn Authenticate , Fn Verify
+and streaming HMAC-SHA256/SHA512/SHA512-256
+.Pq Fn Hmac_Sha256_Init , Fn Hmac_Sha512_Init , Fn Hmac_Sha512_256_Init .
 .It Vt Crypto.Onetimeauth
 Poly1305 one-time authentication.
 .It Vt Crypto.Pwhash
 Password hashing: Argon2id/Argon2i and scrypt, raw and encoded-string forms.
 .It Vt Crypto.Stream
-Stream ciphers (XSalsa20, XChaCha20, ChaCha20, Salsa20), keystream and XOR.
+Stream ciphers (XSalsa20, XChaCha20, ChaCha20, Salsa20/Salsa2012/Salsa208),
+keygen, keystream and XOR.
 .It Vt Crypto.Aead
-The four AEAD primitives (ChaCha20-Poly1305 IETF/non-IETF, XChaCha20-Poly1305,
-AES-256-GCM) under a single variant type.
+The AEAD primitives (ChaCha20-Poly1305 IETF/non-IETF, XChaCha20-Poly1305,
+AES-256-GCM, AEGIS-128L/256) under a single variant type with per-kind key,
+nonce and tag sizes.
 .El
 .Sh CONVENTIONS
 .Bl -tag -width Ds
