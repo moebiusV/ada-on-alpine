@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=imsg
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=0
 _tag="imsg-v$pkgver"
 pkgdesc="OpenBSD imsg message-passing protocol (portable imsg.c wire format) in Ada"
@@ -43,5 +43,5 @@ package() {
 }
 
 sha512sums="
-1977f7ed0e452211a76cc52cd8d7706a85529ff704112701831cf3a90883aa9f886d28e2c844c75cda040f80dff0e42575718b127423a9c816387fe9d84bf30b  ada-on-alpine-imsg-v0.3.0.tar.gz
+95d49609dc7a48e1a58d0df13731b8c9b88e4f82808ee85576d25a24428db359947cc48d1ae19811a525a277f4dc4fe569a43ec9f59f7ae1d122bd922da62687  ada-on-alpine-imsg-v0.3.1.tar.gz
 "
