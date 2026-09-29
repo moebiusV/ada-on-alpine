@@ -36,4 +36,6 @@ Attic/
 ada*.txt
 core
 core.*
+# ...but not the RFC 5234 core rules
+!sources/hbnf/grammars/core.hbnf
 hbnf-review-*/
