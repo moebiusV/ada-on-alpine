@@ -57,7 +57,7 @@ check() {
 	# path, so two concurrent builds can't collide.
 	tmpdir=$(mktemp -d)
 	trap 'rm -rf "$tmpdir"' EXIT
-	./hbnf_cli tests/server.hbnf --backend=c > "$tmpdir/hbnf-out.c"
+	./hbnf_cli tests/server.hbnf --backend=c --templates=templates > "$tmpdir/hbnf-out.c"
 	cc -std=gnu11 -D_GNU_SOURCE -c "$tmpdir/hbnf-out.c" -o "$tmpdir/hbnf-out.o"
 }
 
@@ -65,6 +65,10 @@ package() {
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
 	install -Dm755 hbnf_cli "$pkgdir/usr/bin/hbnf"
+	# The code-generator templates: loaded at runtime from the XDG data
+	# dir (--templates=DIR or $HBNF_TEMPLATES to override).
+	install -d "$pkgdir/usr/share/hbnf"
+	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
 sha512sums="0eb5224da2f919e48d9edfff7723b118986a01e8bccc9301d4bae0204d01d327e7f6aea80f836a9460b520bc1a6b587361af42780972146954f8b907b3568b5a  ada-on-alpine-$_tag.tar.gz"
