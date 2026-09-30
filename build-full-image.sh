@@ -4,6 +4,7 @@
 #
 # From Alpine's own repos (apk add):
 #   rust cargo zig          the three backends already present
+#   g++                     C++ — compile-check that the C backend's output is C++-clean
 #   gcc-gdc ldc dub         D  (zlib-dev: ldc2's Phobos runtime links -lz)
 #   gfortran                Fortran
 #   nim nimble              Nim
@@ -38,7 +39,7 @@ COPY pkgs /pkgs
 # stale index makes the solver trip over the gprbuild/gpr2-tools `replaces`
 # relationship.  The Alpine language packages and the local language aports
 # install as two steps, each its own apk solve.
-RUN apk update && apk add --no-cache rust cargo zig \
+RUN apk update && apk add --no-cache rust cargo zig g++ \
         gcc-gdc ldc dub gfortran nim nimble gcc-objc libobjc ats2 \
         zlib-dev
 RUN for f in /pkgs/*.apk; do [ -e "$f" ] && apk add --no-cache --allow-untrusted "$f"; done
