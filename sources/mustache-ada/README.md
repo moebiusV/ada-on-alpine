@@ -7,12 +7,50 @@ syntax, so the emitter never hardcodes a keyword.
 
 [Mustache]: https://mustache.github.io/
 
-## The subset
+## Quick start
 
-A template is text with `{{...}}` tags, rendered against a **context** — a
-stack of scopes, each a tree of `Scalar` / `List` / `Map` values.  A name
-lookup walks the stack from the top down, so a scope pushed by `{{#each}}` or
-a partial both shadows and inherits its enclosing scopes.
+A template is text with `{{...}}` tags.  You build a **context** (a tree of
+`Scalar` / `List` / `Map` values), then render a template against it.
+
+```ada
+with Mustache;
+
+Root : constant Mustache.Value_Access := Mustache.New_Map;
+Item : constant Mustache.Value_Access := Mustache.New_List;
+
+Mustache.Insert (Root, "name", Mustache.New_Scalar ("foo"));
+Mustache.Append (Item, Mustache.New_Scalar ("alpha"));
+Mustache.Insert (Root, "items", Item);
+
+Ctx : Mustache.Context := Mustache.New_Context (Root);
+
+Mustache.Load ("templates");
+Put (Mustache.Render ("struct", Ctx));          -- by name
+Put (Mustache.Render_Text ("{{name}}", Ctx));   -- by raw text
+```
+
+## API overview
+
+The package is `Mustache` (project `mustache.gpr`):
+
+- **Values** — `Value` is a discriminated record in three kinds:
+  `New_Scalar (text)`, `New_List`, `New_Map`.  Builders return a
+  `Value_Access` (a heap pointer); `Append (list, item)` grows a list,
+  `Insert (map, key, item)` grows a map (a duplicate key raises
+  `Template_Error`).  A value's kind is `Value_Kind` (`Scalar` | `List` |
+  `Map`).
+- **Context** — `Context` is a scope stack.  `New_Context (root)` makes a
+  one-scope context; `Push` / `Pop` stack scopes for `{{#each}}` and
+  partials.  A name lookup walks the stack from the top down, so an inner
+  scope shadows (and inherits) its enclosing scopes.
+- **Rendering** — `Load (dir)` reads every `dir/*.tmpl` (keyed by base name);
+  `Render (name, ctx)` renders a loaded template, `Render_Text (source, ctx)`
+  renders a raw string.
+- **Errors** — `Template_Error` is raised for a missing template, an unfilled
+  or non-scalar `{{var}}`, a `{{#each}}` over a non-list, an unterminated
+  section, an unmatched closing tag, and a key bound twice.
+
+## The subset
 
 | Tag | Meaning |
 |---|---|
@@ -35,31 +73,6 @@ Deviations from Mustache, on purpose:
 Not yet supported (add when a caller needs them): lambda/partial values,
 comments `{{! }}`, set-delimiter `{{= =}}`, and a token cache for partials.
 
-## API
-
-```ada
-with Mustache;
-
---  Build a context:
-Root : constant Mustache.Value_Access := Mustache.New_Map;
-List : constant Mustache.Value_Access := Mustache.New_List;
-Mustache.Insert (Root, "name", Mustache.New_Scalar ("foo"));
-Mustache.Append (List, Mustache.New_Scalar ("alpha"));
-Mustache.Append (List, Mustache.New_Scalar ("beta"));
-Mustache.Insert (Root, "items", List);
-Ctx : Mustache.Context := Mustache.New_Context (Root);
-
---  Render:
-Mustache.Load ("templates");
-Put (Mustache.Render ("struct", Ctx));      -- by name
-Put (Mustache.Render_Text ("{{name}}", Ctx));  -- by raw text
-```
-
-`Value` is a discriminated record (`Scalar` | `List` | `Map`); builders return
-`Value_Access`, so a context is a heap tree the caller drops when done.  The
-engine is a short-lived tool (load templates, render, exit), so nothing is
-deallocated.
-
 ## Building
 
 ```
@@ -69,7 +82,8 @@ gprinstall -P mustache.gpr -p -f -XLIBRARY_TYPE=static \
 ```
 
 Packaged for Alpine by the `ada-on-alpine` aports overlay as
-`testing/mustache-ada`.
+`testing/mustache-ada`.  The man page is `mustache-ada(3)`, in the
+`mustache-ada-doc` subpackage.
 
 ## License
 

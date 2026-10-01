@@ -1,0 +1,127 @@
+.Dd September 30, 2026
+.Dt MUSTACHE-ADA 3
+.Os
+.Sh NAME
+.Nm mustache-ada
+.Nd a small, strict Mustache-subset template engine for code generation
+.Sh SYNOPSIS
+.Bd -literal -offset indent
+with Mustache;
+.Ed
+.Pp
+In a GNAT project file the library is selected with
+.Ql with "mustache";
+.
+.Sh DESCRIPTION
+.Nm
+renders a template \(em text with
+.Ql {{...}}
+tags \(em against a
+.Em context :
+a stack of scopes, each a tree of
+.Sy Scalar ,
+.Sy List
+and
+.Sy Map
+values.
+It is the engine that turns a grammar's abstract tree into the target
+language's syntax, so an emitter never hardcodes a keyword.
+.Pp
+The subset is strict and aimed at code generation, not HTML:
+.Bl -tag -width Ds
+.It Ic {{var}}
+Print the scalar
+.Ar var .
+An unfilled or non-scalar name raises
+.Vt Template_Error .
+.It Ic {{.}}
+The current element of a
+.Ic {{#each}}
+over scalars.
+.It Ic {{#each var}} ... {{/each}}
+Iterate a list; each element is pushed as a scope.
+.It Ic {{#var}} ... {{/var}}
+Section: a list iterates, a map is pushed once, a non-empty scalar renders
+once.
+.It Ic {{^var}} ... {{/var}}
+Inverted: render iff
+.Ar var
+is absent or empty.
+.It Ic {{> partial}}
+Include another loaded template, with the same stack.
+.El
+.Pp
+Unlike Mustache, there is no HTML escaping
+.Pq Ic {{var}}
+is always raw,
+and errors are loud rather than silent: an unfilled name raises, it does
+not render empty.
+.Sh VALUES
+A
+.Vt Mustache.Value
+is a discriminated record in one of three kinds:
+.Bl -tag -width Ds
+.It Sy Scalar
+A string, built with
+.Fn New_Scalar Ar text .
+.It Sy List
+A list of values, built with
+.Fn New_List
+and grown with
+.Fn Append Ar list Ar item .
+.It Sy Map
+A set of named values, built with
+.Fn New_Map
+and grown with
+.Fn Insert Ar map Ar key Ar item .
+Binding a key already present raises
+.Vt Template_Error .
+.El
+.Pp
+The builders return a
+.Vt Mustache.Value_Access
+.Pq a pointer to a heap value ,
+so a context is a tree the caller drops when done; nothing is deallocated.
+.Sh CONTEXT AND RENDERING
+.Fn New_Context Ar root
+wraps a root value as a one-scope
+.Vt Mustache.Context ;
+.Fn Push
+and
+.Fn Pop
+stack scopes for
+.Ic {{#each}}
+and partials.
+.Fn Render Ar name Ar ctx
+renders a template previously loaded by
+.Fn Load Ar dir
+.Pq keyed by base name, without the
+.Ql .tmpl
+suffix ;
+.Fn Render_Text Ar source Ar ctx
+renders a template given as a raw string.
+.Sh ERRORS
+.Vt Mustache.Template_Error
+is raised for a missing template, an unfilled or non-scalar
+.Ic {{var}} ,
+a
+.Ic {{#each}}
+over a non-list, an unterminated section, an unmatched closing tag, and a
+key bound twice.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+Root : constant Mustache.Value_Access := Mustache.New_Map;
+Item : constant Mustache.Value_Access := Mustache.New_List;
+Mustache.Insert (Root, "name", Mustache.New_Scalar ("foo"));
+Mustache.Append (Item, Mustache.New_Scalar ("alpha"));
+Mustache.Insert (Root, "items", Item);
+Ctx : Mustache.Context := Mustache.New_Context (Root);
+
+Mustache.Load ("templates");
+Put (Mustache.Render ("struct", Ctx));
+Put (Mustache.Render_Text ("{{name}}", Ctx));
+.Ed
+.Sh SEE ALSO
+.Xr gprbuild 1
+.Sh LICENSE
+ISC.
