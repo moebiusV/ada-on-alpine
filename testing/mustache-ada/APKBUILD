@@ -1,9 +1,9 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=mustache-ada
-pkgver=0.1.1
+pkgver=0.2.0
 pkgrel=0
 _tag="mustache-ada-v$pkgver"
-pkgdesc="A Mustache-subset template engine in Ada"
+pkgdesc="A Mustache template engine in Ada"
 url="https://github.com/moebiusV/ada-on-alpine"
 arch="all"
 license="ISC"
@@ -28,7 +28,8 @@ build() {
 
 check() {
 	gprbuild -P tests/check.gpr -p
-	./tests/mustache_check tests/fixtures
+	./tests/mustache_check
+	./tests/spec_check tests/spec
 }
 
 package() {
@@ -47,5 +48,5 @@ doc() {
 }
 
 sha512sums="
-f0434c1e0568b39d8033af2a4782cdcf5c21a0f331eeb421167ecd369f8cb39dad3e71757e88d43f259624b9f675e15aafa35fc9e30bc0e7a4f3f138652e508c    ada-on-alpine-mustache-ada-v0.1.1.tar.gz
+da6ea530612c9226e448ee1acd2fa66713a000f3d9a544cc518a8e0af535200b8aed96bf3e202787b84aae72000e4c1e734c56c421a25d2440c9bef0d96babb2    ada-on-alpine-mustache-ada-v0.2.0.tar.gz
 "
