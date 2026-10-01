@@ -19,7 +19,7 @@ and 20 `-static` subpackages.
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
 | `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
-| `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
+| `testing/hbnf/` | `hbnf` | Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case oconf |
 | `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
@@ -63,10 +63,11 @@ LKT subset (114 pass). The `ada_language_server` binary links every Ada
 dependency statically (only libc/libgnat/libgmp stay dynamic), so editor
 integration works out of the box.
 
-`hbnf` ships a self-contained RFC 5234 schema engine whose four code generators
-(C, Ada, Rust, Zig) each emit a recursive-descent parser that reports errors
-classic-unix style — `expected a number, found oops` with line/col and a caret
-under the offending token.
+`hbnf` is a parser generator / compiler compiler: a self-contained RFC 5234
+schema engine whose four code generators (C, Ada, Rust, Zig) each emit a
+recursive-descent parser that reports errors classic-unix style — `expected a
+number, found oops` with line/col and a caret under the offending token — and
+round-trips source losslessly (in oconf, comments survive a re-emit).
 
 ## Dependency graph
 
