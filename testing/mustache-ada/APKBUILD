@@ -1,0 +1,43 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=mustache-ada
+pkgver=0.1.0
+pkgrel=0
+_tag="mustache-ada-v$pkgver"
+pkgdesc="A Mustache-subset template engine in Ada"
+url="https://github.com/moebiusV/ada-on-alpine"
+arch="all"
+license="ISC"
+# Static + relocatable: the .a ships in the -static subpackage, the .so in the
+# main package.  Pure Ada on the GNAT runtime: no C dependencies, no external
+# GPR projects.
+depends="libgnat"
+makedepends="gcc-gnat gprbuild build-base"
+# The sources live in THIS repo (sources/mustache-ada/), so the tarball is
+# self-referential.  Pin it to a version tag, never a commit hash (a rewritten
+# history breaks a hash pin).  To release: `git tag mustache-ada-v$pkgver`,
+# push the commit and the tag, then `abuild checksum` and commit the new
+# sha512sums.
+source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/archive/refs/tags/$_tag.tar.gz"
+builddir="$srcdir/ada-on-alpine-$_tag/sources/mustache-ada"
+subpackages="$pkgname-static"
+
+build() {
+	gprbuild -P mustache.gpr -p -XLIBRARY_TYPE=relocatable
+	gprbuild -P mustache.gpr -p -XLIBRARY_TYPE=static
+}
+
+check() {
+	gprbuild -P tests/check.gpr -p
+	./tests/mustache_check tests/fixtures
+}
+
+package() {
+	gprinstall -P mustache.gpr -p -f -XLIBRARY_TYPE=static \
+		--prefix="$pkgdir/usr" --sources-subdir=include/mustache \
+		--build-name=static --build-var=LIBRARY_TYPE
+	gprinstall -P mustache.gpr -p -f -XLIBRARY_TYPE=relocatable \
+		--prefix="$pkgdir/usr" --sources-subdir=include/mustache \
+		--build-name=relocatable --build-var=LIBRARY_TYPE
+}
+
+sha512sums=""
