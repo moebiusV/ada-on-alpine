@@ -35,12 +35,13 @@ run_abuild() {
 }
 
 # Install a package's main .apk plus any subpackages from a directory. The
-# version-precise glob (`${pkg}-[0-9]*`) stops prefix-sharing packages from
-# over-matching (`libadalang` vs `libadalang-tools`, `vss` vs `vss-extra`,
-# `gnatcoll` vs `gnatcoll-*`); subpackage names come from the APKBUILD's
-# `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
+# version-precise glob (`${pkg}-${pkgver}-*`, not `${pkg}-[0-9]*`) both stops
+# prefix-sharing packages from over-matching (`libadalang` vs `libadalang-tools`,
+# `vss` vs `vss-extra`, `gnatcoll` vs `gnatcoll-*`) and stops a stale older
+# version from being installed after a pkgver bump; subpackage names come from
+# the APKBUILD's `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
 install_apks() {
-    _pkg="$1" _dir="$2"
+    _pkg="$1" _ver="$2" _dir="$3"
     # gpr2-tools `replaces` gprbuild's four tool binaries, but apk still sees a
     # hard `cmd:` provides conflict between the two. Drop classic gprbuild first
     # (nothing runtime-depends on it) and let the GPR2 tools take over.
@@ -50,14 +51,14 @@ install_apks() {
     # A failed install is fatal: this is a dependency-ordered build, so a
     # swallowed apk failure would surface much later as a confusing compiler
     # or linker error. Keep apk's output visible for diagnosis.
-    if ! apk add --allow-untrusted "$_dir"/"$_pkg"-[0-9]*.apk; then
+    if ! apk add --allow-untrusted "$_dir"/"$_pkg"-"$_ver"-*.apk; then
         echo "error: failed to install $_pkg" >&2
         exit 1
     fi
     for _sub in $(sed -n 's/^subpackages="\(.*\)"$/\1/p' "/repo/testing/$_pkg/APKBUILD" 2>/dev/null); do
         _sub=${_sub%%:*}
         _sub=$(echo "$_sub" | sed "s/\$pkgname/$_pkg/")
-        if ! apk add --allow-untrusted "$_dir"/"$_sub"-[0-9]*.apk; then
+        if ! apk add --allow-untrusted "$_dir"/"$_sub"-"$_ver"-*.apk; then
             echo "error: failed to install $_sub (subpackage of $_pkg)" >&2
             exit 1
         fi
@@ -66,9 +67,10 @@ install_apks() {
 
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
-    if ls /repo/.work/packages/${pkg}-[0-9]*.apk >/dev/null 2>&1; then
+    pkgver=$(sed -n 's/^pkgver=//p' "/repo/testing/$pkg/APKBUILD" | head -1)
+    if ls /repo/.work/packages/${pkg}-${pkgver}-*.apk >/dev/null 2>&1; then
         echo "  (cached, installing)"
-        install_apks "$pkg" /repo/.work/packages
+        install_apks "$pkg" "$pkgver" /repo/.work/packages
         continue
     fi
     run_abuild "$pkg"
@@ -78,7 +80,7 @@ for pkg in $PKGS; do
     for apk_file in $(find /home/build/.local/share/abuild -name "${pkg}-*.apk" 2>/dev/null); do
         cp "$apk_file" /repo/.work/packages/
     done
-    install_apks "$pkg" /repo/.work/packages
+    install_apks "$pkg" "$pkgver" /repo/.work/packages
 done
 
 find / -name '*.apk' -not -path '/repo/*' -exec cp {} /repo/.work/packages/ \;
