@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.6.6
+pkgver=0.6.7
 pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
@@ -72,4 +72,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="678aafa5efd7095f1a0f7d244b9ab81699fb6d44d47ae929416ecf97fd889e3d693cda4c3ec3eecb759ae0907e5a9e84ee55b1972a89e887ef1a0d920060b9e6  hbnf-v0.6.6.tar.gz"
+sha512sums="1d822af0b665128639b152a50b3ddddbc16c8f021c5797edcb1e8b2002d6bc4b3fe352a1253d8033ff232f7f736899fe88dab62a65fc5e8bd620d894ef45ff28  hbnf-v0.6.7.tar.gz"
