@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=mustache-ada
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=0
 _tag="mustache-ada-v$pkgver"
 pkgdesc="A Mustache template engine in Ada"
@@ -48,5 +48,5 @@ doc() {
 }
 
 sha512sums="
-da6ea530612c9226e448ee1acd2fa66713a000f3d9a544cc518a8e0af535200b8aed96bf3e202787b84aae72000e4c1e734c56c421a25d2440c9bef0d96babb2    ada-on-alpine-mustache-ada-v0.2.0.tar.gz
+91355743edfec9b8dfe7742528344a7d38583854b4bc8895f2028195f239b31221548ed02ad0757abcd98886129b87abe5b4d4f34ca853501add890bf9f859ad    ada-on-alpine-mustache-ada-v0.2.1.tar.gz
 "
