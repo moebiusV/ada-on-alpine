@@ -7,7 +7,7 @@ aports fork for a Merge Request. The end goal is the Ada Language Server
 
 ## Packages
 
-38 source packages, all into aports `testing/`, plus three `pyc` subpackages
+39 source packages, all into aports `testing/`, plus three `pyc` subpackages
 and 19 `-static` subpackages.
 
 | Path | Package | Status |
@@ -16,6 +16,7 @@ and 19 `-static` subpackages.
 | `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
+| `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) — self-referential source |
 | `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
 | `testing/imsg-ada/` | `imsg-ada` | New: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
