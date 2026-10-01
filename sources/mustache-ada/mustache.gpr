@@ -1,4 +1,4 @@
---  Standalone project for Mustache: a Mustache-subset template engine in Ada.
+--  Standalone project for Mustache: a Mustache template engine in Ada.
 --  Pure Ada on the GNAT runtime -- no C dependencies, no external GPR
 --  projects.  Built and gprinstalled as a static library by the
 --  ada-on-alpine aport.
