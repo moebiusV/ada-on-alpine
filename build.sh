@@ -76,7 +76,15 @@ for pkg in $PKGS; do
     run_abuild "$pkg"
     # Persist the just-built package(s) for reuse across runs, then install them
     # so the next package's makedepends resolve (main apk + subpackages). abuild
-    # drops them under a repo subdir, so copy into the flat cache first.
+    # drops them under a repo subdir, so copy into the flat cache first. Clear
+    # any older version of this package (and its subpackages) from the cache so
+    # build-image.sh's `apk add *.apk` never sees two versions of one package.
+    rm -f /repo/.work/packages/${pkg}-[0-9]*.apk
+    for _sub in $(sed -n 's/^subpackages="\(.*\)"$/\1/p' "/repo/testing/$pkg/APKBUILD" 2>/dev/null); do
+        _sub=${_sub%%:*}
+        _sub=$(echo "$_sub" | sed "s/\$pkgname/$pkg/")
+        rm -f /repo/.work/packages/${_sub}-[0-9]*.apk
+    done
     for apk_file in $(find /home/build/.local/share/abuild -name "${pkg}-*.apk" 2>/dev/null); do
         cp "$apk_file" /repo/.work/packages/
     done
