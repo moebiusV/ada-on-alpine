@@ -2,13 +2,15 @@
 
 Alpine `aports` overlay for the Ada/GNAT build toolchain, targeting **edge**
 (gcc 15). Layout mirrors `aports`, so each package copies straight into an
-aports fork for a Merge Request. The end goal is the Ada Language Server
-(`ada_language_server`).
+aports fork for a Merge Request. The goal is an effective, useful Ada
+development environment running on Alpine — the compiler, build system,
+libraries, code tooling, and language-server editor integration, all packaged
+and tested.
 
 ## Packages
 
 39 source packages, all into aports `testing/`, plus three `pyc` subpackages
-and 19 `-static` subpackages.
+and 20 `-static` subpackages.
 
 | Path | Package | Status |
 | --- | --- | --- |
@@ -18,7 +20,7 @@ and 19 `-static` subpackages.
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
 | `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) — self-referential source |
 | `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
-| `testing/imsg-ada/` | `imsg-ada` | New: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
+| `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
@@ -52,14 +54,15 @@ and 19 `-static` subpackages.
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 | `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
-`imsg-ada` is a complete aport whose source lives in this repo (`sources/imsg-ada/`,
-same self-referential tarball trick as `hbnf`).
+`hbnf`, `libsodium-ada`, `imsg-ada`, and `mustache-ada` source from this repo
+(`sources/<pkg>/`) rather than an upstream project, so each `source=` is a
+tarball of this very repo, pinned to a version tag.
 
 The full set builds with `./build.sh` (`libadalang` needs ≥8 GB RAM for its
 generated parser). `langkit`'s `check()` runs its upstream e3-testsuite on the
 LKT subset (114 pass). The `ada_language_server` binary links every Ada
-dependency statically (only libc/libgnat/libgmp stay dynamic), so the overlay's
-end goal is met.
+dependency statically (only libc/libgnat/libgmp stay dynamic), so editor
+integration works out of the box.
 
 `hbnf` ships a self-contained RFC 5234 schema engine whose four code generators
 (C, Ada, Rust, Zig) each emit a recursive-descent parser that reports errors
@@ -84,6 +87,7 @@ gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ─�
                         ├─► adasat
                         ├─► bracke-cryptolib ──► bracke-zlib
                         ├─► libsodium-ada
+                        ├─► mustache-ada  (self-referential source)
                         ├─► hbnf          (self-referential source)
                         └─► imsg-ada      (self-referential source)
 ```
@@ -108,7 +112,7 @@ gnatcoll + fswatch ──► ada-libfswatch      (fswatch is pure C: build-base/
 
 gpr + libadalang + libadalang-tools + lal-refactor + gnatdoc + gnatformat
   + spawn + vss + vss-extra + ada-libfswatch + xdiff
-      ──► ada_language_server              (the end goal)
+      ──► ada_language_server              (editor integration)
 
 gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr2-tools   (last — replaces gprbuild)
 
@@ -126,12 +130,13 @@ py3-langkit                         (langkit build dep)
 
 Alpine's convention is a shared package (`libfoo.so` + project files) plus a
 `libfoo-static` subpackage carrying the `.a` archive. The overlay now follows
-that shape: 19 libraries build `static + shared` and ship their archive in a
+that shape: 20 libraries build `static + shared` and ship their archive in a
 `<name>-static` subpackage —
 
     adasat, aws, bracke-cryptolib, bracke-zlib, gnatcoll, gnatcoll-db,
     gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgpr,
-    libsodium-ada, prettier-ada, spawn, templates-parser, vss, xdiff, xmlada
+    libsodium-ada, mustache-ada, prettier-ada, spawn, templates-parser, vss,
+    xdiff, xmlada
 
 Consumers that link statically declare the matching `-static` package in their
 `makedepends`; everyone else links the shared library. Shared variants are
@@ -164,7 +169,7 @@ build a new one.
   libadalang, ada-markdown, vss, vss-extra, gnatformat, lal-refactor.
 - Apache-2.0: adasat.
 - MIT: bracke-cryptolib, bracke-zlib.
-- ISC: libsodium-ada, hbnf, imsg-ada.
+- ISC: libsodium-ada, mustache-ada, hbnf, imsg-ada.
 - GPL-3.0: xdiff.
 - GPL-3.0-only: py3-e3-core, py3-e3-testsuite.
 - AGPL-3.0-or-later AND Apache-2.0: afl++.
@@ -173,4 +178,5 @@ None imposes a license on software built with or linked against it.
 
 ## Build
 
-    ./build.sh            # builds the .apk files in an alpine:edge container
+    ./build.sh             # builds the .apk files in an alpine:edge container
+    ./build-image.sh       # assembles them into the ada-toolchain:edge image
