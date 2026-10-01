@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.6.2
+pkgver=0.6.3
 pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
@@ -18,14 +18,19 @@ builddir="$srcdir/$pkgname-$pkgver"
 build() {
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
 	# hbnf_cli links -static (see hbnf_cli.gpr) so the shipped binary runs on
-	# glibc and musl alike. gprbuild emits -lgnat-15 (versioned), but Alpine
-	# ships the static runtime unversioned as libgnat.a — provide the versioned
-	# name so -static resolves.
+	# glibc and musl alike. gprbuild emits -lgnat-15/-lgnarl-15 (versioned),
+	# but Alpine ships the static runtime unversioned as libgnat.a/libgnarl.a.
+	# Provide the versioned names as symlinks in a writable dir (abuild's build
+	# user cannot write into the root-owned adalib/) and point the linker at it
+	# via LIBRARY_PATH.
 	ADALIB="$(gcc -print-file-name=adalib)"
 	GNAT_MAJOR="$(gcc -dumpversion | cut -d. -f1)"
-	ln -sf libgnat.a  "$ADALIB/libgnat-$GNAT_MAJOR.a"
-	ln -sf libgnarl.a "$ADALIB/libgnarl-$GNAT_MAJOR.a"
-	gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
+	linklib="$srcdir/.linklibs"
+	mkdir -p "$linklib"
+	ln -sf "$ADALIB/libgnat.a"  "$linklib/libgnat-$GNAT_MAJOR.a"
+	ln -sf "$ADALIB/libgnarl.a" "$linklib/libgnarl-$GNAT_MAJOR.a"
+	LIBRARY_PATH="$linklib${LIBRARY_PATH:+:$LIBRARY_PATH}" \
+		gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
 }
 
 check() {
@@ -67,4 +72,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="8aeafba2f21e269e0f4e0313cdf53f60291393f31480ac64598b5b24160cfb80bf427fb470d85faeda1fcd44b2182bd52333d8f818afdce72612a7daaa2dc9c8  hbnf-v0.6.2.tar.gz"
+sha512sums="ac468656b636bfa3ba75543e8ec8d27528d8f4acf47d9242b13ee78b1272a233f8c88a09606ce38b40fc0102478533d763faa54df66b6d961283937f73506a03  hbnf-v0.6.3.tar.gz"
