@@ -1,5 +1,0 @@
-; A grammar another file extends with `=/` (tests/abnf.sh).
-include "../../grammars/core.hbnf"
-
-doc = 1*hex
-hex = DIGIT

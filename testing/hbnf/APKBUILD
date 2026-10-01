@@ -1,10 +1,10 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.5.0
+pkgver=0.6.0
 pkgrel=0
-_tag="hbnf-v$pkgver"
+_tag="v$pkgver"
 pkgdesc="OpenBSD-style config parser + ABNF schema engine (C/Ada/Rust/Zig parser generators) in Ada"
-url="https://github.com/moebiusV/ada-on-alpine"
+url="https://github.com/moebiusV/hbnf"
 arch="all"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): no runtime component,
@@ -12,12 +12,8 @@ license="ISC"
 # ships one library, libhbnf.a: the config parser plus the schema engine and
 # the C/Rust/Zig/Ada emitters.
 makedepends="gcc-gnat gprbuild build-base"
-# The sources live in THIS repo (sources/hbnf/), so the tarball is
-# self-referential. Pin it to a version tag, never a commit hash (a rewritten
-# history breaks a hash pin). To release: `git tag hbnf-v$pkgver`, push the
-# commit and the tag, then `abuild checksum` and commit the new sha512sums.
-source="ada-on-alpine-$_tag.tar.gz::https://github.com/moebiusV/ada-on-alpine/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/ada-on-alpine-$_tag/sources/hbnf"
+source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
+builddir="$srcdir/$pkgname-$_tag"
 
 build() {
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
@@ -71,4 +67,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="0eb5224da2f919e48d9edfff7723b118986a01e8bccc9301d4bae0204d01d327e7f6aea80f836a9460b520bc1a6b587361af42780972146954f8b907b3568b5a  ada-on-alpine-$_tag.tar.gz"
+sha512sums="e7e7af532f16e931cd5d52b8c3fd7480deac4756a7f84550007a340da6b52da72d7fcbb8b275e0ffe002542e8bb3c6497408a8fb087d569ac9e89a166c9d4a5e  hbnf-v0.6.0.tar.gz"

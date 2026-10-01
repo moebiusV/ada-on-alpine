@@ -18,9 +18,9 @@ and 20 `-static` subpackages.
 | `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
 | `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
 | `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
-| `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) — self-referential source |
+| `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
 | `testing/hbnf/` | `hbnf` | Built: OpenBSD-style config parser + `hbnf` schema engine (C/Ada/Rust/Zig parser generators) |
-| `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared, self-referential source |
+| `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
@@ -54,9 +54,8 @@ and 20 `-static` subpackages.
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 | `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
-`hbnf`, `libsodium-ada`, `imsg-ada`, and `mustache-ada` source from this repo
-(`sources/<pkg>/`) rather than an upstream project, so each `source=` is a
-tarball of this very repo, pinned to a version tag.
+`hbnf`, `libsodium-ada`, `imsg-ada`, and `mustache-ada` live in their own
+upstream repos under `moebiusV/` and are pulled from those repos' tag tarballs.
 
 The full set builds with `./build.sh` (`libadalang` needs ≥8 GB RAM for its
 generated parser). `langkit`'s `check()` runs its upstream e3-testsuite on the
@@ -87,9 +86,9 @@ gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ─�
                         ├─► adasat
                         ├─► bracke-cryptolib ──► bracke-zlib
                         ├─► libsodium-ada
-                        ├─► mustache-ada  (self-referential source)
-                        ├─► hbnf          (self-referential source)
-                        └─► imsg-ada      (self-referential source)
+                        ├─► mustache-ada
+                        ├─► hbnf
+                        └─► imsg-ada
 ```
 
 The langkit / GPR2 spine:

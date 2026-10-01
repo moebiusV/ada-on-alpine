@@ -1,4 +1,0 @@
-; common core shared by every daemon
-listen = "on" iface "port" port
-iface  = word
-port   = u16

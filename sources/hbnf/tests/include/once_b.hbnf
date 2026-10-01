@@ -1,3 +1,0 @@
-; Read after once_a.hbnf: its `y` overrides once_a's.
-include "once_a.hbnf"
-y = "b" "b"

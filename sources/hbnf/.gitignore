@@ -1,3 +1,0 @@
-# gnatmake scratch (tests/e2e.sh builds in-tree)
-*.o
-*.ali

@@ -1,6 +1,0 @@
-obj/
-obj-check/
-lib/
-*.o
-*.ali
-tests/mustache_check
