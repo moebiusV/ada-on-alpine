@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.6.0
+pkgver=0.6.1
 pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
@@ -53,18 +53,18 @@ check() {
 	# path, so two concurrent builds can't collide.
 	tmpdir=$(mktemp -d)
 	trap 'rm -rf "$tmpdir"' EXIT
-	./hbnf_cli tests/server.hbnf --backend=c --templates=templates > "$tmpdir/hbnf-out.c"
+	./hbnf tests/server.hbnf --backend=c --templates=templates > "$tmpdir/hbnf-out.c"
 	cc -std=gnu11 -D_GNU_SOURCE -c "$tmpdir/hbnf-out.c" -o "$tmpdir/hbnf-out.o"
 }
 
 package() {
 	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
-	install -Dm755 hbnf_cli "$pkgdir/usr/bin/hbnf"
+	install -Dm755 hbnf "$pkgdir/usr/bin/hbnf"
 	# The code-generator templates: loaded at runtime from the XDG data
 	# dir (--templates=DIR or $HBNF_TEMPLATES to override).
 	install -d "$pkgdir/usr/share/hbnf"
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="e7e7af532f16e931cd5d52b8c3fd7480deac4756a7f84550007a340da6b52da72d7fcbb8b275e0ffe002542e8bb3c6497408a8fb087d569ac9e89a166c9d4a5e  hbnf-v0.6.0.tar.gz"
+sha512sums="f670fe4a07656072b3ea5933efa1189f938855af9a0a81a6249ada24e2cd6a71121b878fa3209b9b105d15c280457b67541c949bd70495627e20bdc56074f84c  hbnf-v0.6.1.tar.gz"
