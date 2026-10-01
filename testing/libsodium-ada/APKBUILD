@@ -10,7 +10,7 @@ license="ISC"
 depends="libgnat libsodium"
 makedepends="gcc-gnat gprbuild build-base libsodium-dev"
 source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/$pkgname-$_tag"
+builddir="$srcdir/$pkgname-$pkgver"
 subpackages="$pkgname-static $pkgname-doc"
 
 build() {

@@ -1,6 +1,6 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.6.1
+pkgver=0.6.2
 pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
@@ -13,7 +13,7 @@ license="ISC"
 # the C/Rust/Zig/Ada emitters.
 makedepends="gcc-gnat gprbuild build-base"
 source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/$pkgname-$_tag"
+builddir="$srcdir/$pkgname-$pkgver"
 
 build() {
 	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
@@ -67,4 +67,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="f670fe4a07656072b3ea5933efa1189f938855af9a0a81a6249ada24e2cd6a71121b878fa3209b9b105d15c280457b67541c949bd70495627e20bdc56074f84c  hbnf-v0.6.1.tar.gz"
+sha512sums="8aeafba2f21e269e0f4e0313cdf53f60291393f31480ac64598b5b24160cfb80bf427fb470d85faeda1fcd44b2182bd52333d8f818afdce72612a7daaa2dc9c8  hbnf-v0.6.2.tar.gz"
