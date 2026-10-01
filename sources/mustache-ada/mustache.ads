@@ -1,9 +1,10 @@
 pragma Ada_2022;
 
---  Mustache in Ada: a small, strict subset of Mustache for code generation.
---  Render a template against a context -- a stack of scopes, each a tree of
---  scalar / list / map values -- with the tags README.md lists.  Pure Ada on
---  the GNAT runtime; no C dependencies.
+--  Mustache in Ada: a complete implementation of the core Mustache spec
+--  (interpolation with HTML escaping, sections, inverted sections, comments,
+--  partials, delimiters, dotted names, and the implicit iterator), rendered
+--  against a context -- a stack of scopes, each a tree of scalar / list /
+--  map values.  Pure Ada on the GNAT runtime; no C dependencies.
 
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Vectors;
@@ -13,18 +14,15 @@ with Ada.Strings.Unbounded;
 package Mustache is
 
    Template_Error : exception;
-   --  A missing template, an unfilled or non-scalar {{var}}, a {{#each}} over
-   --  a non-list, an unterminated section, or a key bound twice.
+   --  A template that cannot be parsed: an unterminated tag, a section with
+   --  no closing tag, a bad delimiter change, or a template name that was
+   --  never loaded.  A missing variable or partial is NOT an error -- it
+   --  renders empty, as Mustache does.
 
-   procedure Load (Dir : String);
-   --  Read every Dir/*.tmpl into the store, keyed by its base name (the file
-   --  name without ".tmpl").  A missing directory or unreadable file raises
-   --  Template_Error.
+   --  =====================================================================
+   --  Values.
+   --  =====================================================================
 
-   function Get (Name : String) return String;
-   --  The loaded text of the template named Name (base name, no ".tmpl").
-
-   --  The context model: a value is a scalar, a list, or a map, recursively.
    type Value;
    type Value_Access is access Value;
 
@@ -51,8 +49,6 @@ package Mustache is
       end case;
    end record;
 
-   --  Builders.  Each returns a fresh heap value; a program builds a context,
-   --  renders it, and drops it, so no deallocation is needed.
    function New_Scalar (Text : String) return Value_Access;
    function New_List return Value_Access;
    function New_Map return Value_Access;
@@ -62,28 +58,50 @@ package Mustache is
 
    procedure Insert (V : Value_Access; Key : String; Item : Value_Access);
    --  Bind Key to Item in a map value; V must have Kind = Map.  Binding a key
-   --  already present is an error.
+   --  already present replaces it.
 
-   --  A rendering context: a stack of scopes, top-of-stack last.  A name
-   --  lookup walks from the top down, so a scope pushed by {{#each}} or a
-   --  partial both shadows and inherits its enclosing scopes.
+   --  =====================================================================
+   --  The context (the "view").
+   --  =====================================================================
+
    type Context is record
       Scopes : Value_Lists.Vector;
    end record;
+   --  A stack of scopes, top-of-stack last.  A name lookup walks from the
+   --  top down, so a scope pushed by a section or partial both shadows and
+   --  inherits its enclosing scopes.
 
-   function New_Context (Root : Value_Access) return Context;
-   --  A context whose single scope is Root.
+   function View return Context;
+   --  A context with one empty map scope -- the starting point for a view.
+
+   procedure Put (Ctx : in out Context; Key : String; Value : String);
+   procedure Put (Ctx : in out Context; Key : String; Value : Value_Access);
+   --  Add Key to the top scope: a string becomes a scalar, a Value_Access is
+   --  a list or a map.  Put always writes the top scope.
 
    procedure Push (Ctx : in out Context; Scope : Value_Access);
-   --  Push a scope onto the top of the stack.
-
    procedure Pop (Ctx : in out Context);
-   --  Drop the top scope.
 
-   function Render (Name : String; Ctx : Context) return String;
-   --  Render the loaded template Name against Ctx.
+   --  =====================================================================
+   --  Rendering.
+   --  =====================================================================
 
-   function Render_Text (Source : String; Ctx : Context) return String;
-   --  Render a template given as Source text (not loaded by name).
+   function Render (Source : String; View : Context) return String;
+   --  Render a template given as a string.
+
+   function Render_File (Name : String; View : Context) return String;
+   --  Render a template loaded by name (see Load / Define).
+
+   procedure Load (Dir : String);
+   --  Read every Dir/*.tmpl, keyed by its base name.
+
+   procedure Define (Name : String; Source : String);
+   --  Register a template (a partial) by name, from a string.
+
+   procedure Reset;
+   --  Forget every template defined with Load or Define.
+
+   function Get (Name : String) return String;
+   --  The loaded text of the template named Name.
 
 end Mustache;

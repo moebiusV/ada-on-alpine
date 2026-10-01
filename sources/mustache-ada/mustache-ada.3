@@ -3,7 +3,7 @@
 .Os
 .Sh NAME
 .Nm mustache-ada
-.Nd a small, strict Mustache-subset template engine for code generation
+.Nd a complete Mustache template engine in Ada
 .Sh SYNOPSIS
 .Bd -literal -offset indent
 with Mustache;
@@ -17,45 +17,57 @@ In a GNAT project file the library is selected with
 renders a template \(em text with
 .Ql {{...}}
 tags \(em against a
-.Em context :
+.Em view :
 a stack of scopes, each a tree of
 .Sy Scalar ,
 .Sy List
 and
 .Sy Map
 values.
-It is the engine that turns a grammar's abstract tree into the target
-language's syntax, so an emitter never hardcodes a keyword.
-.Pp
-The subset is strict and aimed at code generation, not HTML:
+It implements the whole core Mustache spec and passes its official test
+suite (136 tests), and it is the engine that turns a grammar's abstract
+tree into the target language's syntax, so an emitter never hardcodes a
+keyword.
+.Sh TAGS
 .Bl -tag -width Ds
 .It Ic {{var}}
-Print the scalar
-.Ar var .
-An unfilled or non-scalar name raises
-.Vt Template_Error .
-.It Ic {{.}}
-The current element of a
-.Ic {{#each}}
-over scalars.
-.It Ic {{#each var}} ... {{/each}}
-Iterate a list; each element is pushed as a scope.
+HTML-escaped interpolation.
+.Ql & ,
+.Ql < ,
+.Ql > ,
+.Ql \&"
+and
+.Ql '
+become
+.Ql &amp; ,
+.Ql &lt; ,
+.Ql &gt; ,
+.Ql &quot;
+and
+.Ql &#39; .
+.It Ic {{{var}}} , {{&var}}
+Raw interpolation, with no escaping.
 .It Ic {{#var}} ... {{/var}}
-Section: a list iterates, a map is pushed once, a non-empty scalar renders
+Section: a list iterates, a map is pushed once, a truthy scalar renders
 once.
 .It Ic {{^var}} ... {{/var}}
-Inverted: render iff
+Inverted section: renders iff
 .Ar var
-is absent or empty.
-.It Ic {{> partial}}
-Include another loaded template, with the same stack.
+is falsey
+.Pq false, null, the empty string, or an empty list .
+.It Ic {{! comment }}
+Comment, rendered to nothing.
+.It Ic {{>partial}}
+Include a partial, with standalone-line indentation.
+.It Ic {{=<< >>=}}
+Change the delimiters for the rest of the template.
+.It Ic {{.}}
+The current value, the implicit iterator.
+.It Ic a.b.c
+Dotted-name lookup through nested maps.
 .El
 .Pp
-Unlike Mustache, there is no HTML escaping
-.Pq Ic {{var}}
-is always raw,
-and errors are loud rather than silent: an unfilled name raises, it does
-not render empty.
+A missing name or partial renders empty \(em it is never an error.
 .Sh VALUES
 A
 .Vt Mustache.Value
@@ -74,53 +86,68 @@ A set of named values, built with
 .Fn New_Map
 and grown with
 .Fn Insert Ar map Ar key Ar item .
-Binding a key already present raises
-.Vt Template_Error .
+Binding a key already present replaces it.
 .El
 .Pp
 The builders return a
 .Vt Mustache.Value_Access
 .Pq a pointer to a heap value ,
-so a context is a tree the caller drops when done; nothing is deallocated.
-.Sh CONTEXT AND RENDERING
-.Fn New_Context Ar root
-wraps a root value as a one-scope
-.Vt Mustache.Context ;
+so a view is a tree the caller drops when done; nothing is deallocated.
+.Sh VIEW AND RENDERING
+.Fn View
+returns a fresh
+.Vt Mustache.Context
+.Pq a scope stack with one empty map .
+.Fn Put Ar view Ar key Ar value
+adds a string or a value to the top scope;
 .Fn Push
 and
 .Fn Pop
-stack scopes for
-.Ic {{#each}}
-and partials.
-.Fn Render Ar name Ar ctx
-renders a template previously loaded by
+stack scopes for sections and partials.
+.Fn Render Ar source Ar view
+renders a template given as a string, and
+.Fn Render_File Ar name Ar view
+renders a template loaded by name.
+.Sh PARTIALS
+.Fn Define Ar name Ar source
+registers a partial from a string,
 .Fn Load Ar dir
+reads every
+.Pa dir/*.tmpl
 .Pq keyed by base name, without the
 .Ql .tmpl
-suffix ;
-.Fn Render_Text Ar source Ar ctx
-renders a template given as a raw string.
+suffix ,
+.Fn Reset
+forgets every registered template, and
+.Fn Get Ar name
+returns a template's source text.
 .Sh ERRORS
 .Vt Mustache.Template_Error
-is raised for a missing template, an unfilled or non-scalar
-.Ic {{var}} ,
-a
-.Ic {{#each}}
-over a non-list, an unterminated section, an unmatched closing tag, and a
-key bound twice.
+is raised only for a template that cannot be parsed: an unterminated tag, a
+section with no closing tag, or a bad delimiter change.
 .Sh EXAMPLES
 .Bd -literal -offset indent
-Root : constant Mustache.Value_Access := Mustache.New_Map;
-Item : constant Mustache.Value_Access := Mustache.New_List;
-Mustache.Insert (Root, "name", Mustache.New_Scalar ("foo"));
-Mustache.Append (Item, Mustache.New_Scalar ("alpha"));
-Mustache.Insert (Root, "items", Item);
-Ctx : Mustache.Context := Mustache.New_Context (Root);
+with Mustache;  use Mustache;
 
-Mustache.Load ("templates");
-Put (Mustache.Render ("struct", Ctx));
-Put (Mustache.Render_Text ("{{name}}", Ctx));
+V : Context := View;
+Put (V, "name", "Ada");
+
+declare
+   L : constant Value_Access := New_List;
+begin
+   Append (L, New_Scalar ("alpha"));
+   Append (L, New_Scalar ("beta"));
+   Put (V, "items", L);
+end;
+
+Put_Line (Render ("Hello {{name}}!", V));
+Put_Line (Render ("{{#items}}[{{.}}]{{/items}}", V));
 .Ed
+.Pp
+prints
+.Ql Hello Ada!
+and
+.Ql [alpha][beta] .
 .Sh SEE ALSO
 .Xr gprbuild 1
 .Sh LICENSE

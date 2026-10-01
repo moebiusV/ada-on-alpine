@@ -1,13 +1,14 @@
 with "../mustache.gpr";
 
---  Conformance suite for the Mustache package: builds mustache_check against
---  the static library.  Object files land outside the library's own obj/ so
---  the test build never pollutes the library.
+--  Conformance suite for the Mustache package: mustache_check is a smoke
+--  test of the API; spec_check runs the official Mustache spec fixtures.
+--  Object files land outside the library's own obj/ so the test build never
+--  pollutes the library.
 project Check is
    for Source_Dirs use (".");
    for Object_Dir use "../obj-check";
    for Exec_Dir use ".";
-   for Main use ("mustache_check.adb");
+   for Main use ("mustache_check.adb", "spec_check.adb");
    package Compiler is
       for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa");
    end Compiler;

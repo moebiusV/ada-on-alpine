@@ -1,17 +1,16 @@
 pragma Ada_2022;
 
---  Conformance driver for the Mustache package: render the fixture templates
---  against a context and check each against its expected output, then check
---  the error cases (an unfilled {{var}}, a {{#each}} over a non-list, and an
---  unterminated section) each raise Template_Error.
---
---  Usage: mustache_check <template-dir>
+--  Smoke test for the Mustache package API: build a view, render, and check
+--  the core behaviours (escaping, raw interpolation, sections, inverted
+--  sections, dotted names, and the implicit iterator).  The full conformance
+--  run is spec_check over the official spec fixtures.
 
 with Mustache; use Mustache;
 with Ada.Command_Line;
 with Ada.Text_IO; use Ada.Text_IO;
 
 procedure Mustache_Check is
+
    Failures : Natural := 0;
 
    procedure Check (Label, Got, Want : String) is
@@ -26,60 +25,37 @@ procedure Mustache_Check is
       end if;
    end Check;
 
-   Root     : constant Value_Access := New_Map;
-   Fields   : constant Value_Access := New_List;
-   Keywords : constant Value_Access := New_List;
-   Items    : constant Value_Access := New_List;
-   Ctx      : Context;
-
-   procedure Expect_Error (Label, Source : String) is
-   begin
-      declare
-         S : constant String := Render_Text (Source, Ctx);
-      begin
-         Put_Line ("FAIL: " & Label & " (rendered without error)");
-         Put_Line ("  got: [" & S & "]");
-         Failures := Failures + 1;
-      end;
-   exception
-      when Template_Error =>
-         Put_Line ("ok: " & Label);
-   end Expect_Error;
-
 begin
-   Load (Ada.Command_Line.Argument (1));
+   declare
+      V : Context := View;
+   begin
+      Put (V, "forbidden", "& < >");
+      Check ("escape", Render ("{{forbidden}}", V), "&amp; &lt; &gt;");
+      Check ("raw triple", Render ("{{{forbidden}}}", V), "& < >");
+      Check ("raw amp", Render ("{{&forbidden}}", V), "& < >");
+      Check ("missing renders empty", Render ("{{nope}}", V), "");
+   end;
 
    declare
-      F1 : constant Value_Access := New_Map;
-      F2 : constant Value_Access := New_Map;
+      V : Context := View;
+      L : constant Value_Access := New_List;
    begin
-      Insert (F1, "type", New_Scalar ("int"));
-      Insert (F1, "fname", New_Scalar ("x"));
-      Insert (F2, "type", New_Scalar ("char*"));
-      Insert (F2, "fname", New_Scalar ("y"));
-      Append (Fields, F1);
-      Append (Fields, F2);
+      Append (L, New_Scalar ("a"));
+      Append (L, New_Scalar ("b"));
+      Put (V, "items", L);
+      Check ("each + dot", Render ("{{#items}}[{{.}}]{{/items}}", V),
+             "[a][b]");
+      Check ("inverted missing", Render ("{{^gone}}none{{/gone}}", V), "none");
    end;
-   Append (Keywords, New_Scalar ("alpha"));
-   Append (Keywords, New_Scalar ("beta"));
-   Insert (Root, "name", New_Scalar ("foo_t"));
-   Insert (Root, "fields", Fields);
-   Insert (Root, "keywords", Keywords);
-   Insert (Root, "items", Items);
-   Ctx := New_Context (Root);
 
-   Check ("interp + each over maps", Render ("struct", Ctx),
-          "struct foo_t { int x; char* y; };");
-   Check ("each over scalars + dot", Render ("kw", Ctx), "[alpha][beta]");
-   Check ("inverted (empty list)", Render ("inv", Ctx), "none");
-   Check ("partial", Render ("outer", Ctx),
-          "struct foo_t { int x; char* y; };");
-   Check ("render_text", Render_Text ("{{name}}", Ctx), "foo_t");
-
-   Expect_Error ("unfilled {{var}}", "{{missing}}");
-   Expect_Error ("non-scalar {{var}}", "{{fields}}");
-   Expect_Error ("{{#each}} over a non-list", "{{#each name}}{{.}}{{/each}}");
-   Expect_Error ("unterminated section", "{{#each fields}}{{type}}");
+   declare
+      V     : Context := View;
+      Inner : constant Value_Access := New_Map;
+   begin
+      Insert (Inner, "name", New_Scalar ("Joe"));
+      Put (V, "person", Inner);
+      Check ("dotted name", Render ("{{person.name}}", V), "Joe");
+   end;
 
    if Failures = 0 then
       Put_Line ("checks: all passed");
