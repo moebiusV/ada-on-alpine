@@ -180,3 +180,25 @@ None imposes a license on software built with or linked against it.
 
     ./build.sh             # builds the .apk files in an alpine:edge container
     ./build-image.sh       # assembles them into the ada-toolchain:edge image
+
+## Releasing an upstream package
+
+The four upstream packages — `hbnf`, `libsodium-ada`, `imsg-ada`,
+`mustache-ada` — are released by tagging their repo and updating this overlay's
+APKBUILD. `tools/release-checksum.sh` automates the tag-tarball checksum dance:
+fetch the pushed tag's tarball, hash it, and rewrite `pkgver` + `sha512sums`
+(see `tools/release-checksum.1`):
+
+    ./tools/release-checksum.sh mustache-ada v0.3.0                 # dry run: show the diff
+    ./tools/release-checksum.sh mustache-ada v0.3.0 --commit --push # commit and push the bump
+
+The rewrite is done by `tools/apkbuild_bump`, a small Ada program that
+validates the version and hash and handles both the single- and multi-line
+`sha512sums` forms. Never move a pushed tag.
+
+## Contributing
+
+New Ada packages — and contributions to the existing ones — follow the
+canonical Ada functional style guide at
+<https://moebiusv.github.io/ada-style-guidelines.html>. Each Ada repo carries a
+`STYLE.md` that points at it.

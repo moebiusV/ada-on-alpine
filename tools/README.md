@@ -5,6 +5,8 @@ when a new tag is pushed to a package's upstream repo. The tarball is fetched
 from GitHub, hashed, and the APKBUILD is rewritten — then the change is shown
 (and, optionally, committed and pushed).
 
+Manpages: `release-checksum(1)`, `apkbuild_bump(1)`.
+
 ## release-checksum.sh
 
 ```
