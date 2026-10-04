@@ -6,6 +6,7 @@
 --      apkbuild_bump <apkbuild> <version> <sha512-hex>
 
 with Ada.Command_Line;
+with Ada.Direct_IO;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -20,25 +21,33 @@ procedure Apkbuild_Bump is
    LF_Str : constant String    := [1 => LF];
    Quote  : constant String    := """";
 
+   --  Read a file byte-for-byte.  Direct_IO over Character has no notion of
+   --  line terminators, so a missing trailing newline is preserved (which
+   --  line-oriented Get_Line would add back).
    function Read_All (Name : String) return String is
-      F : Ada.Text_IO.File_Type;
+      package Char_IO is new Ada.Direct_IO (Character);
+      F : Char_IO.File_Type;
       B : Unbounded_String := Null_Unbounded_String;
+      C : Character;
    begin
-      Ada.Text_IO.Open (F, Ada.Text_IO.In_File, Name);
-      while not Ada.Text_IO.End_Of_File (F) loop
-         Append (B, Ada.Text_IO.Get_Line (F));
-         Append (B, LF);
+      Char_IO.Open (F, Char_IO.In_File, Name);
+      while not Char_IO.End_Of_File (F) loop
+         Char_IO.Read (F, C);
+         Append (B, C);
       end loop;
-      Ada.Text_IO.Close (F);
+      Char_IO.Close (F);
       return To_String (B);
    end Read_All;
 
    procedure Write_All (Name, Content : String) is
-      F : Ada.Text_IO.File_Type;
+      package Char_IO is new Ada.Direct_IO (Character);
+      F : Char_IO.File_Type;
    begin
-      Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Name);
-      Ada.Text_IO.Put (F, Content);
-      Ada.Text_IO.Close (F);
+      Char_IO.Create (F, Char_IO.Out_File, Name);
+      for I in Content'Range loop
+         Char_IO.Write (F, Content (I));
+      end loop;
+      Char_IO.Close (F);
    end Write_All;
 
    --  The value of a "name=" field: from the '=' to the next LF (or EOF).
