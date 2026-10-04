@@ -1,28 +1,32 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.6.14
+pkgver=0.7.0
 pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
 url="https://github.com/moebiusV/hbnf"
 arch="all"
 license="ISC"
-# Static-only (sources + static .a files + .gpr files): no runtime component,
-# so no runtime depends and no -dev split — hbnf is its own dev package.  It
-# ships one library, libhbnf.a: the config parser plus the schema engine and
-# the C/Rust/Zig/Ada emitters.
-makedepends="gcc-gnat gprbuild build-base"
+# Static-only (sources + static .a files + .gpr files): the hbnf binary is
+# fully static, so the CLI itself has no runtime component.  But the installed
+# hbnf_config.gpr does `with "mustache.gpr"` (the code templates are rendered
+# by mustache-ada), so consumers of libhbnf.a need mustache-ada installed too.
+# hbnf is its own dev package (no -dev split); it ships one library,
+# libhbnf.a: the config parser plus the schema engine and the C/Rust/Zig/Ada
+# emitters.
+depends="mustache-ada"
+makedepends="gcc-gnat gprbuild build-base mustache-ada"
 source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
 builddir="$srcdir/$pkgname-$pkgver"
 
 build() {
-	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
-	# hbnf_cli links -static (see hbnf_cli.gpr) so the shipped binary runs on
-	# glibc and musl alike. gprbuild emits -lgnat-15/-lgnarl-15 (versioned),
-	# but Alpine ships the static runtime unversioned as libgnat.a/libgnarl.a.
-	# Provide the versioned names as symlinks in a writable dir (abuild's build
-	# user cannot write into the root-owned adalib/) and point the linker at it
-	# via LIBRARY_PATH.
+	gprbuild -P hbnf_config.gpr -p -XLIBRARY_TYPE=static
+	# hbnf links -static (see hbnf.gpr) so the shipped binary runs on glibc and
+	# musl alike. gprbuild emits -lgnat-15/-lgnarl-15 (versioned), but Alpine
+	# ships the static runtime unversioned as libgnat.a/libgnarl.a.  Provide
+	# the versioned names as symlinks in a writable dir (abuild's build user
+	# cannot write into the root-owned adalib/) and point the linker at it via
+	# LIBRARY_PATH.
 	ADALIB="$(gcc -print-file-name=adalib)"
 	GNAT_MAJOR="$(gcc -dumpversion | cut -d. -f1)"
 	linklib="$srcdir/.linklibs"
@@ -30,7 +34,7 @@ build() {
 	ln -sf "$ADALIB/libgnat.a"  "$linklib/libgnat-$GNAT_MAJOR.a"
 	ln -sf "$ADALIB/libgnarl.a" "$linklib/libgnarl-$GNAT_MAJOR.a"
 	LIBRARY_PATH="$linklib${LIBRARY_PATH:+:$LIBRARY_PATH}" \
-		gprbuild -P hbnf_cli.gpr -p -XLIBRARY_TYPE=static
+		gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
 }
 
 check() {
@@ -63,7 +67,7 @@ check() {
 }
 
 package() {
-	gprinstall -P hbnf.gpr -p --prefix="$pkgdir/usr" \
+	gprinstall -P hbnf_config.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
 	install -Dm755 hbnf "$pkgdir/usr/bin/hbnf"
 	# The code-generator templates: loaded at runtime from the XDG data
@@ -72,4 +76,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="1b3e7dfbb857d1ec6ea3a37e08e530d17bb43045c67f9ffa6727e5591cba257dd33407dae1bdd197d104f28e20d831eaa6c32204c1364eaf6a370749aaed1f76  hbnf-v0.6.14.tar.gz"
+sha512sums="74917d978e782ece0bd729db32ea84bbe73d7f5d115ad6a503898a169c59b6cf77e14a6b8a0fe6f6b9286d26cb4d89f8d03eaa8306e583664ba880c51448ff14  hbnf-v0.7.0.tar.gz"
