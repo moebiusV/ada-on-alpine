@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=aunit
 pkgver=26.0.0_git20260825
-pkgrel=0
+pkgrel=2
 _commit="c97bf13eb85097ad9ae01896e16b730affb14302"
 pkgdesc="Ada unit testing framework"
 url="https://github.com/AdaCore/aunit"
@@ -9,7 +9,16 @@ arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
-source="aunit-$_commit.tar.gz::https://github.com/AdaCore/aunit/archive/$_commit.tar.gz"
+#  fix-message-free.patch: Message_Free frees Msg.all'Address (the string's
+#  data pointer, 8 bytes into the block Message_Alloc returned) instead of the
+#  allocation base, corrupting the heap under GNAT 15.  Free the bounds base.
+#  fix-location-sentinel.patch: Simple_Test_Cases.Location returns
+#  Tested_Line = 0, but Add_Success treats -1 as "no location", so it allocates
+#  a location whose Tested_File is null and the reporter dereferences it.  Use
+#  the -1 sentinel.
+source="aunit-$_commit.tar.gz::https://github.com/AdaCore/aunit/archive/$_commit.tar.gz
+	fix-message-free.patch
+	fix-location-sentinel.patch"
 builddir="$srcdir/aunit-$_commit"
 
 build() {
@@ -34,4 +43,6 @@ package() {
 
 sha512sums="
 b99477348204807180fa056236f881e71506914f65b095e8599f96cd2cc8d9b03fe2e2412fa1d0f2ee0d3cef3821ca7385a5b9daf1dce48faeff4b6b4b3bb5e2  aunit-c97bf13eb85097ad9ae01896e16b730affb14302.tar.gz
+53920b906c085cb8e07e3c0fbe5b5f989d05779cbefe7146e249d9e9863b374cffb84103f8a598d6579246eb1fb8bbdf820c066899956973e5a089eda8759f73  fix-message-free.patch
+c8a2f4ebf92325d4ceed75ed3726eed191643b283be04e7ca0ad545e6c8cc402b72a3d5a416eeeb51a017180ad9e23dcbe0c5dfe649851af61d62b16f952148c  fix-location-sentinel.patch
 "

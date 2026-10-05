@@ -1,0 +1,12 @@
+--- a/include/aunit/framework/aunit.adb
++++ b/include/aunit/framework/aunit.adb
+@@ -92,7 +92,8 @@
+    procedure Message_Free (Msg : in out Message_String) is
+    begin
+       if Msg /= null then
+-         AUnit.Memory.AUnit_Free (Msg.all'Address);
++         AUnit.Memory.AUnit_Free
++           (Msg.all'Address - Storage_Offset (Bounds'Size / 8));
+          Msg := null;
+       end if;
+    end Message_Free;

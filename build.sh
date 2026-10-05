@@ -14,21 +14,37 @@ mkdir -p "$OUT"
 # `replaces` gprbuild, so it must install after every package that builds
 # against gprbuild. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
 # nor gpr2-tools, so it sits after the spine.
-PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server gpr2-tools afl++}"
+PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server gpr2-tools afl++}"
 
-docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -w /repo alpine:edge sh -s <<'SCRIPT'
+# The signing key lives on the host in ~/.config/abuild (Alpine's standard abuild
+# key location), not in this repo, so every checkout and every machine signs with
+# the same key.  bind-mount it into the container below as /keys.
+KEYDIR="$HOME/.config/abuild"
+mkdir -p "$KEYDIR"
+
+docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo alpine:edge sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
 
-# Generate a signing key (keygen -a writes to /root/.config/abuild), trust its
-# public key, and hand a copy to the build user.
-abuild-keygen -a -n >/dev/null 2>&1
-cp /root/.config/abuild/*.rsa.pub /etc/apk/keys/
+# Signing key: /keys is a bind-mount of the host's ~/.config/abuild, so the same
+# key signs every build and every checkout.  Generate it once (a plain RSA
+# keypair; apk wants raw RSA, not OpenPGP) under a stable, URL-safe name, then
+# hand a copy + abuild.conf to the build user and trust the public key so this
+# build's own apk add accepts the packages it just built.
+if ! ls /keys/*.rsa >/dev/null 2>&1; then
+	openssl genrsa -out /keys/ada-on-alpine.rsa 4096 >/dev/null 2>&1
+	openssl rsa -in /keys/ada-on-alpine.rsa -pubout \
+		-out /keys/ada-on-alpine.rsa.pub >/dev/null 2>&1
+fi
 mkdir -p /home/build/.config/abuild
-cp /root/.config/abuild/*.rsa /root/.config/abuild/*.rsa.pub /root/.config/abuild/abuild.conf /home/build/.config/abuild/ 2>/dev/null || true
-sed -i "s|/root/.config/abuild|/home/build/.config/abuild|g" /home/build/.config/abuild/abuild.conf
-chown -R build:build /home/build /repo
+cp /keys/ada-on-alpine.rsa /keys/ada-on-alpine.rsa.pub /home/build/.config/abuild/
+printf 'PACKAGER="David Walther <david@clearbrookdistillery.com>"\n' \
+	> /home/build/.config/abuild/abuild.conf
+printf 'PACKAGER_PRIVKEY="/home/build/.config/abuild/ada-on-alpine.rsa"\n' \
+	>> /home/build/.config/abuild/abuild.conf
+cp /keys/ada-on-alpine.rsa.pub /etc/apk/keys/
+chown -R build:build /home/build /keys /repo
 
 run_abuild() {
     su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild"
@@ -65,10 +81,21 @@ install_apks() {
     done
 }
 
+mkdir -p /repo/.work/hashes
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
     pkgver=$(sed -n 's/^pkgver=//p' "/repo/testing/$pkg/APKBUILD" | head -1)
-    if ls /repo/.work/packages/${pkg}-${pkgver}-*.apk >/dev/null 2>&1; then
+    #  Content hash of the a port's inputs: everything under testing/<pkg>/
+    #  except abuild's scratch (src/, tmp/).  Catches an upstream commit bump
+    #  (via _commit/pkgver/source in the APKBUILD) and a local change (patches,
+    #  APKBUILD edits) alike, so only genuinely-changed packages rebuild -- no
+    #  reliance on the pkgrel convention.  Hashes contents, not mtimes.
+    cur_hash=$(cd "/repo/testing/$pkg" && \
+        find . \( -name src -o -name tmp \) -prune -o -type f \
+            -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1)
+    prev_hash=$(cat "/repo/.work/hashes/$pkg" 2>/dev/null || true)
+    if [ -n "$prev_hash" ] && [ "$prev_hash" = "$cur_hash" ] \
+        && ls "/repo/.work/packages/${pkg}-${pkgver}-"*.apk >/dev/null 2>&1; then
         echo "  (cached, installing)"
         install_apks "$pkg" "$pkgver" /repo/.work/packages
         continue
@@ -89,6 +116,7 @@ for pkg in $PKGS; do
         cp "$apk_file" /repo/.work/packages/
     done
     install_apks "$pkg" "$pkgver" /repo/.work/packages
+    printf '%s\n' "$cur_hash" > "/repo/.work/hashes/$pkg"
 done
 
 find / -name '*.apk' -not -path '/repo/*' -exec cp {} /repo/.work/packages/ \;

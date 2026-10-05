@@ -1,16 +1,46 @@
 # ada-on-alpine
 
-Alpine `aports` overlay for the Ada/GNAT build toolchain, targeting **edge**
-(gcc 15). Layout mirrors `aports`, so each package copies straight into an
-aports fork for a Merge Request. The goal is an effective, useful Ada
-development environment running on Alpine — the compiler, build system,
-libraries, code tooling, and language-server editor integration, all packaged
-and tested.
+The Ada/GNAT build toolchain for Alpine **edge** (gcc 15), distributed two ways:
+a signed `apk` repository you can use today, and an `aports` overlay whose
+packages are the source form intended for inclusion in Alpine's main repository.
+
+The overlay mirrors the `aports` layout, so each package copies straight into an
+aports fork for a Merge Request. The same package definitions back both the
+published repository and the upstream proposals — one source of truth, not two.
+The goal is an effective, useful Ada development environment on Alpine: the
+compiler, build system, libraries, code tooling, and language-server editor
+integration, all packaged and tested.
+
+## Use as an Alpine repository
+
+The overlay is published as a signed `apk` repository (x86_64 / musl, Alpine
+**edge**), so any edge host can install the packages directly — no source build:
+
+    wget -O /etc/apk/keys/ada-on-alpine.rsa.pub \
+      https://moebiusv.github.io/ada-on-alpine/ada-on-alpine.rsa.pub
+    echo "https://moebiusv.github.io/ada-on-alpine" >> /etc/apk/repositories
+    apk update
+    apk add gprbuild hbnf aunit buildabook aws gnatcoll libadalang ...
+
+The repository carries only the Ada packages this overlay builds; base
+dependencies (`gcc-gnat`, `musl-dev`, `sqlite`, `libsodium`, …) resolve from
+Alpine's own `edge/main` and `edge/community`, which must also be present.
+Everything is signed with the `ada-on-alpine` key, and `apk` verifies both the
+repository index and every package against it.
+
+Rebuild and republish from this tree:
+
+    ./build.sh           # build every .apk in an alpine:edge container (needs Docker)
+    ./publish-repo.sh    # index + sign, then push the gh-pages branch
+
+`./publish-repo.sh` writes the signed `APKINDEX.tar.gz` and the packages under
+`repo/x86_64/` (`--no-push` builds without pushing). GitHub Pages serves them
+at the URL above.
 
 ## Packages
 
-39 source packages, all into aports `testing/`, plus three `pyc` subpackages
-and 20 `-static` subpackages.
+40 source packages, all into aports `testing/`, plus three `pyc` subpackages,
+20 `-static` subpackages, and two `-doc` subpackages.
 
 | Path | Package | Status |
 | --- | --- | --- |
@@ -23,6 +53,7 @@ and 20 `-static` subpackages.
 | `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared |
 | `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
 | `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
+| `testing/buildabook/` | `buildabook` | Built: build tool for long manuscripts (outline + chapter sources → a Typst book) |
 | `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
 | `testing/gnatcoll-db/` | `gnatcoll-db` | Built: GNATcoll SQL + SQLite (static + shared) |
 | `testing/gnatcoll-gmp/` | `gnatcoll-gmp` | Built: GMP (arbitrary precision) bindings (static + shared) |
@@ -53,9 +84,6 @@ and 20 `-static` subpackages.
 | `testing/ada-markdown/` | `ada-markdown` | Built: Markdown parser library for Ada (static) |
 | `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
 | `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
-
-`hbnf`, `libsodium-ada`, `imsg-ada`, and `mustache-ada` live in their own
-upstream repos under `moebiusV/` and are pulled from those repos' tag tarballs.
 
 The full set builds with `./build.sh` (`libadalang` needs ≥8 GB RAM for its
 generated parser). `langkit`'s `check()` runs its upstream e3-testsuite on the
@@ -169,7 +197,7 @@ build a new one.
   libadalang, ada-markdown, vss, vss-extra, gnatformat, lal-refactor.
 - Apache-2.0: adasat.
 - MIT: bracke-cryptolib, bracke-zlib.
-- ISC: libsodium-ada, mustache-ada, hbnf, imsg-ada.
+- ISC: libsodium-ada, mustache-ada, hbnf, imsg-ada, buildabook.
 - GPL-3.0: xdiff.
 - GPL-3.0-only: py3-e3-core, py3-e3-testsuite.
 - AGPL-3.0-or-later AND Apache-2.0: afl++.

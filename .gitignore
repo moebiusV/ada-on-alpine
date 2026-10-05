@@ -9,6 +9,9 @@ testing/*/tmp/
 *.apk
 *.tar.gz
 
+# build run logs (scratch)
+build*.log
+
 # draft Alpine-MR notes — kept locally, never pushed
 SUBMISSION.md
 ISSUE.md

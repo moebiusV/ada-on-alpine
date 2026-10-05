@@ -1,0 +1,30 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=buildabook
+pkgver=0.1.0_git20261005
+pkgrel=0
+_commit="816c721c69c69d9c55eeb07c7134bb39bbd95ca8"
+pkgdesc="Build tool for long manuscripts: outline + chapter sources -> Typst book"
+url="https://github.com/moebiusV/buildabook"
+arch="all"
+license="ISC"
+depends="libgnat mustache-ada"
+makedepends="gcc-gnat gprbuild build-base hbnf"
+checkdepends="aunit"
+source="buildabook-$_commit.tar.gz::https://github.com/moebiusV/buildabook/archive/$_commit.tar.gz"
+builddir="$srcdir/buildabook-$_commit"
+
+build() {
+	gprbuild -P buildabook.gpr -p
+}
+
+check() {
+	gprbuild -P tests/tests.gpr -p
+	./tests/tests
+}
+
+package() {
+	install -Dm755 buildabook "$pkgdir"/usr/bin/buildabook
+	install -Dm644 man/buildabook.1 "$pkgdir"/usr/share/man/man1/buildabook.1
+	gzip -9 "$pkgdir"/usr/share/man/man1/buildabook.1
+}
+sha512sums="8cb864e1d8f5539273c39e5f8877056e8d7c514cd74a8195f550d8c9c34e5c8c4e608d1070ca140d4b729cfca37826ac87ea9756d301e122f044ac4ace93438a  buildabook-816c721c69c69d9c55eeb07c7134bb39bbd95ca8.tar.gz"
