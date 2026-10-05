@@ -21,6 +21,10 @@ def inline(s):
     s = esc(s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
+    # Angle-bracket autolinks (<https://…>): esc() turned the brackets into
+    # &lt;…&gt;, so match that escaped form.  Literal angle brackets (e.g.
+    # <name>) stay escaped and are left alone.
+    s = re.sub(r"&lt;(https?://[^&]+)&gt;", r'<a href="\1">\1</a>', s)
     s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
     s = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", s)
     return s
