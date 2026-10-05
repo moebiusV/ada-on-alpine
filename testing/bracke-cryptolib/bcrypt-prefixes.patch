@@ -1,0 +1,60 @@
+--- a/src/cryptolib-bcrypt.adb	2026-10-05 15:39:32.709185587 -0700
++++ b/src/cryptolib-bcrypt.adb	2026-10-05 16:05:23.455782336 -0700
+@@ -201,7 +201,9 @@
+       Computed  : Hash_String;
+    begin
+       if Stored'Length /= 60
+-        or else Stored (Stored'First .. Stored'First + 3) /= "$2b$"
++        or else Stored (Stored'First) /= '$'
++        or else Stored (Stored'First + 1) /= '2'
++        or else Stored (Stored'First + 3) /= '$'
+         or else Stored (Stored'First + 6) /= '$'
+         or else Stored (Stored'First + 4) not in '0' .. '9'
+         or else Stored (Stored'First + 5) not in '0' .. '9'
+@@ -209,6 +211,22 @@
+          return False;
+       end if;
+ 
++      --  Accept "$2b$" (what we emit) unconditionally.  "$2a$" (Go, and the
++      --  historical label) and "$2y$" (PHP's fixed form) are accepted only
++      --  for passwords under 72 bytes, where the three prefixes are
++      --  byte-identical; past that they diverge from "$2b$" on long or
++      --  8-bit inputs.  "$2x$" (PHP's broken 8-bit handling) and "$2$" are
++      --  refused.
++      if Stored (Stored'First + 2) = 'a'
++        or else Stored (Stored'First + 2) = 'y'
++      then
++         if Password'Length >= Maximum_Password_Length then
++            return False;
++         end if;
++      elsif Stored (Stored'First + 2) /= 'b' then
++         return False;
++      end if;
++
+       Cost := (Character'Pos (Stored (Stored'First + 4))
+                - Character'Pos ('0')) * 10
+         + (Character'Pos (Stored (Stored'First + 5)) - Character'Pos ('0'));
+@@ -226,6 +244,11 @@
+          return False;
+       end if;
+ 
++      --  Relabel our freshly-computed "$2b$" to the stored version so the
++      --  full-string comparison below matches: the digest bytes are identical
++      --  across the accepted prefixes, only the three label characters differ.
++      Computed (Computed'First + 2) := Stored (Stored'First + 2);
++
+       --  Constant-time over the whole string, so nothing is learned from how
+       --  far a wrong password got.
+       declare
+--- a/src/cryptolib-bcrypt.ads	2026-10-05 15:39:32.709185587 -0700
++++ b/src/cryptolib-bcrypt.ads	2026-10-05 15:39:51.293555310 -0700
+@@ -63,7 +63,8 @@
+    --  the stored string parses, because a malformed stored hash is a fact
+    --  about the database rather than about the password.
+    --  @param Password the password offered
+-   --  @param Stored   the stored `$2b$` string
++   --  @param Stored   the stored hash: `$2b$` always, plus `$2a$` and `$2y$`
++   --    for passwords under 72 bytes, where the prefixes are byte-identical
+    --  @return True when the password produces exactly that hash
+    function Verify
+      (Password : Ada.Streams.Stream_Element_Array;
