@@ -1,5 +1,5 @@
 --- a/src/cryptolib-bcrypt.adb	2026-10-05 15:39:32.709185587 -0700
-+++ b/src/cryptolib-bcrypt.adb	2026-10-05 15:39:51.293555310 -0700
++++ b/src/cryptolib-bcrypt.adb	2026-10-05 16:05:23.455782336 -0700
 @@ -201,7 +201,9 @@
        Computed  : Hash_String;
     begin
@@ -34,6 +34,18 @@
        Cost := (Character'Pos (Stored (Stored'First + 4))
                 - Character'Pos ('0')) * 10
          + (Character'Pos (Stored (Stored'First + 5)) - Character'Pos ('0'));
+@@ -226,6 +244,11 @@
+          return False;
+       end if;
+ 
++      --  Relabel our freshly-computed "$2b$" to the stored version so the
++      --  full-string comparison below matches: the digest bytes are identical
++      --  across the accepted prefixes, only the three label characters differ.
++      Computed (Computed'First + 2) := Stored (Stored'First + 2);
++
+       --  Constant-time over the whole string, so nothing is learned from how
+       --  far a wrong password got.
+       declare
 --- a/src/cryptolib-bcrypt.ads	2026-10-05 15:39:32.709185587 -0700
 +++ b/src/cryptolib-bcrypt.ads	2026-10-05 15:39:51.293555310 -0700
 @@ -63,7 +63,8 @@

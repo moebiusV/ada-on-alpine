@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=bracke-cryptolib
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 _commit="05c5117f89a4ec7d06633e0d9b546fd0a8f8f90f"
 pkgdesc="Pure-Ada cryptography (checksums, ciphers, MACs, random); dependency of bracke-zlib"
 url="https://github.com/bracke/cryptolib"
@@ -47,4 +47,4 @@ package() {
 
 sha512sums="136fb1dc86c4edf1f94e66810dfca983bb92802967101464c6153a5d0fd1951eee0c5b16913782a6b12be0fea775b0a0c730af2256217a022276798ddb4bf5ae  cryptolib-$_commit.tar.gz
 ba01438fd8c5918c89a637d8d0c61a93af4d40ff8a4da3fee86609c5873ea68900e57dcf1a3efdbbd74d2fd12568a2f7ad1adb3b2733a9cad72238ea504f568d  cryptolib_config.gpr
-69fea1de1b577e642e8c5d37a254d88e23e8f7297633069df0be2707d2dcd8abb4c11245f0d72308e1e1ee89341beded423405a81d3cde26dba584e15b5c1a8a  bcrypt-prefixes.patch"
+e36a43bc81c72966ebc6a18208666997461c95289fa98a833e4026fc4ab22632a7f040fd61c6d7a07406c733c40ee5f63422d54bee98cd0cd39256b0ce599ad0  bcrypt-prefixes.patch"
