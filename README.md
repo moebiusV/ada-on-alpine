@@ -28,15 +28,6 @@ Alpine's own `edge/main` and `edge/community`, which must also be present.
 Everything is signed with the `ada-on-alpine` key, and `apk` verifies both the
 repository index and every package against it.
 
-Rebuild and republish from this tree:
-
-    ./build.sh           # build every .apk in an alpine:edge container (needs Docker)
-    ./publish-repo.sh    # index + sign, then push the gh-pages branch
-
-`./publish-repo.sh` writes the signed `APKINDEX.tar.gz` and the packages under
-`repo/x86_64/` (`--no-push` builds without pushing). GitHub Pages serves them
-at the URL above.
-
 ## Packages
 
 40 source packages, all into aports `testing/`, plus three `pyc` subpackages,
@@ -90,12 +81,6 @@ generated parser). `langkit`'s `check()` runs its upstream e3-testsuite on the
 LKT subset (114 pass). The `ada_language_server` binary links every Ada
 dependency statically (only libc/libgnat/libgmp stay dynamic), so editor
 integration works out of the box.
-
-`hbnf` is a parser generator / compiler compiler: a self-contained RFC 5234
-schema engine whose four code generators (C, Ada, Rust, Zig) each emit a
-recursive-descent parser that reports errors classic-unix style — `expected a
-number, found oops` with line/col and a caret under the offending token — and
-round-trips source losslessly (in oconf, comments survive a re-emit).
 
 ## Dependency graph
 
@@ -187,6 +172,12 @@ build cycle. A future gcc soname bump (`libgnat-15.so` -> `libgnat-16.so`) is
 then an ordinary pkgrel rebuild in order; nothing needs an old gprbuild to
 build a new one.
 
+`gpr2-tools`, the GPR2-based `gprbuild`/`gprclean`/`gprconfig`/`gprinstall`, is
+AdaCore's next-generation replacement but is not yet a full drop-in: `gprname`
+has no GPR2 equivalent, `gprls` ships renamed to `gprls2`, and the other tool
+binaries collide with classic `gprbuild`. The package therefore `replaces`
+gprbuild and is built last, after every package that builds against it.
+
 ## License
 
 - GPL-3.0-or-later: gprbuild, libgpr, fswatch, ada_language_server, gpr2-tools.
@@ -204,11 +195,6 @@ build a new one.
 
 None imposes a license on software built with or linked against it.
 
-## Build
-
-    ./build.sh             # builds the .apk files in an alpine:edge container
-    ./build-image.sh       # assembles them into the ada-toolchain:edge image
-
 ## Releasing an upstream package
 
 The four upstream packages — `hbnf`, `libsodium-ada`, `imsg-ada`,
@@ -224,9 +210,51 @@ The rewrite is done by `tools/apkbuild_bump`, a small Ada program that
 validates the version and hash and handles both the single- and multi-line
 `sha512sums` forms. Never move a pushed tag.
 
-## Contributing
+## Building
 
-New Ada packages — and contributions to the existing ones — follow the
-canonical Ada functional style guide at
-<https://moebiusv.github.io/ada-style-guidelines.html>. Each Ada repo carries a
-`STYLE.md` that points at it.
+Clone and build the overlay from source:
+
+    git clone https://github.com/moebiusV/ada-on-alpine.git
+    cd ada-on-alpine
+    ./build.sh
+
+`./build.sh` needs Docker (`./install-docker.sh` sets it up on Debian). It
+builds every package in dependency order inside an `alpine:edge` container with
+`abuild`, producing signed `.apk` files under `.work/packages/`. The signing key
+is generated once into `~/.config/abuild/` and reused, so every checkout of the
+repo signs with the same key.
+
+The build is incremental per package: `build.sh` hashes each aport's directory
+(the `APKBUILD` and its patches) and skips any package whose hash matches its
+last build. Re-running it therefore rebuilds only what changed — a bumped
+upstream commit (`_commit`/`pkgver` in the `APKBUILD`), an edited patch, or a
+new package — and reuses everything else from `.work/packages/`.
+
+The same `.apk` files assemble into a Docker image for building Ada against:
+
+    ./build-image.sh       # ada-toolchain:edge — alpine + the whole toolchain
+
+### Adding a package
+
+`testing/hbnf/` is the canonical example of a modern Ada aport. A package is a
+directory under `testing/` holding an `APKBUILD` (plus any `.patch` files named
+in its `source=`). The pieces, as hbnf does them:
+
+- `pkgname`/`pkgver`/`pkgrel`, `pkgdesc`, `url`, `arch="all"`, `license`.
+- `depends=` for runtime libraries and `makedepends=` for the build tools
+  (`gcc-gnat gprbuild build-base` plus the library build-deps).
+- `source=` — a pinned tag tarball (or an `_commit=` archive) with `sha512sums=`.
+- `build()` runs `gprbuild -P … -p`, with `-XLIBRARY_TYPE=static` for a static
+  library.
+- `check()` builds and runs the upstream test suite; hbnf runs its conformance
+  drivers over the accept/reject corpus.
+- `package()` installs the library with `gprinstall --prefix="$pkgdir/usr"` and,
+  for a tool, the binary with `install -Dm755` into `$pkgdir/usr/bin`.
+
+Shared libraries follow Alpine's `<name>-static` subpackage convention (see
+*Library layout* above); static-only libraries ship sources, a static `.a`, and
+a `.gpr` project.
+
+New Ada packages — and contributions to the existing ones — follow the canonical
+Ada functional style guide at <https://moebiusv.github.io/ada-style-guidelines.html>.
+Each Ada repo carries a `STYLE.md` that points at it.
