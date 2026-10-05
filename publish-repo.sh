@@ -56,10 +56,11 @@ if [ "${1:-}" = "--no-push" ]; then
 	exit 0
 fi
 
-# Publish to GitHub Pages as an orphan gh-pages branch holding only the repo,
-# so the branch never accumulates old .apk history.  Each run force-replaces
-# the branch.  Requires push access to the origin remote.  GitHub serves Pages
-# from gh-pages once Pages is enabled in the repo settings (Source: branch).
+# Publish to GitHub Pages: a single commit over main (so the branch is non-orphan
+# and reliably listed by GitHub's Pages UI), holding only the apk repo files.  A
+# .nojekyll file disables Jekyll — it cannot build a ~462 MB tree of binary .apks
+# in the Pages build window — and the README is rendered to index.html locally.
+# Each run force-replaces the branch, so no .apk history accumulates.
 origin=$(git -C "$ROOT" remote get-url origin)
 #  owner/repo for the Pages URL, from either remote spelling
 #  (https://github.com/O/R or git@github.com:O/R).  Normalize the SSH form to
@@ -72,18 +73,22 @@ pages_url="https://${owner}.github.io/${repo_name}"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/x86_64"
-cp "$REPO"/x86_64/* "$tmp/x86_64/"
-cp "$PUB" "$tmp/"
-#  The README becomes the site's index (GitHub Pages renders README.md when
-#  there is no index.html), so the apk repo's landing page stays in place.
-cp "$ROOT"/README.md "$tmp/"
+
+#  Render the README to index.html (Jekyll is off, so Pages will not do it).
+python3 "$ROOT"/tools/md2html.py < "$ROOT"/README.md > "$tmp/index.html"
 
 ( cd "$tmp" && \
 	git init -q && \
 	git remote add origin "$origin" && \
-	git checkout -q --orphan gh-pages && \
-	git add x86_64 "$PUB_NAME" README.md && \
+	git fetch -q origin main && \
+	git checkout -q -b gh-pages FETCH_HEAD && \
+	git rm -q -rf . && \
+	mkdir -p x86_64 && \
+	cp "$REPO"/x86_64/* x86_64/ && \
+	cp "$PUB" . && \
+	cp "$ROOT"/README.md . && \
+	: > .nojekyll && \
+	git add -A && \
 	git -c user.name=apk-repo -c user.email=apk-repo@users.noreply.github.com \
 		commit -q -m "apk repo: $(date -u +%Y-%m-%d)" && \
 	git push -q -f origin gh-pages )
