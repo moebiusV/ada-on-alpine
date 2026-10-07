@@ -1,6 +1,9 @@
 # Build and test every aport on every architecture Alpine edge supports.
-# To run only some architectures, put `[ci only: aarch64,x86]` in the commit
-# message (or use the "only" input of a manual run).
+# By default only x86_64 is built: the freshly built gprbuild does not yet work
+# on the other architectures (aarch64 never links, armv7 crashes at start-up
+# under QEMU, x86 deadlocks).  Enable others one at a time with `[ci only:
+# aarch64,x86]` in the commit message (or the "only" input of a manual run), and
+# all of them with `[ci only: all]`.
 # x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
 # container on an x86_64 host); the other six run under QEMU user-mode emulation,
 # which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
@@ -17,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Comma-separated architectures to build (default: all)'
+        description: 'Comma-separated architectures to build, or all (default: x86_64)'
         required: false
         default: ''
 
@@ -39,8 +42,9 @@ jobs:
           diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
 
   plan:
-    # Choose the architectures to build: all, or those named by `[ci only: a,b]`
-    # in the head commit message / the manual-run input.
+    # Choose the architectures to build: x86_64 by default, those named by
+    # `[ci only: a,b]` in the head commit message / the manual-run input, or
+    # every architecture for `all`.
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -66,7 +70,12 @@ jobs:
           m = re.search(r"\[ci only: *([^\]]+)\]", os.environ.get("MSG", ""))
           only = (m.group(1) if m else os.environ.get("ONLY_INPUT", "")).replace(" ", "")
           want = [a for a in only.split(",") if a]
-          sel = [e for e in full if e["arch"] in want] if want else full
+          if want == ["all"]:
+              sel = full
+          elif want:
+              sel = [e for e in full if e["arch"] in want]
+          else:
+              sel = [e for e in full if e["arch"] == "x86_64"]
           print("matrix=" + json.dumps({"include": sel}))
           PY
 

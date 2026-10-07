@@ -241,6 +241,11 @@ CI (`.github/workflows/install-test.yml`) does not use an image: it starts from
 plain `alpine:edge`, adds the published repo as shown above, installs the
 toolchain and smoke-tests it, so it checks what users actually install.
 
+`.github/workflows/ci.yml` builds and tests every aport, but only for x86_64 by
+default: the freshly built `gprbuild` does not yet work on the other
+architectures. Enable one with `[ci only: aarch64]` in the commit message (or all
+with `[ci only: all]`).
+
 ### Adding a package
 
 `testing/hbnf/` is the canonical example of a modern Ada aport. A package is a
