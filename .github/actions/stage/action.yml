@@ -57,10 +57,6 @@ runs:
       run: rm -f .work/dirty
     - name: Build (abuild runs each aport's check())
       shell: bash
-      # 6 h is GitHub's hosted-runner job limit; stop the build step 10 minutes
-      # short so the chown and artifact upload below still run and a rerun
-      # resumes from the work already done.
-      timeout-minutes: 350
       env:
         PKGS: ${{ inputs.pkgs }}
         DOCKER_PLATFORM: ${{ inputs.platform }}
@@ -69,11 +65,17 @@ runs:
         RUN_TAG: ${{ github.run_id }}
       run: |
         export KEYDIR="$PWD/.work/keys"
-        ./build.sh
-    # build.sh chowns the checkout to the container's build user.
+        # 6 h is GitHub's hosted-runner job limit (composite steps cannot take
+        # timeout-minutes); stop the build 10 minutes short so the cleanup and
+        # artifact upload below still run and a rerun resumes from what is done.
+        timeout 350m ./build.sh
+    # Stop a build container left running by a timeout, then undo build.sh's
+    # chown of the checkout to the container's build user.
     - if: always()
       shell: bash
-      run: sudo chown -R "$(id -u):$(id -g)" . || true
+      run: |
+        docker ps -q | xargs -r docker kill || true
+        sudo chown -R "$(id -u):$(id -g)" . || true
     - if: always()
       uses: actions/upload-artifact@v4
       with:
