@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<!--  Native Alpine Linux (musl) targets.
+
+      Upstream's knowledge base only knows glibc triples such as aarch64-linux-gnu
+      and the canonical x86_64-linux / x86_64-.*linux.*, so on most of Alpine's
+      architectures gprbuild finds no archive builder and silently skips linking.
+      gprconfig passes aarch64, armv6/v7, ppc64le, s390x, riscv64 and loongarch64
+      through as the raw compiler triple (...-alpine-linux-musl[eabihf]) and
+      canonicalises x86 to "x86-linux" (which no upstream archiver rule matches
+      either).  x86_64 is already covered by the generic x86_64-.*linux.* rules.  -->
+<gprconfig>
+  <configuration>
+    <targets>
+      <target name="^(aarch64|armv[67]|powerpc64le|s390x|riscv64|loongarch64)-.*linux-musl.*$" />
+      <target name="^x86-linux$" />
+    </targets>
+    <config>
+   for Object_Lister use ("nm", "-g");
+   for Object_Lister_Matcher use " [TDRBSG] (.*)";
+
+   package Linker is
+      for Export_File_Format use "GNU";
+      for Export_File_Switch use "-Wl,--version-script=";
+   end Linker;
+
+   for Archive_Builder  use ("ar", "cr");
+   for Archive_Builder_Append_Option use ("q");
+   for Archive_Indexer  use ("ranlib");
+   for Archive_Suffix   use ".a";
+    </config>
+  </configuration>
+</gprconfig>

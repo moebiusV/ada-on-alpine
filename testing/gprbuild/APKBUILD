@@ -15,6 +15,7 @@ makedepends="build-base which gawk"
 source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_commit.tar.gz
 	xmlada-$_xmlada_commit.tar.gz::https://github.com/AdaCore/xmlada/archive/$_xmlada_commit.tar.gz
 	gprconfig_kb-$_kb_commit.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/$_kb_commit.tar.gz
+	alpine.xml
 	"
 builddir="$srcdir/gprbuild-$_commit"
 
@@ -27,6 +28,10 @@ _bootstrap() {
 }
 
 build() {
+	# Upstream's knowledge base only knows glibc triples, so on Alpine's other
+	# native targets (aarch64-alpine-linux-musl, ...) gprbuild finds no archive
+	# builder and silently skips linking.  alpine.xml adds the missing rules.
+	cp "$srcdir"/alpine.xml "$srcdir"/gprconfig_kb-$_kb_commit/db/
 	_bootstrap --build
 }
 
@@ -56,4 +61,5 @@ sha512sums="
 cff86ffbbb9cb0c92337ac81dffc37946f61d13a1e066479984d0ca8b28c2bcdf7e38681c8a49b8ec456aa317c23ae026245fffe523dba3527dde417da85aa39  gprbuild-2781289e9e2bdc31350962211b7ef792d7d31c6f.tar.gz
 fb5718ee5e3a6932eacbf861aef3d75718e5892cf28ac49697fb589839517e721ff4533ef046ca25ed291af235c9b92d9d5383e3ed4be48a35d789411fc30db4  xmlada-9823ffb294187897a08b14bbce00743ff647cae1.tar.gz
 ed5b663df7cea9ea50a0fc8033c4ce0262796c35bb5d5849e6d1cef306247eec157235c8d6335cfa441bf7ada43322ccfdb3fe33694906cd9264a39c83e157a5  gprconfig_kb-ba383a7fa2a1ce8d27d44b00b8052acc0d49493c.tar.gz
+f04b85a58210c99bcbbdb054ec2c5f6551a0cf635276008e62818ba621d2c8573f351d5d983e7e3c8f514c74c5a15ae1bf98314cc69a594c37c7b347580faa72  alpine.xml
 "
