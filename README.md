@@ -237,6 +237,10 @@ The same `.apk` files assemble into a Docker image for building Ada against:
 
     ./build-image.sh       # ada-toolchain:edge — alpine + the whole toolchain
 
+CI (`.github/workflows/install-test.yml`) does not use an image: it starts from
+plain `alpine:edge`, adds the published repo as shown above, installs the
+toolchain and smoke-tests it, so it checks what users actually install.
+
 ### Adding a package
 
 `testing/hbnf/` is the canonical example of a modern Ada aport. A package is a

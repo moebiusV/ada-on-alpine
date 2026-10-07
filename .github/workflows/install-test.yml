@@ -1,0 +1,43 @@
+# Install-test the published apk repo: start from plain alpine:edge, add the
+# gh-pages repo and its signing key exactly as the README tells users to, install
+# the toolchain, and smoke-test it.  No registry image is needed, and this
+# exercises what users actually get.  It tests the *published* repo, so it runs
+# after ./publish-repo.sh (nightly, or on demand), not on every push.
+name: install-test
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://moebiusv.github.io/ada-on-alpine
+  KEY_NAME: ada-on-alpine.rsa.pub
+
+jobs:
+  install-test:
+    # The repo publishes x86_64 only (see publish-repo.sh), so one runner.
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:edge
+    steps:
+      - name: Add the ada-on-alpine repo
+        run: |
+          apk add --no-cache wget
+          wget -O /etc/apk/keys/$KEY_NAME $REPO_URL/$KEY_NAME
+          echo "$REPO_URL" >> /etc/apk/repositories
+          apk update
+      - name: Install the toolchain
+        run: apk add --no-cache gcc-gnat musl-dev gprbuild ada_language_server gnatdoc gnatformat libadalang-tools hbnf
+      - name: Build and run a program
+        run: |
+          mkdir /w && cd /w
+          printf 'project Hello is\n   for Main use ("hello.adb");\nend Hello;\n' > hello.gpr
+          printf 'with Ada.Text_IO;\nprocedure Hello is\nbegin\n   Ada.Text_IO.Put_Line ("ok");\nend Hello;\n' > hello.adb
+          gprbuild -q -P hello.gpr
+          test "$(./hello)" = ok
+      - name: Smoke-test the installed tools
+        run: |
+          ada_language_server --version
+          gnatpp --version
+          gnatdoc --version
