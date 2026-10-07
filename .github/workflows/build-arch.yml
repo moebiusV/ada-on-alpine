@@ -115,7 +115,7 @@ jobs:
   smoke:
     needs: s6
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - id: env

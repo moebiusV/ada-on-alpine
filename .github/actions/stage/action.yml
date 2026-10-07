@@ -45,7 +45,10 @@ runs:
         path: .work
     - name: Build (abuild runs each aport's check())
       shell: bash
-      timeout-minutes: 340
+      # 6 h is GitHub's hosted-runner job limit; stop the build step 10 minutes
+      # short so the chown and artifact upload below still run and a rerun
+      # resumes from the work already done.
+      timeout-minutes: 350
       env:
         PKGS: ${{ inputs.pkgs }}
         DOCKER_PLATFORM: ${{ inputs.platform }}
