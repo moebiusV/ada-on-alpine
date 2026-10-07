@@ -68,7 +68,15 @@ runs:
         # 6 h is GitHub's hosted-runner job limit (composite steps cannot take
         # timeout-minutes); stop the build 10 minutes short so the cleanup and
         # artifact upload below still run and a rerun resumes from what is done.
-        timeout 350m ./build.sh
+        set -o pipefail
+        timeout 350m ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
+    # Job logs need a login to read, but annotations are public: surface the
+    # tail of the build log there so a failure can be diagnosed from the API.
+    - if: failure()
+      shell: bash
+      run: |
+        msg=$(tail -n 30 "$RUNNER_TEMP/build.log" 2>/dev/null | cut -c1-200 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
+        echo "::error title=build log tail (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
     # Stop a build container left running by a timeout, then undo build.sh's
     # chown of the checkout to the container's build user.
     - if: always()

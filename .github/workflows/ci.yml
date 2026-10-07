@@ -17,7 +17,7 @@ on:
 # A newer push to a PR supersedes its older run, but never cancel a run on main:
 # the emulated architectures take hours and a cancel throws the progress away.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
