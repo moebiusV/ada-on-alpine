@@ -125,6 +125,19 @@ deps_dirty() {
 }
 
 mkdir -p /repo/.work/hashes /repo/.work/runs
+
+# CI runs the build in stages, each in a fresh container.  A stage's packages
+# build against the earlier stages' output, which is in .work/packages but not
+# installed here, so install it all up front (a package rebuilt below simply
+# upgrades its entry).
+if [ -n "${CASCADE:-}" ] && ls /repo/.work/packages/*.apk >/dev/null 2>&1; then
+    echo "===== installing previously built packages ====="
+    if ! apk add --allow-untrusted /repo/.work/packages/*.apk; then
+        echo "error: failed to install previously built packages" >&2
+        exit 1
+    fi
+fi
+
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
     if ! arch_ok "$pkg"; then
