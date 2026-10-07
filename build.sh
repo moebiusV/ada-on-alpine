@@ -10,11 +10,11 @@ OUT="$ROOT/.work/packages"
 mkdir -p "$OUT"
 
 # Dependency order: each package's build deps must precede it. libadalang OOMs
-# on <8GB (built -j1). gpr2-tools is last in the gprbuild-dependent spine: it
-# `replaces` gprbuild, so it must install after every package that builds
-# against gprbuild. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
+# on <8GB (built -j1). gpr2-tools (installs as gprbuild2 etc., alongside classic
+# gprbuild) is disabled/WIP and not in the default list: gprbuild2 crashes on
+# library projects. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
 # nor gpr2-tools, so it sits after the spine.
-PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server gpr2-tools afl++}"
+PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server afl++}"
 
 # The signing key lives on the host in ~/.config/abuild (Alpine's standard abuild
 # key location), not in this repo, so every checkout and every machine signs with
@@ -58,12 +58,6 @@ run_abuild() {
 # the APKBUILD's `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
 install_apks() {
     _pkg="$1" _ver="$2" _dir="$3"
-    # gpr2-tools `replaces` gprbuild's four tool binaries, but apk still sees a
-    # hard `cmd:` provides conflict between the two. Drop classic gprbuild first
-    # (nothing runtime-depends on it) and let the GPR2 tools take over.
-    if [ "$_pkg" = "gpr2-tools" ]; then
-        apk del gprbuild >/dev/null 2>&1 || true
-    fi
     # A failed install is fatal: this is a dependency-ordered build, so a
     # swallowed apk failure would surface much later as a confusing compiler
     # or linker error. Keep apk's output visible for diagnosis.

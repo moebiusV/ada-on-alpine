@@ -1,24 +1,28 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
+# WIP, DISABLED (arch=""): gprbuild2 crashes on library projects
+# (`PROGRAM_ERROR gpr2-build-tree_db.adb:106 build-in-place mismatch`, even on a
+# trivial static library), so the tools are not usable yet. Re-enable by setting
+# arch="all" once a GPR2 commit builds library projects.
 # NOTE: GPR2's tools are AdaCore's next-generation
 # replacement for the classic gprbuild/gprclean/gprconfig/gprinstall tools.
-# They are not yet a full drop-in, so they coexist with classic gprbuild during
-# the transition — hence the renamed `gprls2`; the four un-renamed tools collide
-# with classic gprbuild, so this package replaces it (gprname has no GPR2
-# equivalent yet; gprls becomes gprls2). The tools are
+# They are not yet a full drop-in (no gprname, no gprlib/gprbind, no
+# knowledge-base XML), so they coexist with classic gprbuild: the tools that
+# share a name with a classic one are installed with a `2` suffix (gprbuild2,
+# gprclean2, gprconfig2, gprinstall2, plus upstream's own gprls2), so the two
+# packages never conflict and classic gprbuild stays the default. The tools are
 # LICENSE-tool (GPL-3.0-or-later), unlike libgpr2 (Apache-2.0 WITH LLVM-
 # exception). `make build-tools` rebuilds libgpr2 in-tree, so this is
 # self-contained and does not depend on the `gpr` (library) package.
 pkgname=gpr2-tools
 pkgver=26.0.0_git20260915
-pkgrel=0
+pkgrel=1
 _commit="5763ca8090156812c5c3208ff24377cc7fd9b11f"
 _kb_commit="ba383a7fa2a1ce8d27d44b00b8052acc0d49493c"
-pkgdesc="Next-generation GPR project manager tools (gprbuild, gprclean, ...)"
+pkgdesc="Next-generation GPR project manager tools (gprbuild2, gprclean2, ...)"
 url="https://github.com/AdaCore/gpr"
-arch="all"
+arch=""
 license="GPL-3.0-or-later"
 depends="gcc-gnat gmp"
-replaces="gprbuild"
 makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-gmp gnatcoll-iconv xmlada"
 source="gpr-$_commit.tar.gz::https://github.com/AdaCore/gpr/archive/$_commit.tar.gz
 	gprconfig_kb-$_kb_commit.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/$_kb_commit.tar.gz"
@@ -32,17 +36,26 @@ build() {
 	make build-tools GPR2KBDIR="$srcdir"/gprconfig_kb-$_kb_commit/db PROCESSORS="${JOBS:-1}"
 }
 
+# Install the tools, then give those that collide with classic gprbuild a `2`
+# suffix. gprls already ships as gprls2; gprinspect has no classic twin.
+_install() {
+	make install-tools prefix="$1"/usr
+	for t in gprbuild gprclean gprconfig gprinstall; do
+		mv "$1"/usr/bin/$t "$1"/usr/bin/${t}2
+	done
+}
+
 check() {
 	# Stage-install and verify the tool layout (bin + libexec).
-	mkdir -p "$srcdir"/stage
-	make install-tools prefix="$srcdir"/stage/usr
-	test -x "$srcdir"/stage/usr/bin/gprbuild
+	_install "$srcdir"/stage
+	test -x "$srcdir"/stage/usr/bin/gprbuild2
 	test -x "$srcdir"/stage/usr/bin/gprls2
+	test ! -e "$srcdir"/stage/usr/bin/gprbuild
 	test -x "$srcdir"/stage/usr/libexec/gprbuild/gprdoc
 }
 
 package() {
-	make install-tools prefix="$pkgdir/usr"
+	_install "$pkgdir"
 }
 
 sha512sums="

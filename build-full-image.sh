@@ -35,10 +35,9 @@ done
 cat > "$tmp/Dockerfile" <<'EOF'
 FROM ada-toolchain:edge
 COPY pkgs /pkgs
-# apk update first: :edge's index is from when build-image.sh ran, and a
-# stale index makes the solver trip over the gprbuild/gpr2-tools `replaces`
-# relationship.  The Alpine language packages and the local language aports
-# install as two steps, each its own apk solve.
+# apk update first: :edge's index is from when build-image.sh ran.  The Alpine
+# language packages and the local language aports install as two steps, each
+# its own apk solve.
 RUN apk update && apk add --no-cache rust cargo zig g++ \
         gcc-gdc ldc dub gfortran nim nimble gcc-objc libobjc ats2 \
         zlib-dev
