@@ -1,0 +1,134 @@
+# Build and test every aport (except the disabled gpr2-tools) for one
+# architecture.  The dependency chain is too long for one 6-hour job, so it runs
+# as sequential stages; each stage uploads .work (packages, hashes, the CI-only
+# signing key) as an artifact that the next stage downloads.  Rerunning a failed
+# stage resumes from its own partial artifact.  abuild runs every aport's
+# check(), then a final job installs the lot into a clean container.
+name: build-arch
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      qemu:
+        type: boolean
+        required: true
+
+jobs:
+  s1:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s1
+          prev: ""
+          pkgs: "gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
+
+  s2:
+    needs: s1
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s2
+          prev: "s1"
+          pkgs: "py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects"
+
+  s3:
+    needs: s2
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s3
+          prev: "s2"
+          pkgs: "libadalang"
+
+  s4:
+    needs: s3
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s4
+          prev: "s3"
+          pkgs: "templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc"
+
+  s5:
+    needs: s4
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s5
+          prev: "s4"
+          pkgs: "fswatch ada-libfswatch ada_language_server afl++"
+
+  s6:
+    needs: s5
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s6
+          prev: "s5"
+          pkgs: "fpc odin newlisp vlang"
+
+  smoke:
+    needs: s6
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - id: env
+        uses: ./.github/actions/docker-env
+        with:
+          arch: ${{ inputs.arch }}
+          qemu: ${{ inputs.qemu }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s6
+          path: .work
+      - name: Install everything built and smoke-test it
+        run: |
+          docker run --rm --platform "${{ inputs.platform }}" \
+            -v "$PWD/.work/packages":/pkgs:ro -v "$PWD/tools/ci-smoke.sh":/ci-smoke.sh:ro \
+            "${{ steps.env.outputs.image }}" sh /ci-smoke.sh

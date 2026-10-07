@@ -1,0 +1,69 @@
+name: stage
+description: Build one dependency-ordered group of aports with build.sh and hand the result on as an artifact
+inputs:
+  arch:
+    required: true
+  platform:
+    description: Docker platform (linux/386, linux/arm64, ...)
+    required: true
+  qemu:
+    required: true
+  stage:
+    description: Stage name, e.g. s3
+    required: true
+  prev:
+    description: Previous stage name, empty for the first
+    required: false
+    default: ''
+  pkgs:
+    description: Space-separated aports to build, in dependency order
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: env
+      uses: ./.github/actions/docker-env
+      with:
+        arch: ${{ inputs.arch }}
+        qemu: ${{ inputs.qemu }}
+    - shell: bash
+      run: mkdir -p .work
+    # Resume: a rerun of this stage starts from its own earlier (possibly
+    # partial) artifact; otherwise from the previous stage's.  build.sh skips
+    # every package whose inputs are unchanged, so either way only the missing
+    # work is redone.
+    - id: own
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: work-${{ inputs.arch }}-${{ inputs.stage }}
+        path: .work
+    - if: steps.own.outcome != 'success' && inputs.prev != ''
+      uses: actions/download-artifact@v4
+      with:
+        name: work-${{ inputs.arch }}-${{ inputs.prev }}
+        path: .work
+    - name: Build (abuild runs each aport's check())
+      shell: bash
+      timeout-minutes: 340
+      env:
+        PKGS: ${{ inputs.pkgs }}
+        DOCKER_PLATFORM: ${{ inputs.platform }}
+        BUILD_IMAGE: ${{ steps.env.outputs.image }}
+      run: |
+        export KEYDIR="$PWD/.work/keys"
+        ./build.sh
+    # build.sh chowns the checkout to the container's build user.
+    - if: always()
+      shell: bash
+      run: sudo chown -R "$(id -u):$(id -g)" . || true
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: work-${{ inputs.arch }}-${{ inputs.stage }}
+        path: .work
+        include-hidden-files: true
+        overwrite: true
+        retention-days: 3
+        compression-level: 1
+        if-no-files-found: ignore

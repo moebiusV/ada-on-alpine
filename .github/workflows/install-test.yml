@@ -40,4 +40,4 @@ jobs:
         run: |
           ada_language_server --version
           gnatpp --version
-          gnatdoc --version
+          gnatdoc --help >/dev/null

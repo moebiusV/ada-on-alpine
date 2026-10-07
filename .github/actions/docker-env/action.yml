@@ -1,0 +1,41 @@
+name: docker-env
+description: Prepare Docker to run an Alpine edge container for one architecture
+inputs:
+  arch:
+    description: Alpine architecture name (x86_64, x86, aarch64, armv7, armhf, ppc64le, s390x, riscv64, loongarch64)
+    required: true
+  qemu:
+    description: "'true' if the architecture needs QEMU user-mode emulation on this runner"
+    required: true
+outputs:
+  image:
+    description: Base image to pass to build.sh as BUILD_IMAGE
+    value: ${{ steps.img.outputs.image }}
+runs:
+  using: composite
+  steps:
+    # Docker's official alpine image covers every architecture here except
+    # loongarch64, so the ordinary path just registers QEMU where needed.
+    - if: inputs.qemu == 'true' && inputs.arch != 'loongarch64'
+      uses: docker/setup-qemu-action@v3
+    # loongarch64: no official image, so import Alpine's own minirootfs and use
+    # the distro's qemu-user-static for the binfmt handler.
+    - if: inputs.arch == 'loongarch64'
+      shell: bash
+      run: |
+        set -eu
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq qemu-user-static binfmt-support
+        base=https://dl-cdn.alpinelinux.org/alpine/edge/releases/loongarch64
+        file=$(curl -sf $base/latest-releases.yaml | awk '/file: alpine-minirootfs/ {print $2; exit}')
+        test -n "$file"
+        curl -sfO "$base/$file"
+        docker import --platform linux/loong64 "$file" alpine-loongarch64:edge
+    - id: img
+      shell: bash
+      run: |
+        if [ "${{ inputs.arch }}" = loongarch64 ]; then
+          echo "image=alpine-loongarch64:edge" >> "$GITHUB_OUTPUT"
+        else
+          echo "image=alpine:edge" >> "$GITHUB_OUTPUT"
+        fi

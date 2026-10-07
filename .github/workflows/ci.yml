@@ -1,0 +1,52 @@
+# Build and test every aport on every architecture Alpine edge supports.
+# x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
+# container on an x86_64 host); the other six run under QEMU user-mode emulation,
+# which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
+# a runner's limits there, in which case that aport's arch= must exclude the
+# architecture.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths: ['testing/**', 'build.sh', 'tools/ci-smoke.sh', '.github/**']
+  pull_request:
+    paths: ['testing/**', 'build.sh', 'tools/ci-smoke.sh', '.github/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    # Every aport under testing/ must be built by some stage in build-arch.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          listed=$(grep -E '^ +pkgs: ' .github/workflows/build-arch.yml | sed 's/.*pkgs: //; s/"//g' | tr ' ' '\n' | sort)
+          all=$(ls testing | grep -vx gpr2-tools | sort)
+          diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
+
+  build:
+    needs: coverage
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {arch: x86_64,      runner: ubuntu-latest,    platform: linux/amd64,   qemu: false}
+          - {arch: x86,         runner: ubuntu-latest,    platform: linux/386,     qemu: false}
+          - {arch: aarch64,     runner: ubuntu-24.04-arm, platform: linux/arm64,   qemu: false}
+          - {arch: armv7,       runner: ubuntu-24.04-arm, platform: linux/arm/v7,  qemu: true}
+          - {arch: armhf,       runner: ubuntu-24.04-arm, platform: linux/arm/v6,  qemu: true}
+          - {arch: ppc64le,     runner: ubuntu-latest,    platform: linux/ppc64le, qemu: true}
+          - {arch: s390x,       runner: ubuntu-latest,    platform: linux/s390x,   qemu: true}
+          - {arch: riscv64,     runner: ubuntu-latest,    platform: linux/riscv64, qemu: true}
+          - {arch: loongarch64, runner: ubuntu-latest,    platform: linux/loong64, qemu: true}
+    uses: ./.github/workflows/build-arch.yml
+    with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
+      platform: ${{ matrix.platform }}
+      qemu: ${{ matrix.qemu }}

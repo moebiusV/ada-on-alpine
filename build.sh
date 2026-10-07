@@ -19,10 +19,14 @@ PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada h
 # The signing key lives on the host in ~/.config/abuild (Alpine's standard abuild
 # key location), not in this repo, so every checkout and every machine signs with
 # the same key.  bind-mount it into the container below as /keys.
-KEYDIR="$HOME/.config/abuild"
+KEYDIR="${KEYDIR:-$HOME/.config/abuild}"
+# CI builds other architectures through these: DOCKER_PLATFORM selects the
+# container platform (e.g. linux/386), BUILD_IMAGE the base image.  Unset, this
+# is the usual native alpine:edge build.
+BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 mkdir -p "$KEYDIR"
 
-docker run -i --rm -e PKGS="$PKGS" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo alpine:edge sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
@@ -75,9 +79,28 @@ install_apks() {
     done
 }
 
+# Does this aport's `arch=` include the architecture we are building on?  Same
+# rules as abuild: `noarch`/`all` match everything, a bare name matches itself,
+# `!name` excludes, and an empty arch="" means the aport is disabled.
+arch_ok() {
+    _cur=$(apk --print-arch)
+    _ok=0
+    for _w in $(sed -n 's/^arch=//p' "/repo/testing/$1/APKBUILD" | head -1 | tr -d "\"'"); do
+        case "$_w" in
+            "!$_cur") return 1 ;;
+            noarch|all|"$_cur") _ok=1 ;;
+        esac
+    done
+    [ "$_ok" = 1 ]
+}
+
 mkdir -p /repo/.work/hashes
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
+    if ! arch_ok "$pkg"; then
+        echo "  (skipped: not built for $(apk --print-arch))"
+        continue
+    fi
     pkgver=$(sed -n 's/^pkgver=//p' "/repo/testing/$pkg/APKBUILD" | head -1)
     #  Content hash of the a port's inputs: everything under testing/<pkg>/
     #  except abuild's scratch (src/, tmp/).  Catches an upstream commit bump
