@@ -40,7 +40,11 @@ check() {
 	rc=0
 	"$srcdir"/stage/usr/bin/gprbuild -P hello.gpr || rc=$?
 	echo "gprbuild exit status: $rc"; ls -la
-	[ "$rc" = 0 ]
+	if [ "$rc" != 0 ] || [ ! -x hello ]; then
+		echo "--- hello was not linked; verbose rerun:"
+		"$srcdir"/stage/usr/bin/gprbuild -v -f -P hello.gpr 2>&1 | tail -35
+		return 1
+	fi
 	[ "$(./hello)" = ok ]
 }
 
