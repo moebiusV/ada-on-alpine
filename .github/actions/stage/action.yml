@@ -43,6 +43,18 @@ runs:
       with:
         name: work-${{ inputs.arch }}-${{ inputs.prev }}
         path: .work
+    # The first stage of a fresh run starts from the newest cache saved by an
+    # earlier run of this architecture (see the save-cache job in build-arch.yml),
+    # so only what changed since then is rebuilt.  The dirty list is per run.
+    - if: steps.own.outcome != 'success' && inputs.prev == ''
+      uses: actions/cache/restore@v4
+      with:
+        path: .work
+        key: work-${{ inputs.arch }}-${{ github.run_id }}-restore
+        restore-keys: work-${{ inputs.arch }}-
+    - if: steps.own.outcome != 'success' && inputs.prev == ''
+      shell: bash
+      run: rm -f .work/dirty
     - name: Build (abuild runs each aport's check())
       shell: bash
       # 6 h is GitHub's hosted-runner job limit; stop the build step 10 minutes
@@ -53,6 +65,8 @@ runs:
         PKGS: ${{ inputs.pkgs }}
         DOCKER_PLATFORM: ${{ inputs.platform }}
         BUILD_IMAGE: ${{ steps.env.outputs.image }}
+        CASCADE: "1"
+        RUN_TAG: ${{ github.run_id }}
       run: |
         export KEYDIR="$PWD/.work/keys"
         ./build.sh

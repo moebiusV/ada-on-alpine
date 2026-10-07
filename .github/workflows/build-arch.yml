@@ -132,3 +132,58 @@ jobs:
           docker run --rm --platform "${{ inputs.platform }}" \
             -v "$PWD/.work/packages":/pkgs:ro -v "$PWD/tools/ci-smoke.sh":/ci-smoke.sh:ro \
             "${{ steps.env.outputs.image }}" sh /ci-smoke.sh
+
+  # Save the cumulative .work (packages, hashes, the CI-only key) for the next run,
+  # even when this run failed part-way: take the furthest stage that produced an
+  # artifact.  One cache entry per architecture per run (the repo cache is 10 GB).
+  save-cache:
+    needs: [s1, s2, s3, s4, s5, s6]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - id: d6
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s6
+          path: .work
+      - id: d5
+        if: steps.d6.outcome != 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s5
+          path: .work
+      - id: d4
+        if: steps.d5.outcome != 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s4
+          path: .work
+      - id: d3
+        if: steps.d4.outcome != 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s3
+          path: .work
+      - id: d2
+        if: steps.d3.outcome != 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s2
+          path: .work
+      - id: d1
+        if: steps.d2.outcome != 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s1
+          path: .work
+      - continue-on-error: true   # nothing to save if no stage produced anything
+        uses: actions/cache/save@v4
+        with:
+          path: .work
+          key: work-${{ inputs.arch }}-${{ github.run_id }}-${{ github.run_attempt }}

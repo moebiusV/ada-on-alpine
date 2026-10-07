@@ -24,9 +24,14 @@ KEYDIR="${KEYDIR:-$HOME/.config/abuild}"
 # container platform (e.g. linux/386), BUILD_IMAGE the base image.  Unset, this
 # is the usual native alpine:edge build.
 BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
+# CASCADE=1 (set by CI, which reuses .work across runs): a package is also
+# rebuilt when any aport it depends on (depends/makedepends) was rebuilt in this
+# run, since the per-aport content hash below only sees an aport's own files and
+# would keep a stale static consumer.  RUN_TAG identifies the run, so a rerun of
+# a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro >/dev/null 2>&1
 adduser -D -u 1000 build >/dev/null 2>&1
@@ -94,7 +99,32 @@ arch_ok() {
     [ "$_ok" = 1 ]
 }
 
-mkdir -p /repo/.work/hashes
+# Map a package name (an aport or one of its subpackages, e.g. vss-static) to the
+# aport that builds it, by longest aport-name prefix; empty if it is not ours.
+ALL_APORTS=$(ls /repo/testing)
+aport_of() {
+    _best=""
+    for _a in $ALL_APORTS; do
+        case "$1" in
+            "$_a"|"$_a"-*) [ ${#_a} -gt ${#_best} ] && _best=$_a ;;
+        esac
+    done
+    echo "$_best"
+}
+
+# Did any aport that $1 depends on get rebuilt in this run (CASCADE only)?
+deps_dirty() {
+    [ -s /repo/.work/dirty ] || return 1
+    for _d in $( cd "/repo/testing/$1" && ( set +eu; . ./APKBUILD >/dev/null 2>&1; echo "$depends $makedepends" ) ); do
+        _d=${_d%%[<>=~]*}
+        case "$_d" in *:*|"") continue ;; esac
+        _a=$(aport_of "$_d")
+        [ -n "$_a" ] && [ "$_a" != "$1" ] && grep -qx "$_a" /repo/.work/dirty && return 0
+    done
+    return 1
+}
+
+mkdir -p /repo/.work/hashes /repo/.work/runs
 for pkg in $PKGS; do
     echo "===== BUILDING $pkg ====="
     if ! arch_ok "$pkg"; then
@@ -111,7 +141,13 @@ for pkg in $PKGS; do
         find . \( -name src -o -name tmp \) -prune -o -type f \
             -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1)
     prev_hash=$(cat "/repo/.work/hashes/$pkg" 2>/dev/null || true)
-    if [ -n "$prev_hash" ] && [ "$prev_hash" = "$cur_hash" ] \
+    force=0
+    if [ -n "${CASCADE:-}" ] && deps_dirty "$pkg" \
+        && [ "$(cat "/repo/.work/runs/$pkg" 2>/dev/null)" != "${RUN_TAG:-}" ]; then
+        echo "  (a dependency was rebuilt this run)"
+        force=1
+    fi
+    if [ "$force" = 0 ] && [ -n "$prev_hash" ] && [ "$prev_hash" = "$cur_hash" ] \
         && ls "/repo/.work/packages/${pkg}-${pkgver}-"*.apk >/dev/null 2>&1; then
         echo "  (cached, installing)"
         install_apks "$pkg" "$pkgver" /repo/.work/packages
@@ -134,6 +170,9 @@ for pkg in $PKGS; do
     done
     install_apks "$pkg" "$pkgver" /repo/.work/packages
     printf '%s\n' "$cur_hash" > "/repo/.work/hashes/$pkg"
+    printf '%s\n' "${RUN_TAG:-}" > "/repo/.work/runs/$pkg"
+    [ -n "${CASCADE:-}" ] && echo "$pkg" >> /repo/.work/dirty
+    true
 done
 
 find / -name '*.apk' -not -path '/repo/*' -exec cp {} /repo/.work/packages/ \;
