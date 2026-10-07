@@ -59,7 +59,7 @@ repository index and every package against it.
 | `testing/py3-langkit/` | `py3-langkit` | Built: Langkit Python parser framework |
 | `testing/langkit/` | `langkit` | Built: parser framework (static + shared) + lkt tools |
 | `testing/gpr/` | `gpr` | Built: GPR2 project parser library (static) |
-| `testing/gpr2-tools/` | `gpr2-tools` | Built: next-gen GPR tools (gprbuild, gprclean, …) — replaces gprbuild |
+| `testing/gpr2-tools/` | `gpr2-tools` | **WIP, disabled** (`arch=""`): next-gen GPR tools, installed as `gprbuild2`, … alongside classic gprbuild; `gprbuild2` crashes on library projects |
 | `testing/libgpr/` | `libgpr` | Built: gprbuild's project parser library (static + shared) |
 | `testing/gnatcoll-projects/` | `gnatcoll-projects` | Built: GNATcoll project-file support (static + shared) |
 | `testing/libadalang/` | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
@@ -127,7 +127,7 @@ gpr + libadalang + libadalang-tools + lal-refactor + gnatdoc + gnatformat
   + spawn + vss + vss-extra + ada-libfswatch + xdiff
       ──► ada_language_server              (editor integration)
 
-gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr2-tools   (last — replaces gprbuild)
+gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr2-tools   (WIP, disabled; not in the default build)
 
 afl++   (standalone — no Ada; gmp-dev/linux-headers)
 ```
@@ -160,7 +160,7 @@ The rest stay static-only because they exist to be pulled into one static
 binary — `gpr` (GPR2), `libadalang` (links `langkit_support`),
 `libadalang-tools`, `lal-refactor`, `gnatformat`, `gnatdoc`, `ada-markdown`,
 `vss-extra`, `ada-libfswatch`, and the C `fswatch` — plus the statically-linked
-`ada_language_server` and `gpr2-tools`. (`aunit` ships `static + shared` from
+`ada_language_server` (and `gpr2-tools`, once enabled). (`aunit` ships `static + shared` from
 upstream's `make all` and predates the `-static` convention.)
 
 ## Why bootstrap gprbuild
@@ -174,9 +174,12 @@ build a new one.
 
 `gpr2-tools`, the GPR2-based `gprbuild`/`gprclean`/`gprconfig`/`gprinstall`, is
 AdaCore's next-generation replacement but is not yet a full drop-in: `gprname`
-has no GPR2 equivalent, `gprls` ships renamed to `gprls2`, and the other tool
-binaries collide with classic `gprbuild`. The package therefore `replaces`
-gprbuild and is built last, after every package that builds against it.
+has no GPR2 equivalent, and it lacks classic gprbuild's `gprlib`/`gprbind` and
+knowledge base. Worse, `gprbuild2` currently crashes on library projects, so
+the aport is WIP and disabled (`arch=""`) until that is fixed. When enabled it
+installs its tools under a `2` suffix (`gprbuild2`, `gprclean2`, `gprconfig2`,
+`gprinstall2`, `gprls2`) and coexists with classic `gprbuild`, which stays the
+default; it neither replaces nor provides it.
 
 ## License
 

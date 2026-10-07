@@ -1,0 +1,151 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ada-on-alpine</title><style>body{font-family:system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;line-height:1.55}code{background:#f6f8fa;padding:.1em .3em;border-radius:4px}pre{background:#f6f8fa;padding:1rem;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:6px 12px}h1,h2{border-bottom:1px solid #d0d7de;padding-bottom:.3em}</style></head><body>
+<h1>ada-on-alpine</h1>
+<p>The Ada/GNAT build toolchain for Alpine <strong>edge</strong> (gcc 15), distributed two ways: a signed <code>apk</code> repository you can use today, and an <code>aports</code> overlay whose packages are the source form intended for inclusion in Alpine's main repository.</p>
+<p>The overlay mirrors the <code>aports</code> layout, so each package copies straight into an aports fork for a Merge Request. The same package definitions back both the published repository and the upstream proposals — one source of truth, not two. The goal is an effective, useful Ada development environment on Alpine: the compiler, build system, libraries, code tooling, and language-server editor integration, all packaged and tested.</p>
+<h2>Use as an Alpine repository</h2>
+<p>The overlay is published as a signed <code>apk</code> repository (x86_64 / musl, Alpine <strong>edge</strong>), so any edge host can install the packages directly — no source build:</p>
+<pre><code>wget -O /etc/apk/keys/ada-on-alpine.rsa.pub \
+  https://moebiusv.github.io/ada-on-alpine/ada-on-alpine.rsa.pub
+echo "https://moebiusv.github.io/ada-on-alpine" &gt;&gt; /etc/apk/repositories
+apk update
+apk add gprbuild hbnf aunit buildabook aws gnatcoll libadalang ...</code></pre>
+<p>The repository carries only the Ada packages this overlay builds; base dependencies (<code>gcc-gnat</code>, <code>musl-dev</code>, <code>sqlite</code>, <code>libsodium</code>, …) resolve from Alpine's own <code>edge/main</code> and <code>edge/community</code>, which must also be present. Everything is signed with the <code>ada-on-alpine</code> key, and <code>apk</code> verifies both the repository index and every package against it.</p>
+<h2>Packages</h2>
+<p>40 source packages, all into aports <code>testing/</code>, plus three <code>pyc</code> subpackages, 20 <code>-static</code> subpackages, and two <code>-doc</code> subpackages.</p>
+<table><thead><tr>
+<th>Path</th><th>Package</th><th>Status</th>
+</tr></thead><tbody>
+<tr><td><code>testing/gprbuild/</code></td><td><code>gprbuild</code></td><td>Built: upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0</td></tr>
+<tr><td><code>testing/bracke-cryptolib/</code></td><td><code>bracke-cryptolib</code></td><td>Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared)</td></tr>
+<tr><td><code>testing/bracke-zlib/</code></td><td><code>bracke-zlib</code></td><td>Built: pure-Ada zlib/gzip/deflate (static + shared)</td></tr>
+<tr><td><code>testing/libsodium-ada/</code></td><td><code>libsodium-ada</code></td><td>Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared)</td></tr>
+<tr><td><code>testing/mustache-ada/</code></td><td><code>mustache-ada</code></td><td>Built: complete Mustache template engine, passes the official spec suite (static + shared)</td></tr>
+<tr><td><code>testing/hbnf/</code></td><td><code>hbnf</code></td><td>Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case oconf</td></tr>
+<tr><td><code>testing/imsg-ada/</code></td><td><code>imsg-ada</code></td><td>Built: OpenBSD imsg message-passing protocol in Ada — static + shared</td></tr>
+<tr><td><code>testing/xmlada/</code></td><td><code>xmlada</code></td><td>Built: XML/Ada (static + shared)</td></tr>
+<tr><td><code>testing/aunit/</code></td><td><code>aunit</code></td><td>Built: Ada unit testing framework (static + shared)</td></tr>
+<tr><td><code>testing/buildabook/</code></td><td><code>buildabook</code></td><td>Built: build tool for long manuscripts (outline + chapter sources → a Typst book)</td></tr>
+<tr><td><code>testing/gnatcoll/</code></td><td><code>gnatcoll</code></td><td>Built: GNAT Components Collection core (static + shared)</td></tr>
+<tr><td><code>testing/gnatcoll-db/</code></td><td><code>gnatcoll-db</code></td><td>Built: GNATcoll SQL + SQLite (static + shared)</td></tr>
+<tr><td><code>testing/gnatcoll-gmp/</code></td><td><code>gnatcoll-gmp</code></td><td>Built: GMP (arbitrary precision) bindings (static + shared)</td></tr>
+<tr><td><code>testing/gnatcoll-iconv/</code></td><td><code>gnatcoll-iconv</code></td><td>Built: iconv charset-conversion bindings (static + shared)</td></tr>
+<tr><td><code>testing/spawn/</code></td><td><code>spawn</code></td><td>Built: process-spawning library (static + shared)</td></tr>
+<tr><td><code>testing/vss/</code></td><td><code>vss</code></td><td>Built: vector/string abstractions (static + shared)</td></tr>
+<tr><td><code>testing/aws/</code></td><td><code>aws</code></td><td>Built: Ada Web Server (+ templates-parser, static + shared)</td></tr>
+<tr><td><code>testing/adasat/</code></td><td><code>adasat</code></td><td>Built: SAT-solving library (static + shared)</td></tr>
+<tr><td><code>testing/py3-e3-core/</code></td><td><code>py3-e3-core</code></td><td>Built: E3 core Python tooling</td></tr>
+<tr><td><code>testing/py3-e3-testsuite/</code></td><td><code>py3-e3-testsuite</code></td><td>Built: E3 testsuite framework (driver for AdaCore test suites)</td></tr>
+<tr><td><code>testing/prettier-ada/</code></td><td><code>prettier-ada</code></td><td>Built: Prettier formatter core (static + shared)</td></tr>
+<tr><td><code>testing/py3-langkit/</code></td><td><code>py3-langkit</code></td><td>Built: Langkit Python parser framework</td></tr>
+<tr><td><code>testing/langkit/</code></td><td><code>langkit</code></td><td>Built: parser framework (static + shared) + lkt tools</td></tr>
+<tr><td><code>testing/gpr/</code></td><td><code>gpr</code></td><td>Built: GPR2 project parser library (static)</td></tr>
+<tr><td><code>testing/gpr2-tools/</code></td><td><code>gpr2-tools</code></td><td><strong>WIP, disabled</strong> (<code>arch=""</code>): next-gen GPR tools, installed as <code>gprbuild2</code>, … alongside classic gprbuild; <code>gprbuild2</code> crashes on library projects</td></tr>
+<tr><td><code>testing/libgpr/</code></td><td><code>libgpr</code></td><td>Built: gprbuild's project parser library (static + shared)</td></tr>
+<tr><td><code>testing/gnatcoll-projects/</code></td><td><code>gnatcoll-projects</code></td><td>Built: GNATcoll project-file support (static + shared)</td></tr>
+<tr><td><code>testing/libadalang/</code></td><td><code>libadalang</code></td><td>Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse</td></tr>
+<tr><td><code>testing/templates-parser/</code></td><td><code>templates-parser</code></td><td>Built: AWS templates-parser engine (static + shared; aws builds it in-tree but doesn't install it)</td></tr>
+<tr><td><code>testing/vss-extra/</code></td><td><code>vss-extra</code></td><td>Built: VSS extras — JSON/Regexp/XML/OS (split out of VSS)</td></tr>
+<tr><td><code>testing/xdiff/</code></td><td><code>xdiff</code></td><td>Built: Ada bindings for the xdiff diff library (static + shared)</td></tr>
+<tr><td><code>testing/libadalang-tools/</code></td><td><code>libadalang-tools</code></td><td>Built: gnatpp, gnatmetric, gnatstub + libraries</td></tr>
+<tr><td><code>testing/lal-refactor/</code></td><td><code>lal-refactor</code></td><td>Built: source-code refactoring library (static)</td></tr>
+<tr><td><code>testing/gnatformat/</code></td><td><code>gnatformat</code></td><td>Built: source-code formatter library (static)</td></tr>
+<tr><td><code>testing/gnatdoc/</code></td><td><code>gnatdoc</code></td><td>Built: documentation generation (library + gnatdoc CLI)</td></tr>
+<tr><td><code>testing/fswatch/</code></td><td><code>fswatch</code></td><td>Built: libfswatch C/C++ library + CLI (static; dep of ada-libfswatch)</td></tr>
+<tr><td><code>testing/ada-libfswatch/</code></td><td><code>ada-libfswatch</code></td><td>Built: filesystem-change notification bindings (static)</td></tr>
+<tr><td><code>testing/ada-markdown/</code></td><td><code>ada-markdown</code></td><td>Built: Markdown parser library for Ada (static)</td></tr>
+<tr><td><code>testing/ada_language_server/</code></td><td><code>ada_language_server</code></td><td>Built: LSP server for Ada (static-linked)</td></tr>
+<tr><td><code>testing/afl++/</code></td><td><code>afl++</code></td><td>Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken <code>clang22-rtlib</code> dep</td></tr>
+</tbody></table>
+<p>The full set builds with <code>./build.sh</code> (<code>libadalang</code> needs ≥8 GB RAM for its generated parser). <code>langkit</code>'s <code>check()</code> runs its upstream e3-testsuite on the LKT subset (114 pass). The <code>ada_language_server</code> binary links every Ada dependency statically (only libc/libgnat/libgmp stay dynamic), so editor integration works out of the box.</p>
+<h2>Dependency graph</h2>
+<p>Build-time order (what <code>./build.sh</code> follows). <code>gcc-gnat</code> is the only Ada package pulled from Alpine; everything else is built by this overlay.</p>
+<pre><code>gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ──┬─► gnatcoll-db
+                        │            │              ├─► gnatcoll-gmp
+                        │            │              ├─► gnatcoll-iconv
+                        │            │              └─► aws
+                        │            └─► libgpr ───► gnatcoll-projects
+                        │            └─► templates-parser
+                        ├─► aunit
+                        ├─► spawn
+                        ├─► vss ──► vss-extra
+                        ├─► adasat
+                        ├─► bracke-cryptolib ──► bracke-zlib
+                        ├─► libsodium-ada
+                        ├─► mustache-ada
+                        ├─► hbnf
+                        └─► imsg-ada</code></pre>
+<p>The langkit / GPR2 spine:</p>
+<pre><code>gnatcoll + vss ──► prettier-ada
+gnatcoll + gnatcoll-gmp/iconv + adasat + prettier-ada ──► langkit
+gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr            (GPR2 library)
+langkit + gpr + gnatcoll-projects ──► libadalang</code></pre>
+<p>The tool / endpoint layer:</p>
+<pre><code>libadalang + templates-parser + vss ──► libadalang-tools ──► lal-refactor
+libadalang + prettier-ada + vss + vss-extra ──► gnatformat
+vss + vss-extra ──► ada-markdown
+libadalang + vss/vss-extra + gpr + ada-markdown ──► gnatdoc
+gnatcoll + fswatch ──► ada-libfswatch      (fswatch is pure C: build-base/gettext)
+
+gpr + libadalang + libadalang-tools + lal-refactor + gnatdoc + gnatformat
+  + spawn + vss + vss-extra + ada-libfswatch + xdiff
+      ──► ada_language_server              (editor integration)
+
+gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr2-tools   (WIP, disabled; not in the default build)
+
+afl++   (standalone — no Ada; gmp-dev/linux-headers)</code></pre>
+<p>Python tooling sits off to the side of the langkit spine:</p>
+<pre><code>py3-e3-core ──► py3-e3-testsuite   (langkit's check() driver)
+py3-langkit                         (langkit build dep)</code></pre>
+<h2>Library layout</h2>
+<p>Alpine's convention is a shared package (<code>libfoo.so</code> + project files) plus a <code>libfoo-static</code> subpackage carrying the <code>.a</code> archive. The overlay now follows that shape: 20 libraries build <code>static + shared</code> and ship their archive in a <code>&lt;name&gt;-static</code> subpackage —</p>
+<pre><code>adasat, aws, bracke-cryptolib, bracke-zlib, gnatcoll, gnatcoll-db,
+gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgpr,
+libsodium-ada, mustache-ada, prettier-ada, spawn, templates-parser, vss,
+xdiff, xmlada</code></pre>
+<p>Consumers that link statically declare the matching <code>-static</code> package in their <code>makedepends</code>; everyone else links the shared library. Shared variants are required under the langkit spine: langkit's ctypes Python bindings load a shared <code>liblktlang.so</code>, so every Ada dependency beneath it must be relocatable.</p>
+<p>The rest stay static-only because they exist to be pulled into one static binary — <code>gpr</code> (GPR2), <code>libadalang</code> (links <code>langkit_support</code>), <code>libadalang-tools</code>, <code>lal-refactor</code>, <code>gnatformat</code>, <code>gnatdoc</code>, <code>ada-markdown</code>, <code>vss-extra</code>, <code>ada-libfswatch</code>, and the C <code>fswatch</code> — plus the statically-linked <code>ada_language_server</code> (and <code>gpr2-tools</code>, once enabled). (<code>aunit</code> ships <code>static + shared</code> from upstream's <code>make all</code> and predates the <code>-static</code> convention.)</p>
+<h2>Why bootstrap gprbuild</h2>
+<p>gprbuild is built with upstream's <code>bootstrap.sh</code>, which compiles gprbuild plus the XML/Ada sources with <code>gnatmake</code> and ships the gprconfig knowledge base. It does not link a separately-built xmlada, so there is no gprbuild &lt;-&gt; xmlada build cycle. A future gcc soname bump (<code>libgnat-15.so</code> -&gt; <code>libgnat-16.so</code>) is then an ordinary pkgrel rebuild in order; nothing needs an old gprbuild to build a new one.</p>
+<p><code>gpr2-tools</code>, the GPR2-based <code>gprbuild</code>/<code>gprclean</code>/<code>gprconfig</code>/<code>gprinstall</code>, is AdaCore's next-generation replacement but is not yet a full drop-in: <code>gprname</code> has no GPR2 equivalent, and it lacks classic gprbuild's <code>gprlib</code>/<code>gprbind</code> and knowledge base. Worse, <code>gprbuild2</code> currently crashes on library projects, so the aport is WIP and disabled (<code>arch=""</code>) until that is fixed. When enabled it installs its tools under a <code>2</code> suffix (<code>gprbuild2</code>, <code>gprclean2</code>, <code>gprconfig2</code>, <code>gprinstall2</code>, <code>gprls2</code>) and coexists with classic <code>gprbuild</code>, which stays the default; it neither replaces nor provides it.</p>
+<h2>License</h2>
+<ul><li>GPL-3.0-or-later: gprbuild, libgpr, fswatch, ada_language_server, gpr2-tools.</li></ul>
+<ul><li>GPL-3.0-or-later WITH GCC-exception-3.1: xmlada, aunit, gnatcoll,</li></ul>
+<p>gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, gnatdoc, libadalang-tools, spawn, templates-parser, ada-libfswatch, aws.</p>
+<ul><li>Apache-2.0 WITH LLVM-exception: prettier-ada, langkit, py3-langkit, gpr,</li></ul>
+<p>libadalang, ada-markdown, vss, vss-extra, gnatformat, lal-refactor.</p>
+<ul><li>Apache-2.0: adasat.</li></ul>
+<ul><li>MIT: bracke-cryptolib, bracke-zlib.</li></ul>
+<ul><li>ISC: libsodium-ada, mustache-ada, hbnf, imsg-ada, buildabook.</li></ul>
+<ul><li>GPL-3.0: xdiff.</li></ul>
+<ul><li>GPL-3.0-only: py3-e3-core, py3-e3-testsuite.</li></ul>
+<ul><li>AGPL-3.0-or-later AND Apache-2.0: afl++.</li></ul>
+<p>None imposes a license on software built with or linked against it.</p>
+<h2>Releasing an upstream package</h2>
+<p>The four upstream packages — <code>hbnf</code>, <code>libsodium-ada</code>, <code>imsg-ada</code>, <code>mustache-ada</code> — are released by tagging their repo and updating this overlay's APKBUILD. <code>tools/release-checksum.sh</code> automates the tag-tarball checksum dance: fetch the pushed tag's tarball, hash it, and rewrite <code>pkgver</code> + <code>sha512sums</code> (see <code>tools/release-checksum.1</code>):</p>
+<pre><code>./tools/release-checksum.sh mustache-ada v0.3.0                 # dry run: show the diff
+./tools/release-checksum.sh mustache-ada v0.3.0 --commit --push # commit and push the bump</code></pre>
+<p>The rewrite is done by <code>tools/apkbuild_bump</code>, a small Ada program that validates the version and hash and handles both the single- and multi-line <code>sha512sums</code> forms. Never move a pushed tag.</p>
+<h2>Building</h2>
+<p>Clone and build the overlay from source:</p>
+<pre><code>git clone https://github.com/moebiusV/ada-on-alpine.git
+cd ada-on-alpine
+./build.sh</code></pre>
+<p><code>./build.sh</code> needs Docker (<code>./install-docker.sh</code> sets it up on Debian). It builds every package in dependency order inside an <code>alpine:edge</code> container with <code>abuild</code>, producing signed <code>.apk</code> files under <code>.work/packages/</code>. The signing key is generated once into <code>~/.config/abuild/</code> and reused, so every checkout of the repo signs with the same key.</p>
+<p>The build is incremental per package: <code>build.sh</code> hashes each aport's directory (the <code>APKBUILD</code> and its patches) and skips any package whose hash matches its last build. Re-running it therefore rebuilds only what changed — a bumped upstream commit (<code>_commit</code>/<code>pkgver</code> in the <code>APKBUILD</code>), an edited patch, or a new package — and reuses everything else from <code>.work/packages/</code>.</p>
+<p>The same <code>.apk</code> files assemble into a Docker image for building Ada against:</p>
+<pre><code>./build-image.sh       # ada-toolchain:edge — alpine + the whole toolchain</code></pre>
+<h3>Adding a package</h3>
+<p><code>testing/hbnf/</code> is the canonical example of a modern Ada aport. A package is a directory under <code>testing/</code> holding an <code>APKBUILD</code> (plus any <code>.patch</code> files named in its <code>source=</code>). The pieces, as hbnf does them:</p>
+<ul><li><code>pkgname</code>/<code>pkgver</code>/<code>pkgrel</code>, <code>pkgdesc</code>, <code>url</code>, <code>arch="all"</code>, <code>license</code>.</li></ul>
+<ul><li><code>depends=</code> for runtime libraries and <code>makedepends=</code> for the build tools</li></ul>
+<p>(<code>gcc-gnat gprbuild build-base</code> plus the library build-deps).</p>
+<ul><li><code>source=</code> — a pinned tag tarball (or an <code>_commit=</code> archive) with <code>sha512sums=</code>.</li></ul>
+<ul><li><code>build()</code> runs <code>gprbuild -P … -p</code>, with <code>-XLIBRARY_TYPE=static</code> for a static</li></ul>
+<p>library.</p>
+<ul><li><code>check()</code> builds and runs the upstream test suite; hbnf runs its conformance</li></ul>
+<p>drivers over the accept/reject corpus.</p>
+<ul><li><code>package()</code> installs the library with <code>gprinstall --prefix="$pkgdir/usr"</code> and,</li></ul>
+<p>for a tool, the binary with <code>install -Dm755</code> into <code>$pkgdir/usr/bin</code>.</p>
+<p>Shared libraries follow Alpine's <code>&lt;name&gt;-static</code> subpackage convention (see <em>Library layout</em> above); static-only libraries ship sources, a static <code>.a</code>, and a <code>.gpr</code> project.</p>
+<p>New Ada packages — and contributions to the existing ones — follow the canonical Ada functional style guide at <a href="https://moebiusv.github.io/ada-style-guidelines.html">https://moebiusv.github.io/ada-style-guidelines.html</a>. Each Ada repo carries a <code>STYLE.md</code> that points at it.</p>
+</body></html>

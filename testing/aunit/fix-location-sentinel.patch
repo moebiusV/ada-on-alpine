@@ -1,8 +1,0 @@
---- a/include/aunit/framework/aunit-simple_test_cases.adb
-+++ b/include/aunit/framework/aunit-simple_test_cases.adb
-@@ -78,5 +78,5 @@
-    function Location (Test : Test_Case) return Tested_Location is
-    begin
--      return (null, 0, 0, null);
-+      return (null, -1, -1, null);
-    end Location;
