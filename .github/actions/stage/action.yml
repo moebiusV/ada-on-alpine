@@ -75,7 +75,7 @@ runs:
     - if: failure()
       shell: bash
       run: |
-        msg=$(tail -n 30 "$RUNNER_TEMP/build.log" 2>/dev/null | cut -c1-200 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
+        msg=$(tail -n 40 "$RUNNER_TEMP/build.log" 2>/dev/null | cut -c1-160 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
         echo "::error title=build log tail (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
     # Stop a build container left running by a timeout, then undo build.sh's
     # chown of the checkout to the container's build user.

@@ -37,7 +37,10 @@ check() {
 	mkdir -p "$srcdir"/smoke && cd "$srcdir"/smoke
 	printf 'project Hello is\n   for Main use ("hello.adb");\nend Hello;\n' > hello.gpr
 	printf 'with Ada.Text_IO;\nprocedure Hello is\nbegin\n   Ada.Text_IO.Put_Line ("ok");\nend Hello;\n' > hello.adb
-	"$srcdir"/stage/usr/bin/gprbuild -P hello.gpr
+	rc=0
+	"$srcdir"/stage/usr/bin/gprbuild -P hello.gpr || rc=$?
+	echo "gprbuild exit status: $rc"; ls -la
+	[ "$rc" = 0 ]
 	[ "$(./hello)" = ok ]
 }
 

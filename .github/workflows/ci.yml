@@ -1,4 +1,6 @@
 # Build and test every aport on every architecture Alpine edge supports.
+# To run only some architectures, put `[ci only: aarch64,x86]` in the commit
+# message (or use the "only" input of a manual run).
 # x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
 # container on an x86_64 host); the other six run under QEMU user-mode emulation,
 # which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
@@ -13,6 +15,11 @@ on:
   pull_request:
     paths: ['testing/**', 'build.sh', 'tools/ci-smoke.sh', '.github/**']
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'Comma-separated architectures to build (default: all)'
+        required: false
+        default: ''
 
 # A newer push to a PR supersedes its older run, but never cancel a run on main:
 # the emulated architectures take hours and a cancel throws the progress away.
@@ -31,21 +38,43 @@ jobs:
           all=$(ls testing | grep -vx gpr2-tools | sort)
           diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
 
+  plan:
+    # Choose the architectures to build: all, or those named by `[ci only: a,b]`
+    # in the head commit message / the manual-run input.
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+          ONLY_INPUT: ${{ github.event.inputs.only }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, re
+          full = [
+            {"arch": "x86_64",      "runner": "ubuntu-latest",    "platform": "linux/amd64",   "qemu": False},
+            {"arch": "x86",         "runner": "ubuntu-latest",    "platform": "linux/386",     "qemu": False},
+            {"arch": "aarch64",     "runner": "ubuntu-24.04-arm", "platform": "linux/arm64",   "qemu": False},
+            {"arch": "armv7",       "runner": "ubuntu-24.04-arm", "platform": "linux/arm/v7",  "qemu": True},
+            {"arch": "armhf",       "runner": "ubuntu-24.04-arm", "platform": "linux/arm/v6",  "qemu": True},
+            {"arch": "ppc64le",     "runner": "ubuntu-latest",    "platform": "linux/ppc64le", "qemu": True},
+            {"arch": "s390x",       "runner": "ubuntu-latest",    "platform": "linux/s390x",   "qemu": True},
+            {"arch": "riscv64",     "runner": "ubuntu-latest",    "platform": "linux/riscv64", "qemu": True},
+            {"arch": "loongarch64", "runner": "ubuntu-latest",    "platform": "linux/loong64", "qemu": True},
+          ]
+          m = re.search(r"\[ci only: *([^\]]+)\]", os.environ.get("MSG", ""))
+          only = (m.group(1) if m else os.environ.get("ONLY_INPUT", "")).replace(" ", "")
+          want = [a for a in only.split(",") if a]
+          sel = [e for e in full if e["arch"] in want] if want else full
+          print("matrix=" + json.dumps({"include": sel}))
+          PY
+
   build:
-    needs: coverage
+    needs: [coverage, plan]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - {arch: x86_64,      runner: ubuntu-latest,    platform: linux/amd64,   qemu: false}
-          - {arch: x86,         runner: ubuntu-latest,    platform: linux/386,     qemu: false}
-          - {arch: aarch64,     runner: ubuntu-24.04-arm, platform: linux/arm64,   qemu: false}
-          - {arch: armv7,       runner: ubuntu-24.04-arm, platform: linux/arm/v7,  qemu: true}
-          - {arch: armhf,       runner: ubuntu-24.04-arm, platform: linux/arm/v6,  qemu: true}
-          - {arch: ppc64le,     runner: ubuntu-latest,    platform: linux/ppc64le, qemu: true}
-          - {arch: s390x,       runner: ubuntu-latest,    platform: linux/s390x,   qemu: true}
-          - {arch: riscv64,     runner: ubuntu-latest,    platform: linux/riscv64, qemu: true}
-          - {arch: loongarch64, runner: ubuntu-latest,    platform: linux/loong64, qemu: true}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     uses: ./.github/workflows/build-arch.yml
     with:
       arch: ${{ matrix.arch }}
