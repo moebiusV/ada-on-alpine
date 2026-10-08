@@ -1,0 +1,170 @@
+Title
+-----
+[arm] [Ada] -Os -fstack-clash-protection keeps a local below the stack
+pointer across a call in the GNAT binder's adainit (Thumb-2, GCC 15.2.0)
+
+Status: not yet reported upstream.  Written up from a reproduction in the
+ada-on-alpine overlay; see "Not yet established" before filing.
+
+
+Summary
+-------
+On armv7 (arm-alpine-linux-musleabihf), GCC 15.2.0 compiles the GNAT
+binder-generated `adainit` of the gprbuild executable with a local variable
+stored at [r7, #-8], where r7 == sp.  That address is below the stack
+pointer, outside the function's frame.  The function then calls
+memcpy through the PLT and, after the call, reloads the local from the
+same slot.  The musl dynamic linker's lazy-binding stub runs in between and
+overwrites that memory, so the reloaded value is garbage.
+
+The garbage is stored into `__gl_main_cpu` (Main_CPU).  The runtime's
+System.Tasking.Initialize uses it to index a small malloc'd array, and the
+program dies with SIGSEGV before it prints anything.  The GNAT runtime
+reports the SIGSEGV as
+
+    raised STORAGE_ERROR : s-intman.adb:136 explicit raise
+
+Every Ada program whose binder file triggers the same code generation is
+affected, and it is deterministic.
+
+
+Environment
+-----------
+  Target:          armv7-alpine-linux-musleabihf
+  Compiler:        gcc 15.2.0 (Alpine 15.2.0), gcc-gnat 15.2.0
+  libc:            musl, lazy PLT binding (the default)
+  Alpine default:  CFLAGS="-Os -fstack-clash-protection -Wformat
+                   -Werror=format-security"
+  Program:         gprbuild (AdaCore commit 2781289e9e2b), bootstrap build
+  Run under:       QEMU user-mode (qemu-arm 11.1.2), armv7 userland
+
+
+Observed behaviour
+------------------
+  $ gprbuild --version
+  raised STORAGE_ERROR : s-intman.adb:136 explicit raise
+
+s-intman.adb:136 is the `when SIGSEGV => raise Storage_Error` arm of
+Notify_Exception, so the real event is a SIGSEGV.  QEMU reports:
+
+  --- SIGSEGV {si_signo=SIGSEGV, si_code=1 (SEGV_MAPERR), si_addr=0x42cb6814} ---
+  pc = 0x408ab432  system__tasking__initialize+0x116  (libgnarl-15.so)
+
+The faulting code is, in libgnarl:
+
+    add.w  r3, sl, r8, lsl #2     @ r3 = cpu_array + Main_CPU*4
+    ldr    r2, [r3, #4]           @ faults: Main_CPU == 0x0083f6ec
+
+Main_CPU is expected to be -1 (the binder's default).  A watchpoint shows
+the value is still -1 when __libc_start_main is entered, and is written as
+0x0083f6ec by `adainit` of the executable (adainit+172).
+
+
+Root cause
+----------
+Binder source: docs/armv7-gcc-stack-clash-miscompile-b__gprbuild.adb
+(generated with `gnatbind -x gprbuild-main.ali -o b__gprbuild.adb`).
+
+Compiled with `gcc -c -S -Os -fstack-clash-protection b__gprbuild.adb`,
+the start of adainit is:
+
+    adainit:
+        @ args = 0, pretend = 0, frame = 8
+        @ frame_needed = 1, uses_anonymous_args = 0
+        mov     ip, #4096
+        push    {r4, r5, r6, r7, r8, lr}
+        sub     ip, sp, ip
+        str     r0, [ip, #4064]          @ stack-clash probe
+        sub     sp, sp, #8
+        add     r7, sp, #0               @ r7 == sp, frame is 8 bytes
+        ...
+        mov     r2, #-1
+        ...
+        str     r2, [r7, #-8]            @ <-- 8 bytes BELOW sp
+        str     r2, [r3]
+        ldr     r3, .L14+16
+        mov     r0, r3
+        str     r3, [r7, #5]             @ unaligned store, see below
+        bl      memcpy(PLT)              @ clobbers [sp-8 ..] via the PLT stub
+        ...
+        ldr     r2, [r7, #-8]            @ <-- reloads the clobbered slot
+        ldr     r3, .L14+44
+        ldr     r3, [r4, r3]
+        str     r2, [r3]                 @ __gl_main_cpu := garbage
+
+The frame is declared as 8 bytes, but the local lives at offset -8 from the
+frame's lowest address.  With ARM EABI there is no red zone, and the PLT
+resolver (and signal frames) may use memory below sp at any time.
+
+A second oddity in the same prologue: `str r3, [r7, #5]` is a 4-byte store at
+an odd offset that extends one byte past the 8-byte frame (offsets 5..8).
+
+Variants of the same file (same compiler, same source):
+
+    -Os -fstack-clash-protection   below-sp store/load: yes   <- Alpine default
+    -Os                            no  (the -1 stays in r7)
+    -O2 -fstack-clash-protection   no  (no sub sp / r7 frame in adainit)
+
+So the combination of -Os and -fstack-clash-protection is needed.  The
+Alpine disassembly of the installed executable shows the same instructions
+(adainit at 0x27368, str.w r2,[r7,#-8] at 0x273a6, ldr.w r2,[r7,#-8] at
+0x27404), so the problem is in what the compiler emits, not in the emulator.
+
+
+Reproduction
+------------
+Inside an armv7 Alpine edge container (docker run --platform linux/arm/v7
+alpine:edge, with qemu-user binfmt registered on the host):
+
+  apk add gcc-gnat gprbuild build-base
+  # get the gprbuild sources and build them (their bootstrap.sh uses $CFLAGS
+  # for the Ada compiles), then:
+  cd gprbuild-<commit>
+  gnatbind -x gprbuild-main.ali -o b__gprbuild.adb
+  gcc -c -S -Os -fstack-clash-protection b__gprbuild.adb -o bad.s
+  grep -n 'r7, #-' bad.s            # shows the below-sp store and load
+  gcc -c -S -Os b__gprbuild.adb -o ok.s
+  grep -n 'r7, #-' ok.s             # no such access
+
+Running the resulting gprbuild gives the STORAGE_ERROR above.
+
+Hello-world and a one-task program do NOT trigger the code generation
+(their adainit is small); a reduced test case has not been found yet.
+
+
+Workaround used in the overlay
+------------------------------
+On armv7 only, remove -fstack-clash-protection from CFLAGS when building
+Ada code (testing/gprbuild/APKBUILD, in _bootstrap()):
+
+    [ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
+
+-O2 instead of -Os with the protection enabled is another option.
+
+
+How it was diagnosed
+--------------------
+gdb cannot run the program under qemu-user (ptrace is not implemented), so
+the diagnosis used QEMU's own tooling:
+
+  * qemu-arm -L <armv7 rootfs> -d guest_errors,unimp,cpu -D trace.log -strace
+    gave the signal, si_addr and the register state at the fault.
+  * qemu-arm -g 1234 plus gdb-multiarch: break at __libc_start_main
+    (`hbreak`), then `set can-use-hw-watchpoints 0` and
+    `watch {int}<address of __gl_main_cpu>` (hardware watchpoints cannot be
+    inserted); the software watchpoint stopped in adainit.
+  * objdump -d of adainit and of libgnarl's System.Tasking.Initialize.
+
+
+Not yet established
+-------------------
+  * The run was under QEMU user-mode only.  The below-sp access is in the
+    generated code and does not depend on the emulator, but a run on real
+    armv7 hardware has not been done.  (Whether the PLT stub's use of the
+    stack below sp is what clobbers the value on real hardware was inferred
+    from the corrupted value, not observed directly.)
+  * Other architectures were not checked for the same pattern.
+  * A minimal reproducer (small Ada or C source) is not available.
+  * Whether this is a GCC 15 regression has not been checked (GCC 14 was not
+    tried).
+  * No upstream bug report has been filed, so there is no PR number.

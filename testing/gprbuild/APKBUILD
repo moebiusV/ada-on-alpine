@@ -20,6 +20,11 @@ source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_
 builddir="$srcdir/gprbuild-$_commit"
 
 _bootstrap() {
+	# GCC 15 miscompiles the binder's adainit on armv7 with -Os plus
+	# -fstack-clash-protection (a local is kept below the stack pointer across
+	# a call), which crashes every Ada program at start-up.  See
+	# docs/armv7-gcc-stack-clash-miscompile.txt.
+	[ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
 	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
 		--prefix=/usr \
 		--with-xmlada="$srcdir"/xmlada-$_xmlada_commit \
