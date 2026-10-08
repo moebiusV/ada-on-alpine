@@ -36,40 +36,40 @@ repository index and every package against it.
 The Ada toolchain itself: compiler support, build system, libraries, code
 tooling and the language server. This is the set proposed for Alpine.
 
-| Path | Package | Status |
-| --- | --- | --- |
-| `testing/gprbuild/` | `gprbuild` | Built: upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0 |
-| `testing/xmlada/` | `xmlada` | Built: XML/Ada (static + shared) |
-| `testing/aunit/` | `aunit` | Built: Ada unit testing framework (static + shared) |
-| `testing/gnatcoll/` | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
-| `testing/gnatcoll-db/` | `gnatcoll-db` | Built: GNATcoll SQL + SQLite (static + shared) |
-| `testing/gnatcoll-gmp/` | `gnatcoll-gmp` | Built: GMP (arbitrary precision) bindings (static + shared) |
-| `testing/gnatcoll-iconv/` | `gnatcoll-iconv` | Built: iconv charset-conversion bindings (static + shared) |
-| `testing/spawn/` | `spawn` | Built: process-spawning library (static + shared) |
-| `testing/vss/` | `vss` | Built: vector/string abstractions (static + shared) |
-| `testing/aws/` | `aws` | Built: Ada Web Server (+ templates-parser, static + shared) |
-| `testing/adasat/` | `adasat` | Built: SAT-solving library (static + shared) |
-| `testing/py3-e3-core/` | `py3-e3-core` | Built: E3 core Python tooling |
-| `testing/py3-e3-testsuite/` | `py3-e3-testsuite` | Built: E3 testsuite framework (driver for AdaCore test suites) |
-| `testing/prettier-ada/` | `prettier-ada` | Built: Prettier formatter core (static + shared) |
-| `testing/py3-langkit/` | `py3-langkit` | Built: Langkit Python parser framework |
-| `testing/langkit/` | `langkit` | Built: parser framework (static + shared) + lkt tools |
-| `testing/gpr/` | `gpr` | Built: GPR2 project parser library (static) |
-| `testing/gpr2-tools/` | `gpr2-tools` | **WIP, disabled** (`arch=""`): next-gen GPR tools, installed as `gprbuild2`, … alongside classic gprbuild; `gprbuild2` crashes on library projects |
-| `testing/libgpr/` | `libgpr` | Built: gprbuild's project parser library (static + shared) |
-| `testing/gnatcoll-projects/` | `gnatcoll-projects` | Built: GNATcoll project-file support (static + shared) |
-| `testing/libadalang/` | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
-| `testing/templates-parser/` | `templates-parser` | Built: AWS templates-parser engine (static + shared; aws builds it in-tree but doesn't install it) |
-| `testing/vss-extra/` | `vss-extra` | Built: VSS extras — JSON/Regexp/XML/OS (split out of VSS) |
-| `testing/xdiff/` | `xdiff` | Built: Ada bindings for the xdiff diff library (static + shared) |
-| `testing/libadalang-tools/` | `libadalang-tools` | Built: gnatpp, gnatmetric, gnatstub + libraries |
-| `testing/lal-refactor/` | `lal-refactor` | Built: source-code refactoring library (static) |
-| `testing/gnatformat/` | `gnatformat` | Built: source-code formatter library (static) |
-| `testing/gnatdoc/` | `gnatdoc` | Built: documentation generation (library + gnatdoc CLI) |
-| `testing/fswatch/` | `fswatch` | Built: libfswatch C/C++ library + CLI (static; dep of ada-libfswatch) |
-| `testing/ada-libfswatch/` | `ada-libfswatch` | Built: filesystem-change notification bindings (static) |
-| `testing/ada-markdown/` | `ada-markdown` | Built: Markdown parser library for Ada (static) |
-| `testing/ada_language_server/` | `ada_language_server` | Built: LSP server for Ada (static-linked) |
+| Package | Status |
+| --- | --- |
+| `gprbuild` | Built: upgrade of the existing aport (maintainer Ian Douglas Scott) to 26.0.0 |
+| `xmlada` | Built: XML/Ada (static + shared) |
+| `aunit` | Built: Ada unit testing framework (static + shared) |
+| `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
+| `gnatcoll-db` | Built: GNATcoll SQL + SQLite (static + shared) |
+| `gnatcoll-gmp` | Built: GMP (arbitrary precision) bindings (static + shared) |
+| `gnatcoll-iconv` | Built: iconv charset-conversion bindings (static + shared) |
+| `spawn` | Built: process-spawning library (static + shared) |
+| `vss` | Built: vector/string abstractions (static + shared) |
+| `aws` | Built: Ada Web Server (+ templates-parser, static + shared) |
+| `adasat` | Built: SAT-solving library (static + shared) |
+| `py3-e3-core` | Built: E3 core Python tooling |
+| `py3-e3-testsuite` | Built: E3 testsuite framework (driver for AdaCore test suites) |
+| `prettier-ada` | Built: Prettier formatter core (static + shared) |
+| `py3-langkit` | Built: Langkit Python parser framework |
+| `langkit` | Built: parser framework (static + shared) + lkt tools |
+| `gpr` | Built: GPR2 project parser library (static) |
+| `gpr2-tools` | **WIP, disabled** (`arch=""`): next-gen GPR tools, installed as `gprbuild2`, … alongside classic gprbuild; `gprbuild2` crashes on library projects |
+| `libgpr` | Built: gprbuild's project parser library (static + shared) |
+| `gnatcoll-projects` | Built: GNATcoll project-file support (static + shared) |
+| `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
+| `templates-parser` | Built: AWS templates-parser engine (static + shared; aws builds it in-tree but doesn't install it) |
+| `vss-extra` | Built: VSS extras — JSON/Regexp/XML/OS (split out of VSS) |
+| `xdiff` | Built: Ada bindings for the xdiff diff library (static + shared) |
+| `libadalang-tools` | Built: gnatpp, gnatmetric, gnatstub + libraries |
+| `lal-refactor` | Built: source-code refactoring library (static) |
+| `gnatformat` | Built: source-code formatter library (static) |
+| `gnatdoc` | Built: documentation generation (library + gnatdoc CLI) |
+| `fswatch` | Built: libfswatch C/C++ library + CLI (static; dep of ada-libfswatch) |
+| `ada-libfswatch` | Built: filesystem-change notification bindings (static) |
+| `ada-markdown` | Built: Markdown parser library for Ada (static) |
+| `ada_language_server` | Built: LSP server for Ada (static-linked) |
 
 All packages build with `./build.sh` (`libadalang` needs ≥8 GB RAM for its
 generated parser). `langkit`'s `check()` runs its upstream e3-testsuite on the
@@ -79,26 +79,26 @@ dynamic), so editor integration works out of the box.
 
 ### Add-ons
 
-Optional extras (cryptography, security, OpenBSD-related and fuzzing). Nothing
+Optional extras (cryptography, security and fuzzing). Nothing
 in the toolchain depends on them.
 
-| Path | Package | Status |
-| --- | --- | --- |
-| `testing/bracke-cryptolib/` | `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
-| `testing/bracke-zlib/` | `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
-| `testing/libsodium-ada/` | `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
-| `testing/imsg-ada/` | `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada — static + shared |
-| `testing/afl++/` | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
+| Package | Status |
+| --- | --- |
+| `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
+| `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
+| `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
+| `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
 ### Personal projects
 
-My own tools and the libraries they need (`mustache-ada` is used by `hbnf` and `buildabook`).
+My own tools and libraries. `mustache-ada` is used by `hbnf` and `buildabook`.
 
-| Path | Package | Status |
-| --- | --- | --- |
-| `testing/mustache-ada/` | `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
-| `testing/hbnf/` | `hbnf` | Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration) |
-| `testing/buildabook/` | `buildabook` | Built: build tool for long manuscripts (outline + chapter sources → a Typst book) |
+| Package | Status |
+| --- | --- |
+| `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
+| `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada, the protocol used for privilege-separation (privsep) security (static + shared) |
+| `hbnf` | Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration) |
+| `buildabook` | Built: build tool for long manuscripts (outline + chapter sources → a Typst book) |
 
 ## Dependency graph
 
