@@ -1,13 +1,22 @@
 # ada-on-alpine
 
-The Ada/GNAT build toolchain for Alpine **edge** (gcc 15), distributed as a
-signed `apk` repository and as an `aports` overlay. The overlay packages are the
-source form intended for inclusion in Alpine's main repository.
+Modern Ada projects build with gprbuild. Packaging it for Alpine showed that
+much of the rest of a common Ada development environment was also missing:
+the GNATcoll libraries, XML/Ada, AUnit, the Ada Web Server, Libadalang and its
+tools, and the language server. Their dependencies were slow to work out; this
+repository records the result as a set of packages that build in dependency
+order, pass their checks on x86_64, and install cleanly on Alpine **edge**
+(gcc 15). The intent is to add the toolchain packages to Alpine's `main` or
+`community` repository.
 
-The overlay mirrors the `aports` layout, so each package copies into an aports
-fork unchanged. The same package definitions back the published repository and
-the upstream proposals. It covers the compiler support, build system, libraries,
-code tooling and language server.
+Separately, security work produced Ada packages for a number of security-related
+libraries (cryptography, libsodium, zlib, imsg) and a few tools of my own. They
+are listed apart from the toolchain.
+
+It is distributed as a signed `apk` repository and as an `aports` overlay. The
+overlay mirrors the `aports` layout, so each package copies into an aports fork
+unchanged, and the same package definitions back the published repository and
+the upstream proposals.
 
 ## Use as an Alpine repository
 
