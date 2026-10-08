@@ -57,9 +57,9 @@ apk add gprbuild aunit aws gnatcoll libadalang ada_language_server ...</code></p
 <table><thead><tr>
 <th>Package</th><th>Status</th>
 </tr></thead><tbody>
-<tr><td><code>bracke-cryptolib</code></td><td>Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared)</td></tr>
-<tr><td><code>bracke-zlib</code></td><td>Built: pure-Ada zlib/gzip/deflate (static + shared)</td></tr>
-<tr><td><code>libsodium-ada</code></td><td>Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared)</td></tr>
+<tr><td><a href="https://github.com/bracke/cryptolib"><code>bracke-cryptolib</code></a></td><td>Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared)</td></tr>
+<tr><td><a href="https://github.com/bracke/zlib"><code>bracke-zlib</code></a></td><td>Built: pure-Ada zlib/gzip/deflate (static + shared)</td></tr>
+<tr><td><a href="https://github.com/moebiusV/libsodium-ada"><code>libsodium-ada</code></a></td><td>Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared)</td></tr>
 <tr><td><code>afl++</code></td><td>Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken <code>clang22-rtlib</code> dep</td></tr>
 </tbody></table>
 <h3>Personal projects</h3>
@@ -67,10 +67,10 @@ apk add gprbuild aunit aws gnatcoll libadalang ada_language_server ...</code></p
 <table><thead><tr>
 <th>Package</th><th>Status</th>
 </tr></thead><tbody>
-<tr><td><code>mustache-ada</code></td><td>Built: complete Mustache template engine, passes the official spec suite (static + shared)</td></tr>
-<tr><td><code>imsg-ada</code></td><td>Built: OpenBSD imsg message-passing protocol in Ada, the protocol used for privilege-separation (privsep) security (static + shared)</td></tr>
-<tr><td><code>hbnf</code></td><td>Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration)</td></tr>
-<tr><td><code>buildabook</code></td><td>Built: build tool for long manuscripts (outline + chapter sources → a Typst book)</td></tr>
+<tr><td><a href="https://github.com/moebiusV/mustache-ada"><code>mustache-ada</code></a></td><td>Built: complete Mustache template engine, passes the official spec suite (static + shared)</td></tr>
+<tr><td><a href="https://github.com/moebiusV/imsg-ada"><code>imsg-ada</code></a></td><td>Built: OpenBSD imsg message-passing protocol in Ada, the protocol used for privilege-separation (privsep) security (static + shared)</td></tr>
+<tr><td><a href="https://github.com/moebiusV/hbnf"><code>hbnf</code></a></td><td>Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration)</td></tr>
+<tr><td><a href="https://github.com/moebiusV/buildabook"><code>buildabook</code></a></td><td>Built: build tool for long manuscripts (outline + chapter sources → a Typst book)</td></tr>
 </tbody></table>
 <h2>Dependency graph</h2>
 <p>Build-time order (what <code>./build.sh</code> follows). <code>gcc-gnat</code> is the only Ada package pulled from Alpine; everything else is built by this overlay.</p>
