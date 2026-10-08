@@ -38,12 +38,24 @@ build() {
 check() {
 	# Upstream's testsuite needs AdaCore's e3 infrastructure; smoke-test a
 	# staged install instead.
+	set -x
+	uname -a; ls -l "$srcdir"/gprbuild-$_commit/gprbuild* 2>/dev/null || true
 	DESTDIR="$srcdir"/stage _bootstrap --install
+	file "$srcdir"/stage/usr/bin/gprbuild 2>/dev/null || true
+	rc=0; "$srcdir"/stage/usr/bin/gprbuild --version || rc=$?
+	echo "gprbuild --version exit status: $rc"
+	if [ "$rc" != 0 ]; then
+		# armv7 under QEMU: SIGSEGV at start-up (s-intman.adb:136).  Probe
+		# whether the stack limit is the cause.
+		ulimit -s
+		(ulimit -s 65536; "$srcdir"/stage/usr/bin/gprbuild --version; echo "64M stack exit: $?") || true
+		(ulimit -s unlimited; "$srcdir"/stage/usr/bin/gprbuild --version; echo "unlimited stack exit: $?") || true
+	fi
 	mkdir -p "$srcdir"/smoke && cd "$srcdir"/smoke
 	printf 'project Hello is\n   for Main use ("hello.adb");\nend Hello;\n' > hello.gpr
 	printf 'with Ada.Text_IO;\nprocedure Hello is\nbegin\n   Ada.Text_IO.Put_Line ("ok");\nend Hello;\n' > hello.adb
 	rc=0
-	"$srcdir"/stage/usr/bin/gprbuild -P hello.gpr || rc=$?
+	"$srcdir"/stage/usr/bin/gprbuild -vh -P hello.gpr || rc=$?
 	echo "gprbuild exit status: $rc"; ls -la
 	if [ "$rc" != 0 ] || [ ! -x hello ]; then
 		echo "--- hello was not linked; verbose rerun:"
