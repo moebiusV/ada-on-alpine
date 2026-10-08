@@ -99,7 +99,7 @@ echo "Consumers (on a bare alpine:edge host):"
 echo "  wget -O /etc/apk/keys/$PUB_NAME $pages_url/$PUB_NAME"
 echo "  echo \"$pages_url\" >> /etc/apk/repositories"
 echo "  apk update"
-echo "  apk add gprbuild hbnf aunit buildabook ..."
+echo "  apk add gprbuild aunit aws gnatcoll libadalang ada_language_server ..."
 echo
 echo "Note: enable GitHub Pages (Settings -> Pages -> Deploy from branch ->"
 echo "gh-pages) the first time; the site is $pages_url"
