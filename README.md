@@ -95,9 +95,9 @@ in the toolchain depends on them.
 
 | Package | Status |
 | --- | --- |
-| `bracke-cryptolib` | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
-| `bracke-zlib` | Built: pure-Ada zlib/gzip/deflate (static + shared) |
-| `libsodium-ada` | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
+| [`bracke-cryptolib`](https://github.com/bracke/cryptolib) | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
+| [`bracke-zlib`](https://github.com/bracke/zlib) | Built: pure-Ada zlib/gzip/deflate (static + shared) |
+| [`libsodium-ada`](https://github.com/moebiusV/libsodium-ada) | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
 | `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
 ### Personal projects
@@ -106,10 +106,10 @@ My own tools and libraries. `mustache-ada` is used by `hbnf` and `buildabook`.
 
 | Package | Status |
 | --- | --- |
-| `mustache-ada` | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
-| `imsg-ada` | Built: OpenBSD imsg message-passing protocol in Ada, the protocol used for privilege-separation (privsep) security (static + shared) |
-| `hbnf` | Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration) |
-| `buildabook` | Built: build tool for long manuscripts (outline + chapter sources → a Typst book) |
+| [`mustache-ada`](https://github.com/moebiusV/mustache-ada) | Built: complete Mustache template engine, passes the official spec suite (static + shared) |
+| [`imsg-ada`](https://github.com/moebiusV/imsg-ada) | Built: OpenBSD imsg message-passing protocol in Ada, the protocol used for privilege-separation (privsep) security (static + shared) |
+| [`hbnf`](https://github.com/moebiusV/hbnf) | Built: ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig backends) — first use case obconf (OpenBSD-style server configuration) |
+| [`buildabook`](https://github.com/moebiusV/buildabook) | Built: build tool for long manuscripts (outline + chapter sources → a Typst book) |
 
 ## Dependency graph
 
