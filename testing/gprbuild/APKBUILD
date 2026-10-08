@@ -44,12 +44,15 @@ check() {
 	file "$srcdir"/stage/usr/bin/gprbuild 2>/dev/null || true
 	rc=0; "$srcdir"/stage/usr/bin/gprbuild --version || rc=$?
 	echo "gprbuild --version exit status: $rc"
-	if [ "$rc" != 0 ]; then
+	vrc=$rc; probe=""
+	if [ "$vrc" != 0 ]; then
 		# armv7 under QEMU: SIGSEGV at start-up (s-intman.adb:136).  Probe
 		# whether the stack limit is the cause.
-		ulimit -s
-		(ulimit -s 65536; "$srcdir"/stage/usr/bin/gprbuild --version; echo "64M stack exit: $?") || true
-		(ulimit -s unlimited; "$srcdir"/stage/usr/bin/gprbuild --version; echo "unlimited stack exit: $?") || true
+		probe="ulimit -s: $(ulimit -s)"
+		for lim in 65536 unlimited; do
+			r=0; (ulimit -s $lim; "$srcdir"/stage/usr/bin/gprbuild --version >/dev/null 2>&1) || r=$?
+			probe="$probe; stack $lim: exit $r"
+		done
 	fi
 	mkdir -p "$srcdir"/smoke && cd "$srcdir"/smoke
 	printf 'project Hello is\n   for Main use ("hello.adb");\nend Hello;\n' > hello.gpr
@@ -60,6 +63,8 @@ check() {
 	if [ "$rc" != 0 ] || [ ! -x hello ]; then
 		echo "--- hello was not linked; verbose rerun:"
 		"$srcdir"/stage/usr/bin/gprbuild -v -f -P hello.gpr 2>&1 | tail -35
+		set +x
+		echo "DIAG: uname=$(uname -m) --version exit=$vrc; $probe"
 		return 1
 	fi
 	[ "$(./hello)" = ok ]
