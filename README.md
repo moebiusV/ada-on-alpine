@@ -1,13 +1,15 @@
 # ada-on-alpine
 
-Modern Ada projects build with gprbuild. Packaging it for Alpine showed that
-much of the rest of a common Ada development environment was also missing:
-the GNATcoll libraries, XML/Ada, AUnit, the Ada Web Server, Libadalang and its
-tools, and the language server. Their dependencies were slow to work out; this
-repository records the result as a set of packages that build in dependency
-order, pass their checks on x86_64, and install cleanly on Alpine **edge**
-(gcc 15). The intent is to add the toolchain packages to Alpine's `main` or
-`community` repository.
+Modern Ada projects build with gprbuild, which replaces gnatmake. gnatmake
+builds Ada only; gprbuild builds from project files (`.gpr`) that describe
+multiple projects, languages, libraries (static and shared) and build
+configurations. Packaging it for Alpine showed that much of the rest of a common
+Ada development environment was also missing: the GNATcoll libraries, XML/Ada,
+AUnit, the Ada Web Server, Libadalang and its tools, and the language server.
+Their dependencies were slow to work out; this repository records the result as
+a set of packages that build in dependency order, pass their checks on x86_64,
+and install cleanly on Alpine **edge** (gcc 15). The intent is to add the
+toolchain packages to Alpine's `main` or `community` repository.
 
 Separately, security work produced Ada packages for a number of security-related
 libraries (cryptography, libsodium, zlib, imsg) and a few tools of my own. They
