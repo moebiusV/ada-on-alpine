@@ -1,0 +1,147 @@
+Title
+-----
+[Ada] GNAT runtime on 32-bit musl (>= 1.2, 64-bit time_t): clocks are wrong and
+any timed wait can spin forever; Ada imports the old 32-bit-time entry points
+with a 64-bit timespec (gcc-gnat 15.2.0, i586 and armv7)
+
+Status: not yet reported upstream.  Related upstream work exists (GCC
+PR ada/114065) but it targets glibc; see "Prior art".
+
+
+Summary
+-------
+On 32-bit Alpine (x86 and armv7, musl 1.2.6) the GNAT runtime in
+gcc-gnat 15.2.0 declares its timespec with a 64-bit tv_sec, but imports
+clock_gettime, clock_getres, nanosleep and pthread_cond_timedwait by their
+plain C names.  On 32-bit musl those plain names are the legacy 32-bit-time
+entry points (compat/time32); the 64-bit-time versions are reached only
+through the headers' redirects (__REDIR(..., *_time64)), which Ada pragma
+Import does not use.
+
+The result:
+  * Ada.Real_Time.Clock and Ada.Calendar.Clock return garbage;
+  * delay statements measure garbage;
+  * a timed wait gets an invalid timespec, pthread_cond_timedwait returns
+    EINVAL, and System.Task_Primitives.Operations.Timed_Sleep spins forever
+    (its `when others => pragma Assert (False)` branch is compiled out, so it
+    retries with the same bad deadline).
+
+It is timing dependent whether a program ever reaches such a wait.  Example:
+`gprconfig` (part of gprbuild) hangs at exit, in
+adafinal -> System.Tasking.Stages.Finalize_Global_Tasks -> Timed_Sleep.
+
+
+Environment
+-----------
+  Alpine edge, gcc-gnat 15.2.0-r9, musl 1.2.6-r5
+  x86  (i586-alpine-linux-musl), native 32-bit userland in a container
+  armv7 (armv7-alpine-linux-musleabihf), under QEMU user-mode
+  64-bit targets (x86_64, aarch64) are not affected (time_t is 64-bit and the
+  plain names are the 64-bit functions).
+
+
+Evidence
+--------
+1. Runtime source as installed
+   (/usr/lib/gcc/i586-alpine-linux-musl/15.2.0/adainclude):
+     s-parame.ads   time_t_bits : constant := Long_Long_Integer'Size;   (64)
+     s-oscons.ads   SIZEOF_tv_sec : constant := 8;
+     s-osinte.ads   pragma Import (C, clock_gettime, "clock_gettime");
+                    pragma Import (C, clock_getres, "clock_getres");
+                    pragma Import (C, pthread_cond_timedwait,
+                                      "pthread_cond_timedwait");
+     s-osprim.adb   pragma Import (C, nanosleep, "nanosleep");
+   No time-bits constant or *64 external name exists anywhere in these files.
+
+2. A tiny program (docs/gnat-32bit-musl-time64-mismatch-t64.adb) prints the
+   clock, a 0.05 s delay and the calendar year.  Results, with the real
+   uptime and year for comparison:
+
+     x86     Real_Time.Clock seconds = -5589639622      (uptime 154349 s)
+             delay 0.05 elapsed      = 1935114076.6 s
+             Calendar year           = 2245             (real: 2026)
+     armv7   Real_Time.Clock seconds = 967012111        (uptime 154363 s)
+             delay 0.05 elapsed      = 4269302496.7 s
+             Calendar year           = 2038             (real: 2026)
+
+3. The hang, natively on x86 (gdb, single thread, state R, 100% CPU):
+
+     #0 __pthread_cond_timedwait (musl, 64-bit time)
+     #1 pthread_cond_timedwait (compat/time32/pthread_cond_timedwait_time32.c)
+     #2 system.task_primitives.operations.monotonic.timed_sleep  (libgnarl)
+     #3 system.task_primitives.operations.timed_sleep
+     #4 system.tasking.stages.finalize_global_tasks
+     #5 adafinal
+     #6 main
+
+   Frame #1 is the 32-bit-time wrapper, called by libgnarl.  The timespec it
+   was given read as {tv_sec = -1510195928, tv_nsec = -2}; a negative tv_nsec
+   makes musl return EINVAL at once.
+
+4. Timed_Sleep (s-tpopmo.adb) retries on any result other than 0, EINTR and
+   ETIMEDOUT without refreshing Check_Time:
+
+     case Result is
+        when 0 | EINTR   => Timedout := False; exit Outer;
+        when ETIMEDOUT   => exit Outer when Exit_Outer;
+                            Check_Time := Monotonic_Clock; exit Inner;
+        when others      => pragma Assert (Standard.False);
+     end case;
+     exit Outer when Abs_Time <= Check_Time or else Check_Time < Base_Time;
+
+   With EINVAL, Check_Time never changes, so the Inner loop repeats the same
+   call forever.  (Finalize_Global_Tasks itself asks for only 0.01 s.)
+
+5. Under QEMU armv7 the same wait appeared as
+   futex(addr, FUTEX_WAIT, 2, {tv_sec = 814188359, ...}) and blocked for
+   ~25 years; which way it fails depends on the garbage value.
+
+
+Prior art
+---------
+  * GCC PR ada/114065, "gnat build with -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+    fails on 32bit archs", and the patch series "ada: fix timeval timespec on
+    32 bits archs with 64 bits time_t [PR114065]" (v11 in Jan 2025, up to v18
+    by Jun 2025).  The series introduces a constant derived from glibc's
+    __USE_TIME64_REDIRECTS / __USE_TIME_BITS64 and imports clock_get{res,time},
+    gettimeofday, nanosleep, pthread_cond_{,timed}wait and select under their
+    *64 names when it is set.  A reviewer asked for the "Glibc" prefix to be
+    dropped because the macros must work with other C libraries such as musl;
+    another participant noted GNAT needs further fixes to build on musl.
+  * In that PR (comment #45, 2025-06-08), John David Anglin reports that the
+    v15 patch as installed in Debian gcc-15 "causes hangs and timeouts in
+    various tests": pthread_cond_timedwait in Timed_Sleep "can return EINVAL
+    when the tv_nsec value in abstime is invalid. This return value isn't
+    handled by Timed_Sleep and we get an infinite loop."  That is the same
+    failure mechanism as here (reported on hppa-linux, glibc).
+  * The merge state of the series in GCC 15/16 was not confirmed from the
+    pages that could be read (the Bugzilla page itself was blocked by a bot
+    check).  The installed Alpine 15.2.0 runtime has none of it.
+
+  Sources:
+    https://www.mail-archive.com/gcc-bugs@gcc.gnu.org/msg866766.html
+    https://gcc.gnu.org/pipermail/gcc-patches/2025-January/672546.html
+    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114065
+    https://bugzilla-archive.dlang.org/bugs/23608/   (the same musl >= 1.2
+        32-bit linking pitfall in the D runtime: time functions linked to the
+        32-bit symbols give wrong results)
+
+
+Possible fixes (for discussion)
+-------------------------------
+  * In the Alpine gcc aport (main/gcc, not this overlay): patch the Ada runtime
+    so that, on musl 32-bit, the imports use the musl time64 symbols
+    (exported by ld-musl-i386.so.1 in musl 1.2.6: __clock_gettime64,
+    __clock_getres_time64, __nanosleep_time64, __clock_nanosleep_time64,
+    __pthread_cond_timedwait_time64), or declare the timespec with the 32-bit
+    layout.
+  * Independently, Timed_Sleep should not spin on EINVAL.
+
+
+Not yet established
+-------------------
+  * (Checked: the musl time64 symbol names listed above exist in
+    ld-musl-i386.so.1 of musl 1.2.6; the armv7 library was not inspected.)
+  * The armv7 hang was seen only under QEMU; the wrong clock was seen on both.
+  * Whether the PR114065 series, once complete, would cover musl is unknown.
+  * No upstream report has been filed for the musl case.
