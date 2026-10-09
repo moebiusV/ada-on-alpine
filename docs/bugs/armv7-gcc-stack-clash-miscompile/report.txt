@@ -62,7 +62,7 @@ the value is still -1 when __libc_start_main is entered, and is written as
 
 Root cause
 ----------
-Binder source: docs/armv7-gcc-stack-clash-miscompile-b__gprbuild.adb
+Binder source: docs/bugs/armv7-gcc-stack-clash-miscompile/b__gprbuild.adb
 (generated with `gnatbind -x gprbuild-main.ali -o b__gprbuild.adb`).
 
 Compiled with `gcc -c -S -Os -fstack-clash-protection b__gprbuild.adb`,
@@ -134,6 +134,7 @@ Hello-world and a one-task program do NOT trigger the code generation
 
 Workaround used in the overlay
 ------------------------------
+(Patch: gprbuild-armv7-workaround.patch in this directory.)
 On armv7 only, remove -fstack-clash-protection from CFLAGS when building
 Ada code (testing/gprbuild/APKBUILD, in _bootstrap()):
 

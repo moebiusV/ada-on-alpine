@@ -1,0 +1,28 @@
+commit 47deb80554d4b81fe83f7c0f88da69cecbdbd560
+Author: David Walther <david@clearbrookdistillery.com>
+Date:   Thu Oct 8 15:40:59 2026 -0700
+
+    gprbuild: build without -fstack-clash-protection on armv7; document the GCC miscompile
+    
+    GCC 15.2 compiles the binder's adainit with -Os -fstack-clash-protection so
+    that a local lives below the stack pointer across a call to memcpy. The
+    PLT stub clobbers it, __gl_main_cpu gets garbage, and every Ada program
+    segfaults at start-up (reported as STORAGE_ERROR s-intman.adb:136).
+    docs/ holds the write-up and the binder source for an upstream report.
+
+diff --git a/testing/gprbuild/APKBUILD b/testing/gprbuild/APKBUILD
+index 2e193d3..fbe8b6d 100644
+--- a/testing/gprbuild/APKBUILD
++++ b/testing/gprbuild/APKBUILD
+@@ -20,6 +20,11 @@ source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_
+ builddir="$srcdir/gprbuild-$_commit"
+ 
+ _bootstrap() {
++	# GCC 15 miscompiles the binder's adainit on armv7 with -Os plus
++	# -fstack-clash-protection (a local is kept below the stack pointer across
++	# a call), which crashes every Ada program at start-up.  See
++	# docs/armv7-gcc-stack-clash-miscompile.txt.
++	[ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
+ 	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
+ 		--prefix=/usr \
+ 		--with-xmlada="$srcdir"/xmlada-$_xmlada_commit \

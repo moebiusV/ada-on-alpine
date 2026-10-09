@@ -53,7 +53,7 @@ Evidence
      s-osprim.adb   pragma Import (C, nanosleep, "nanosleep");
    No time-bits constant or *64 external name exists anywhere in these files.
 
-2. A tiny program (docs/gnat-32bit-musl-time64-mismatch-t64.adb) prints the
+2. A tiny program (t64.adb in this directory) prints the
    clock, a 0.05 s delay and the calendar year.  Results, with the real
    uptime and year for comparison:
 
@@ -126,6 +126,31 @@ Prior art
         32-bit linking pitfall in the D runtime: time functions linked to the
         32-bit symbols give wrong results)
 
+
+Patch and test results
+----------------------
+gnat-musl-time64.patch (this directory; against gcc 15.2.0, gcc/ada/) makes
+the following changes, 11 hunks in 6 files:
+  * s-linux.ads: timespec/timeval get a sub-second field as wide as time_t, so
+    the Ada record is 16 bytes like the C one on 32-bit targets with a 64-bit
+    time_t (little endian only).
+  * s-osinte.ads/.adb, s-osprim.adb, a-exetim.adb: a Time64 constant (32-bit
+    address and 64-bit time_t) selects the musl time64 entry points:
+    __clock_gettime64, __clock_getres_time64, __nanosleep_time64,
+    __gettimeofday_time64, __pthread_cond_timedwait_time64.
+  * s-osprim.adb, g-calend.ads: the timeval buffers are 16 bytes.
+  64-bit targets keep the plain names and are unchanged.
+
+Tested on x86 (native 32-bit, musl 1.2.6) with a private copy of the runtime
+(`gnatmake --RTS=<copy> -a -gnatpg -gnatn -O2 -fPIC`, linked -static):
+  t64.adb:  Real_Time.Clock seconds = 155500 (= uptime), 0.05 s delay measured
+            0.0502 s, Calendar year 2026.
+  gprbuild: bootstrapped from source against the patched runtime; the
+            previously hanging `gprconfig --batch --target=x86-linux
+            --fallback-targets --config=ada,,,,` completes (20 runs in 4 s;
+            the unpatched binary timed out in 2 of 3 runs), and the patched
+            gprbuild builds and runs a hello program in about 1 s.
+  armv7:    test in progress when this was written; see the status below.
 
 Possible fixes (for discussion)
 -------------------------------

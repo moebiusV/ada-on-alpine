@@ -23,7 +23,7 @@ _bootstrap() {
 	# GCC 15 miscompiles the binder's adainit on armv7 with -Os plus
 	# -fstack-clash-protection (a local is kept below the stack pointer across
 	# a call), which crashes every Ada program at start-up.  See
-	# docs/armv7-gcc-stack-clash-miscompile.txt.
+	# docs/bugs/armv7-gcc-stack-clash-miscompile/.
 	[ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
 	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
 		--prefix=/usr \
