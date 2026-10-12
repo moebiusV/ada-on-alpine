@@ -143,6 +143,40 @@ Ada code (testing/gprbuild/APKBUILD, in _bootstrap()):
 -O2 instead of -Os with the protection enabled is another option.
 
 
+Prior art (searched 2026-10-08)
+-------------------------------
+No existing report of this exact miscompile (Thumb-2, -Os, -fstack-clash-
+protection, a local kept below sp across a call) was found in web searches
+of GCC Bugzilla mirrors, Debian, Fedora, Gentoo and Alpine trackers and the
+gcc-patches / gcc-bugs lists.  The GCC Bugzilla itself could not be fetched
+(bot check), so absence there is not proven.  Related items:
+
+  * GCC PR target/85005, "Redesign and cleanup arm.c wrt to
+    flag_stack_clash_protection and flag_stack_check" (filed 2018-03-20,
+    UNCONFIRMED when read).  The reporter says the ARM backend's checks vary
+    from place to place, are "probably not used correctly", are untested, and
+    that no Arm backend is listed in
+    check_effective_target_supports_stack_clash_protection.  It describes no
+    miscompile, but shows the ARM stack-clash code has been considered
+    fragile.
+  * Gentoo bug 675050 (2019): -fstack-clash-protection gives only "partial
+    protection" on arm, and "there might be architecture-specific bugs in
+    implementation of -fstack-clash-protection".
+  * Red Hat's 2020 article "Stack clash mitigation in GCC, Part 3" says 32-bit
+    ARM had no -fstack-clash-protection support (may be out of date).
+  * Different bugs, not related: PR target/113995 (aarch64 stack-clash
+    prologue ICE), an LLVM ARM frame-pointer/realignment fix (llvm-project
+    PR 163699), LLVM alloca(0) with stack clash protection (Mozilla 1588710).
+
+  Sources:
+    https://gcc.gnu.org/pipermail/gcc-bugs/2018-March/618711.html
+    https://bugs.gentoo.org/show_bug.cgi?id=675050
+    https://developers.redhat.com/blog/2020/05/22/stack-clash-mitigation-in-gcc-part-3
+    https://patchwork.sourceware.org/project/gcc/patch/mptfrxmkr2r.fsf@arm.com/
+    https://github.com/llvm/llvm-project/pull/163699
+    https://bugzilla.mozilla.org/show_bug.cgi?id=1588710
+
+
 How it was diagnosed
 --------------------
 gdb cannot run the program under qemu-user (ptrace is not implemented), so
@@ -169,3 +203,5 @@ Not yet established
   * Whether this is a GCC 15 regression has not been checked (GCC 14 was not
     tried).
   * No upstream bug report has been filed, so there is no PR number.
+  * Search GCC Bugzilla directly (stack-clash, arm, thumb2, wrong-code) before
+    filing; the web searches above could not reach it.
