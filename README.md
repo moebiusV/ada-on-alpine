@@ -20,6 +20,27 @@ overlay mirrors the `aports` layout, so each package copies into an aports fork
 unchanged, and the same package definitions back the published repository and
 the upstream proposals.
 
+## Upstream MRs and patches
+
+These go upstream as merge requests or bug reports, not as new packages: either
+the package already exists in Alpine (checked against edge `main`, `community`
+and `testing`, 2026-10-12), or the fix belongs in another Alpine package or in
+GCC. The existing-package aports stay in `testing/` here only so the repository
+builds and is tested as a whole.
+
+| Target | Kind | Alpine today | Ours | Content |
+| --- | --- | --- | --- | --- |
+| `gprbuild` | MR | testing 25.0.0 | 26.0.0 | Version bump; `alpine.xml` so gprbuild links on musl triples other than x86_64; armv7/armhf built without `-fstack-clash-protection`; 32-bit builds link a private patched GNAT runtime until the `main/gcc` patch lands |
+| `afl++` | MR | community 4.40c | 5.03c | Version bump; GCC-only build that drops upstream's broken `clang22-rtlib` dependency |
+| `odin` | MR | testing 0.2026.07 | 2026.09 | Version bump |
+| `vlang` | MR | testing 0.4.11 | 0.5.2 | Version bump |
+| `fpc` | none | testing 3.2.2 | 3.2.2 | Nothing to submit: same version; ours is an x86_64-only binary bootstrap, Alpine's also builds on x86, armv7 and aarch64 |
+| `main/gcc` (`gcc-gnat`) | patch MR, plus a GCC report | 15.2.0-r9 | `docs/bugs/gnat-32bit-musl-time64-mismatch/` | The GNAT runtime on 32-bit musl calls the legacy 32-bit-time entry points with a 64-bit `timespec`: wrong clocks and endless timed waits. Patch for 6 runtime files; related to GCC PR ada/114065 |
+| GCC | bug report | 15.2.0 | `docs/bugs/armv7-gcc-stack-clash-miscompile/` | GCC 15 miscompiles the binder's `adainit` on armv7 (and armhf) with `-Os -fstack-clash-protection`; to be searched in GCC Bugzilla before filing |
+
+Alpine's community `libgpr` is gRPC's C library, unrelated to gprbuild's project
+library, which this overlay ships as `libgprbuild`.
+
 ## Use as an Alpine repository
 
 The overlay is published as a signed `apk` repository (x86_64 / musl, Alpine
@@ -98,7 +119,6 @@ in the toolchain depends on them.
 | [`bracke-cryptolib`](https://github.com/bracke/cryptolib) | Built: pure-Ada cryptography (checksums, ciphers, MACs) (static + shared) |
 | [`bracke-zlib`](https://github.com/bracke/zlib) | Built: pure-Ada zlib/gzip/deflate (static + shared) |
 | [`libsodium-ada`](https://github.com/moebiusV/libsodium-ada) | Built: complete thin Ada binding to libsodium (hashes, HMAC, AEAD, signatures, password hashing, secure memory) (static + shared) |
-| `afl++` | Built: coverage-guided fuzzer (GCC mode) — fixes upstream's broken `clang22-rtlib` dep |
 
 ### Personal projects
 
