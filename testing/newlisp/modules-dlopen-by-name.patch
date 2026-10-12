@@ -1,0 +1,252 @@
+From: Sergio Durigan Junior <sergiodj@sergiodj.net>
+Date: Mon, 30 Jan 2017 16:50:34 -0500
+Subject: Fix shared library loading for modules
+
+Upstream uses a system for dlopen'ing shared libraries that is not
+very robust.  They depend on libraries being installed on full paths,
+which can break things when you move from one system to another.
+Because of this, a fix had to be implemented downstream in order to
+use dlopen's functionality of automatically searching the system
+libraries when you pass just the file name to it.  This also has the
+benefit of not trying to load libraries from /usr/local, which can be
+dangerous.
+---
+ modules/crypto.lsp   | 23 +----------------------
+ modules/gsl.lsp      | 12 ++----------
+ modules/mysql.lsp    | 15 +--------------
+ modules/odbc.lsp     |  3 +--
+ modules/postgres.lsp | 29 +----------------------------
+ modules/sqlite3.lsp  | 22 +---------------------
+ modules/unix.lsp     | 16 +---------------
+ modules/zlib.lsp     | 15 +--------------
+ 8 files changed, 9 insertions(+), 126 deletions(-)
+
+diff --git a/modules/crypto.lsp b/modules/crypto.lsp
+index 26d7bda..289a027 100644
+--- a/modules/crypto.lsp
++++ b/modules/crypto.lsp
+@@ -41,28 +41,7 @@
+ 
+ (context 'crypto)
+ 
+-; set library to path-name of the library on your platform OS
+-;
+-(set 'files '(
+-              "C:/Program Files/gnuwin32/bin/libeay32.dll" ; XP
+-              "C:/Program Files (x86)/gnuwin32/bin/libeay32.dll" ; 7
+-              "/usr/lib/x86_64-linux-gnu/libcrypto.so" ; Ubuntu 12.04 LTS
+-              "/usr/lib/i386-linux-gnu/libcrypto.so"; Ubuntu 12.04
+-              "/lib/i386-linux-gnu/libcrypto.so.1.0.0" ; UBUNTU Linux 13.04
+-              "/usr/lib64/libcrypto.so" ; Fedora, CentOS 6.x
+-              "/usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0" ; Debian jessie
+-              "/usr/lib/libcrypto.so"
+-              "/usr/lib/libcrypto.so.4"
+-              "/usr/lib/libcrypto.so.18.0" ; OpenBSD 4.6
+-              "/usr/lib/libcrypto.so.19.0" ; OpenBSD 5.0
+-              "/usr/lib/libcrypto.dylib"
+-              ))
+-
+-(set 'library (files (or
+-                      (find true (map file? files))
+-                      (throw-error "cannot find crypto library"))))
+-
+-(set 'option (if (= ostype "Windows") "cdecl"))
++(set 'library "libcrypto.so")
+ 
+ (import library "MD5" option)
+ (import library "RIPEMD160" option)
+diff --git a/modules/gsl.lsp b/modules/gsl.lsp
+index b79cbb5..191b49c 100644
+--- a/modules/gsl.lsp
++++ b/modules/gsl.lsp
+@@ -166,22 +166,14 @@
+     (exit))
+ 
+ ; the following assumes the libararies installed in the system library path
+-(set 'LIB 
+-	(if 
+-		(= ostype "Windows") "libgsl-0.dll" ; 32-bit or 64-bit
+-		(= ostype "OSX")   "libgsl.dylib" ; 32-bit or 64-bit
+-		(= ostype "Linux") "/usr/local/lib/libgsl.so" ; 32-bit or 64-bit
+-	))
++(set 'LIB "libgsl.so")
+ 
+ ; load libgslcblas which contans functions referenced by libgsl
+ ; the symbol cblas_sdsdot is not needed but newLISP versions before
+ ; 10.4.2 can not use the 'import' statement without a function name
+ ; libgslcblas is mainly needed internally by libgsl.
+ ; On windows the library is automatically loaded by libgsl-0.dll.
+-(if 
+-    (= ostype "OSX") (import "libgslcblas.dylib" "cblas_sdsdot")
+-    (= ostype "Linux") (import "/usr/local/lib/libgslcblas.so" "cblas_sdsdot")
+-)
++(import "libgslcblas.so" "cblas_sdsdot")
+     
+ ; structs are defined but only needed for debugging, instead use "void*"
+ (struct 'complex "double" "double") ; complex numbers
+diff --git a/modules/mysql.lsp b/modules/mysql.lsp
+index 05faded..20a6093 100644
+--- a/modules/mysql.lsp
++++ b/modules/mysql.lsp
+@@ -118,20 +118,7 @@
+ ; fetch-row and keep-type functions depend on this
+ (set 'NEWLISP64 (not (zero? (& (sys-info -1) 256))))
+ 
+-(set 'files '(
+-    "/usr/local/lib/libmysqlclient.so.20.0" ; OpenBSD 4.9
+-    "/usr/lib/libmysqlclient.so" ; Linux, UNIX
+-    "/usr/lib/mysql/libmysqlclient.so" ; Linux Fedora
+-    "/usr/lib64/mysql/libmysqlclient.so" ; Linux Fedora CentOS 6.x
+-    "/usr/lib/x86_64-linux-gnu/libmysqlclient.so" ; Ubuntu 12.04 LTS
+-    "/usr/local/mysql/lib/libmysqlclient.so" ; Linux, UNIX
+-    "/usr/local/mysql/lib/libmysqlclient.dylib" ; MacOS X
+-    "/usr/lib/libmysqlclient.dylib" ; MacOS X
+-))
+-
+-(set 'library (files (or 
+-		       (find true (map file? files)) 
+-		       (throw-error "cannot find libmysqlclient library"))))
++(set 'library "libmysqlclient.so")
+ 
+ (import library "mysql_init")
+ (import library "mysql_real_connect")
+diff --git a/modules/odbc.lsp b/modules/odbc.lsp
+index 784736e..f586489 100644
+--- a/modules/odbc.lsp
++++ b/modules/odbc.lsp
+@@ -39,8 +39,7 @@
+ ; ----------------- import functions from DLL -------------------
+ 
+ 
+-; set to the appropiate library on Unix or Win32
+-(define ODBC-library "odbc32.dll")
++(define ODBC-library "libodbc.so")
+ 
+ ; Constants used, make sure these constants are Ok on your Operating System or Platform.
+ ; Note, that (define var value) is the same as as saying (set 'var value), it is here more
+diff --git a/modules/postgres.lsp b/modules/postgres.lsp
+index 0fe5ec5..5af0c6c 100644
+--- a/modules/postgres.lsp
++++ b/modules/postgres.lsp
+@@ -128,34 +128,7 @@
+ 
+ (context 'PgSQL)
+ 
+-; get pg_config if available  
+-(set 'pg_lib_dir (exec "pg_config --libdir"))
+-
+-(if pg_lib_dir
+-  (set 'files
+-    (list 
+-      (append (first pg_lib_dir) "/libpq.dylib")  ; shared Mac OS X libs
+-      (append (first pg_lib_dir) "/libpq.so")   ; loadable elf libs Posix Unix Linux
+-      (append (first pg_lib_dir) "/libpq.dll")  ; Windows lib
+-  ))
+-  (set 'files '(
+-    "/usr/local/lib/libpq.so.5.1" ; OpenBSD 4.6
+-    "/usr/lib/libpq.so" ; CentOS or other Linux
+-    "/usr/lib64/libpq.so" ; Linux 64bit
+-    "/usr/lib/libpq.so.5.1" ; Debian
+-    "/usr/local/pgsql/lib/libpq.dylib" ; Mac OS X
+-    "c:/Program Files/PostgreSQL/8.3/bin/libpq.dll" ; Win32
+-  )))
+-
+-; find the library file
+-(set 'library (files (or
+-  (find true (map file? files))
+-  (throw-error "Cannot find libpq library!"))))
+-
+-; done with these
+-(delete 'pg_config)
+-(delete 'pg_lib_dir)
+-(delete 'files)
++(set 'library "libpq.so")
+ 
+ ; import functions and throw error if not found
+ (define (pg_import fun_name)
+diff --git a/modules/sqlite3.lsp b/modules/sqlite3.lsp
+index 0fa574d..c8eebb2 100644
+--- a/modules/sqlite3.lsp
++++ b/modules/sqlite3.lsp
+@@ -87,27 +87,7 @@
+ ; fetch-row and keep-type functions depend on this
+ (set 'NEWLISP64 (not (zero? (& (sys-info -1) 256))))
+ 
+-; set library to path-name of the library on your platform OS
+-;
+-(set 'files (list
+-    "/usr/lib/libsqlite3.so" ; SuSE Linux
+-    "/usr/local/lib/libsqlite3.so" ; Linux, BSD, Solaris
+-    "/usr/pkg/lib/libsqlite3.so" ; NetBSD
+-    "/usr/local/lib/libsqlite3.so.13.3" ; OpenBSD 4.6
+-    "/usr/lib/libsqlite3.0.dylib" ; Mac OSX Darwin
+-    "/usr/lib64/libsqlite3.so" ; for 64Bit Fedora CentOS 6 Linux
+-    "/usr/lib/x86_64-linux-gnu/libsqlite3.so" ; for UBUNTU 64-bit
+-    "/usr/lib/x86_64-linux-gnu/libsqlite3.so.0"
+-    "/usr/lib/i386-linux-gnu/libsqlite3.so" ; for UBUNTU 32-bit
+-    "/usr/lib/i386-linux-gnu/libsqlite3.so.0"
+-    "sqlite3.dll" ; Windows DLL path and current directory
+-    (string (env "PROGRAMFILES") "/sqlite3/sqlite3.dll") ; Windows SQLite3 std install
+-))
+-
+-
+-(set 'library (files (or
+-		       (find true (map file? files)) 
+-		       (throw-error "cannot find sqlite3 library"))))
++(set 'library "libsqlite3.so")
+ 
+ (import library "sqlite3_open" "cdecl")
+ (import library "sqlite3_close" "cdecl")
+diff --git a/modules/unix.lsp b/modules/unix.lsp
+index 07de71e..1d800e7 100644
+--- a/modules/unix.lsp
++++ b/modules/unix.lsp
+@@ -39,21 +39,7 @@
+ 
+ (context 'unix)
+ 
+-(set 'files (list
+-    "/usr/lib/libc.dylib" ; MacOS/Darwin
+-    "/usr/lib/libc.so.51.0" ; OpenBSD 4.6
+-    "/lib/x86_64-linux-gnu/libc.so.6" ; Ubuntu 12.04 LTS
+-    "/lib/i386-linux-gnu/libc.so.6" ; UBUNTU Linux
+-    "/lib/i686-linux-gnu/libc.so.6" ; UBUNTU Linux
+-    "/lib64/libc.so.6" ; CentOS 6.x
+-    "/lib/libc.so.6" ; UBUNTU Linux 9.04
+-    "/usr/lib/libc.so" ; Linux, BSD, Solaris
+-))
+-
+-(set 'library (files (or
+-		       (find true (map file? files))
+-		       (throw-error "cannot find standard C library (libc)"))))
+-
++(set 'library "libc.so")
+ 
+ (unless module-is-loaded
+     (import library "getuid")
+diff --git a/modules/zlib.lsp b/modules/zlib.lsp
+index 6bdf360..4f12a8e 100644
+--- a/modules/zlib.lsp
++++ b/modules/zlib.lsp
+@@ -31,20 +31,7 @@
+ 
+ (context 'zlib)
+ 
+-(set 'files '(
+-    "/lib/x86_64-linux-gnu/libz.so.1" ; Ubunto 14.04 64bit, & Debian 8 64bit
+-    "/usr/lib/x86_64-linux-gnu/libz.so.1" ; Ubuntu 12.04 LTS 64bit
+-    "/lib/i386-linux-gnu/libz.so.1" ; Ubuntu 13.04
+-    "/usr/lib/libz.so" ; Linux, BSD, Solaris
+-    "/usr/lib/libz.so.4.1" ; OpenBSD 4.6
+-    "/usr/lib64/libz.so" ; for 64Bit CentOS 6 Linux
+-    "/usr/lib/libz.dylib" ; Mac OSX / Darwin
+-    "libz1.dll" ; MS Windows
+-))
+-
+-(set 'library (files (or
+-    (find true (map file? files))
+-    (throw-error "cannot find zlib compression library"))))
++(set 'library "libz.so")
+ 
+ (import library "compress")
+ (import library "uncompress")

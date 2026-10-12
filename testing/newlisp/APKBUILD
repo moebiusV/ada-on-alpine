@@ -4,17 +4,27 @@ pkgver=10.7.5
 pkgrel=0
 pkgdesc="Lisp-like scripting language (UTF-8, readline, IPv6)"
 url="http://www.newlisp.org/"
-# Only x86_64 is verified; the LP64 makefile hardcodes -m64.
-arch="x86_64"
+arch="all"
 license="GPL-3.0-or-later"
-makedepends="readline-dev"
+makedepends="readline-dev libffi-dev"
+# check() loads the optional modules that dlopen a system library.
+checkdepends="zlib-dev sqlite-dev openssl-dev"
 subpackages="$pkgname-doc"
 # c23-function-pointer.patch: newlisp's FFI (nl-import.c) declares
 # `UINT (*function)()`, which C23 reads as `(void)`; GCC 15 then rejects the
 # 0–14-argument calls.  The patch casts fAddress to the exact signature at
 # each call site instead.
+# modules-dlopen-by-name.patch is Debian's (Sergio Durigan Junior, newlisp
+# 10.7.5-3, debian/patches/0009-Fix-shared-library-loading-for-modules.patch):
+# the modules probe a list of hard-coded Linux/BSD/macOS paths for each library
+# and fail on musl; this makes them dlopen it by name so the system finds it.
+# unix-libc-by-platform.patch: that patch names the C library "libc.so", which
+# neither glibc (a linker script) nor musl (a -dev symlink) can dlopen; the
+# unix module now uses libc.musl-<arch>.so.1 (found in /lib) or libc.so.6.
 source="newlisp-$pkgver.tgz::https://downloads.sourceforge.net/newlisp/newlisp-$pkgver.tgz
-	c23-function-pointer.patch"
+	c23-function-pointer.patch
+	modules-dlopen-by-name.patch
+	unix-libc-by-platform.patch"
 builddir="$srcdir/newlisp-$pkgver"
 
 build() {
@@ -23,33 +33,86 @@ build() {
 	# Without it every `.c.o` rule compiles to `a.out` instead of the object
 	# file, so the final link finds nothing.  Restore `-c`.
 	export CFLAGS="$CFLAGS -c"
-	./configure-alt --enable-readline --enable-utf8
+	# pkgdatadir (the compiled-in NEWLISPDIR, where `(module ...)` looks for
+	# modules/) is not a configure-alt option, but it honours the variable;
+	# the default is /usr/share/newlisp-$pkgver.  Like Debian, use
+	# /usr/share/newlisp.  --enable-ffi calls imported C functions through
+	# libffi, which the non-x86 targets need for floating-point arguments.
+	pkgdatadir=/usr/share/newlisp ./configure-alt \
+		--prefix=/usr \
+		--mandir=/usr/share/man \
+		--enable-readline --enable-utf8 --enable-ffi
+	# configure-alt adds -m64/-m32 when the compiler accepts it; none of
+	# Alpine's targets needs it (Debian drops it too, it breaks x32), so
+	# build with the compiler's default ABI everywhere.
+	sed -i 's/^ARCHFLAGS = .*/ARCHFLAGS =/' makefile_build
 	# readline on Alpine/musl pulls in curses for its termcap symbols, which
 	# configure-alt's detection does not add to the link line.
 	sed -i 's/^RLFLAGS = .*/RLFLAGS = -lreadline -lncurses/' makefile_build
+	# --enable-ffi needs the link flag; configure-alt only detects it.
+	sed -i 's/^FFIFLAGS = .*/FFIFLAGS = -lffi/' makefile_build
+	grep -E '^(ARCHFLAGS|RLFLAGS|FFIFLAGS)' makefile_build
 	make
 }
 
 check() {
-	# IPv6 is always compiled (the global ADDR_FAMILY defaults to 6) and UTF-8
-	# is enabled by --enable-utf8; confirm both, plus a clean startup/exit.
-	./newlisp -e '(exit (if (and (= 6 (net-ipv 6)) (= 5 (utf8len "héllo"))) 0 1))'
+	# The upstream suite.  `make test` is `make check | grep '>>>'`, so its
+	# exit status is grep's and a failing suite still exits 0: keep the report
+	# and decide from it.  Every qa script ends with a ">>>>> ... SUCCESSFUL"
+	# or ">>>>> PROBLEM ..." line.
+	make test | tee test.log
+	if grep -q 'PROBLEM' test.log || [ "$(grep -c 'SUC\{1,2\}ESSFUL' test.log)" -lt 10 ]; then
+		echo "newlisp test suite reported a problem or fewer results than expected" >&2
+		return 1
+	fi
+
+	# The binary must carry the right NEWLISPDIR, and the modules that
+	# dlopen a system library must find it by name (musl has no search list
+	# of distribution paths).
+	./newlisp -n -e '(exit (if (= (env "NEWLISPDIR") "/usr/share/newlisp") 0 1))' \
+		|| { echo "NEWLISPDIR is not /usr/share/newlisp" >&2; return 1; }
+	for m in zlib sqlite3 crypto unix; do
+		NEWLISPDIR="$builddir" ./newlisp -n -e \
+			"(exit (if (catch (module \"$m.lsp\") 'r) 0 1))" \
+			|| { echo "module $m.lsp failed to load" >&2; return 1; }
+	done
+	# Exercise the dlopen'ed libraries, not just their loading: MD5 through
+	# libcrypto and a gzip round trip through libz.
+	NEWLISPDIR="$builddir" ./newlisp -n -e \
+		'(module "crypto.lsp") (exit (if (= (crypto:md5 "abc") "900150983cd24fb0d6963f7d28e17f72") 0 1))' \
+		|| { echo "crypto:md5 gave the wrong digest" >&2; return 1; }
+	NEWLISPDIR="$builddir" ./newlisp -n -e \
+		'(module "zlib.lsp") (zlib:gz-write-file "rt.gz" "hello hello hello") (exit (if (= (zlib:gz-read-file "rt.gz") "hello hello hello") 0 1))' \
+		|| { echo "zlib gzip round trip failed" >&2; return 1; }
+	rm -f rt.gz
+	# ... and the libc it found must be this platform's: ask it for our uid.
+	NEWLISPDIR="$builddir" ./newlisp -n -e \
+		"(module \"unix.lsp\") (exit (if (= (unix:getuid) $(id -u)) 0 1))" \
+		|| { echo "unix:getuid did not return our uid" >&2; return 1; }
 }
 
 package() {
-	install -Dm755 newlisp "$pkgdir"/usr/bin/newlisp
+	# makefile_install runs every step as `-install ...`, so a failed step
+	# is silent; the checks below make sure the important files arrived.
+	make install DESTDIR="$pkgdir"
+	for f in usr/bin/newlisp-$pkgver usr/bin/newlispdoc \
+		usr/share/newlisp/modules/zlib.lsp \
+		usr/share/newlisp/modules/getopts.lsp \
+		usr/share/man/man1/newlisp.1; do
+		test -e "$pkgdir/$f" || { echo "missing $f" >&2; return 1; }
+	done
+	test -L "$pkgdir"/usr/bin/newlisp
 	install -Dm644 doc/COPYING "$pkgdir"/usr/share/licenses/$pkgname/COPYING
+	rm -f "$pkgdir"/usr/share/doc/$pkgname/COPYING
+	chmod 755 "$pkgdir"/usr/share/newlisp/util/syntax.cgi 2>/dev/null || true
+	# Debian ships the examples as documentation.
+	mkdir -p "$pkgdir"/usr/share/doc/$pkgname/examples
+	install -m644 examples/* "$pkgdir"/usr/share/doc/$pkgname/examples/
 }
 
-doc() {
-	install -Dm644 "$builddir"/doc/newlisp_manual.html \
-		"$subpkgdir"/usr/share/doc/newlisp/newlisp_manual.html
-	install -Dm644 "$builddir"/doc/newlisp.1 \
-		"$subpkgdir"/usr/share/man/man1/newlisp.1
-	# abuild requires man pages compressed.
-	gzip "$subpkgdir"/usr/share/man/man1/newlisp.1
-}
 sha512sums="
 1882c665ee8a7b683038622e0760b62386929a99afb17b197ea9243214070fae6622b83e56113738275587fcbe3cd6b127154a38dc0ff36bae2751f9e13a1209  newlisp-10.7.5.tgz
 2c405558ef2c3ba7a4ba7bc9d17bedd24a7d4d0a1e923ddcf078bb6e09ebd26851386c00cd4ae9ba55b74b4650d6afc33c16dc8227eac034e31d1ad9b222cc2f  c23-function-pointer.patch
+df6944ac47690c8b05d22877bebba0261f68da349ce36ecd08af723f9af87863fdfdb62fb7c2e4042e55fe9421f21f4e1d574ff0626e12b35e5502cf4fb3bee2  modules-dlopen-by-name.patch
+f7bc08a9fbb34afb842e3493235a96528e9cb7964556ef76d526fdb75a43e830768872c6a8ccb82a21c75ab8aa7210114fbb6dcc9f158e007cad190a7a0cbeae  unix-libc-by-platform.patch
 "

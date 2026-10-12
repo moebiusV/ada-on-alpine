@@ -1,0 +1,18 @@
+--- a/modules/unix.lsp	2026-10-12 00:20:49.881947182 -0700
++++ b/modules/unix.lsp	2026-10-12 00:20:49.889947299 -0700
+@@ -39,7 +39,14 @@
+ 
+ (context 'unix)
+ 
+-(set 'library "libc.so")
++;; Name the C library of the running platform.  "libc.so" is a linker script
++;; on glibc and a development symlink on musl, so neither can be dlopen'ed.
++;; musl's runtime library is libc.musl-<arch>.so.1 (the arch is part of the
++;; name, so look it up); glibc's soname is libc.so.6 on every architecture.
++(set 'library
++     (or (let (musl (directory "/lib" {^libc\.musl-.+\.so\.1$}))
++           (if (> (length musl) 0) (first musl)))
++         "libc.so.6"))
+ 
+ (unless module-is-loaded
+     (import library "getuid")
