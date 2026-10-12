@@ -230,6 +230,29 @@ edge, gcc-gnat 15.2.0-r9, musl 1.2.6, natively (x86, x86_64) or under QEMU:
   riscv64      0       correct                     all pass; Execution_Time (0045)
   loongarch64  0       correct                     all pass, unchanged
 
+glibc (checked 2026-10-12 on arm32v7/debian:trixie-slim under QEMU, glibc 2.41,
+gnat-14 14.2.0-19, container armv7-debian-dev):
+  * Debian's armhf toolchain binds the C time functions to the 64-bit variants
+    by default (nm of the wrappers shows __clock_gettime64, __clock_getres64,
+    __nanosleep64, __gettimeofday64, __pthread_cond_timedwait64, __select64).
+  * GNAT's real xoscons pipeline on the patched template gives SIZEOF_tv_sec 8,
+    SIZEOF_tv_usec 8, SIZEOF_timespec 16, SIZEOF_tv_nsec 4, OFFSET_tv_nsec 8 and
+    TIME64_REDIRECTED 1 both by default and with -D_TIME_BITS=64
+    -D_FILE_OFFSET_BITS=64: the same as musl, so the __USE_TIME_BITS64 branch of
+    the condition works.
+  * Debian's runtime (GCC 14 with the PR 114065 series backported, System.C_Time)
+    imports glibc-specific names chosen by OS_Constants.Glibc_Use_Time_Bits64
+    (__clock_gettime64, __clock_getres64, __nanosleep64, __gettimeofday64,
+    __pthread_cond_timedwait64).  Clocks, delays and timed entry calls are
+    right there.  But GNAT.Sockets still imports the plain "select": on armhf
+    Check_Selector with a 0.3 s timeout returns EXPIRED after 0.0008 s (the
+    legacy select reads the 64-bit timeval as a zero timeout).  Importing
+    __gnat_select (our wrapper, compiled against glibc's headers, so it calls
+    __select64) fixes it: 0.301 s.  So the wrapper approach is libc-neutral and
+    covers select, which the glibc-specific names missed.
+  * Not done on glibc: applying the whole patch (it is made against GCC
+    15.2.0, Debian's runtime is 14.2 with the C_Time rework).
+
 Not done: a full gcc-gnat build with the patches (only the runtime units were
 rebuilt privately); testing on glibc.  GNAT.Sockets' other users of timeval
 (setsockopt timeouts) go through OS_Constants-sized types and were not
