@@ -118,6 +118,27 @@ Prior art
     pages that could be read (the Bugzilla page itself was blocked by a bot
     check).  The installed Alpine 15.2.0 runtime has none of it.
 
+  * Origin in Alpine (found 2026-10-12): main/gcc carries
+    0034-libgnat-time_t-is-always-64-bit-on-musl-libc.patch (Soeren Tempel,
+    2022-07-19), which changes time_t_bits in libgnat/s-parame.ads from
+    Long_Integer'Size to Long_Long_Integer'Size.  That is right for the type
+    (musl's time_t is 64-bit on every arch since 1.2.0) but leaves the runtime
+    importing the plain, time32, function names, so on 32-bit Alpine it
+    produces exactly this mismatch.  Before that patch the runtime used a
+    32-bit timespec with the plain names and was consistent (Y2038-limited).
+    The fix in this directory completes 0034; an alternative is to revert it
+    on 32-bit.
+  * Upstream (found 2026-10-12): GCC trunk (GCC 16), commit 41974d6ed3 by
+    Nicolas Boulenguez, committed by Eric Botcazou in July 2025, "Ada: Add
+    System.C_Time and GNAT.C_Time units to libgnat", PR ada/114065.  71 files:
+    it moves the C time types into a new System.C_Time unit, removes
+    time_t_bits from s-parame.ads, and queries sizes from s-oscons-tmplt.c.
+    From the commit page it does not mention musl or the _time64 symbols; that
+    was not established.  It is on trunk, not in the 15.x release Alpine ships.
+    A patch for upstream would have to be rebased onto System.C_Time.
+  * The GCC Bugzilla is still behind a bot check (Anubis), so the PR's own
+    status was not read.
+
   Sources:
     https://www.mail-archive.com/gcc-bugs@gcc.gnu.org/msg866766.html
     https://gcc.gnu.org/pipermail/gcc-patches/2025-January/672546.html
@@ -165,6 +186,12 @@ Possible fixes (for discussion)
 
 Not yet established
 -------------------
+  * gnat-musl-time64.patch was made against the INSTALLED runtime sources, which
+    are flat (gcc/ada/s-linux.ads).  In the GCC 15.2.0 source tree they are
+    under gcc/ada/libgnat/ and gcc/ada/libgnarl/, and the Linux files carry
+    target suffixes (s-osinte__linux.ads, s-osprim__posix.adb,
+    a-exetim__posix.adb), so the patch does not apply to Alpine's main/gcc
+    as it stands and must be remade against the source tree.
   * (Checked: the musl time64 symbol names listed above exist in
     ld-musl-i386.so.1 of musl 1.2.6; the armv7 library was not inspected.)
   * The armv7 hang was seen only under QEMU; the wrong clock was seen on both.
