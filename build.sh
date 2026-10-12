@@ -14,7 +14,7 @@ mkdir -p "$OUT"
 # gprbuild) is disabled/WIP and not in the default list: gprbuild2 crashes on
 # library projects. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
 # nor gpr2-tools, so it sits after the spine.
-PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server afl++}"
+PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgprbuild gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server afl++}"
 
 # The signing key lives on the host in ~/.config/abuild (Alpine's standard abuild
 # key location), not in this repo, so every checkout and every machine signs with

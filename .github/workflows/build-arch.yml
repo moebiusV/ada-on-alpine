@@ -50,7 +50,7 @@ jobs:
           qemu: ${{ inputs.qemu }}
           stage: s2
           prev: "s1"
-          pkgs: "py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgpr gnatcoll-projects"
+          pkgs: "py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgprbuild gnatcoll-projects"
 
   s3:
     needs: s2

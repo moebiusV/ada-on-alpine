@@ -1,9 +1,10 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-pkgname=libgpr
+pkgname=libgprbuild
 pkgver=26.0.0_git20260518
-pkgrel=1
+pkgrel=0
 _commit="2781289e9e2bdc31350962211b7ef792d7d31c6f"
 pkgdesc="GPR project-file parser library (from gprbuild)"
+# Not named libgpr: Alpine community already has an unrelated libgpr (gRPC).
 url="https://github.com/AdaCore/gprbuild"
 arch="all"
 license="GPL-3.0-or-later"
@@ -13,9 +14,18 @@ subpackages="$pkgname-static"
 source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_commit.tar.gz"
 builddir="$srcdir/gprbuild-$_commit"
 
+prepare() {
+	default_prepare
+	# Upstream sets no Library_Version, so the .so has no SONAME and a bare
+	# NEEDED libgpr.so would also match gRPC's libgpr.so.  Version it.
+	sed -i "s/^\\( *\\)for Library_Name use \"gpr\";/&\\n\\1for Library_Version use \"libgpr.so.${pkgver%%.*}\";/" \
+		gpr/gpr.gpr
+	grep -q "Library_Version use \"libgpr.so.${pkgver%%.*}\"" gpr/gpr.gpr
+}
+
 build() {
 	# gpr.gpr splits Object_Dir/Library_Dir by Library_Type, so both kinds can
-	# build in one tree. No Library_Version, so the .so is unversioned.
+	# build in one tree.
 	gprbuild -p -P gpr/gpr.gpr -XLIBRARY_TYPE=relocatable -XBUILD=production
 	gprbuild -p -P gpr/gpr.gpr -XLIBRARY_TYPE=static -XBUILD=production
 }
@@ -36,6 +46,18 @@ package() {
 	gprinstall -p -f -P gpr/gpr.gpr -XLIBRARY_TYPE=relocatable -XBUILD=production \
 		--prefix="$pkgdir"/usr --sources-subdir=include/gpr \
 		--build-name=relocatable --build-var=LIBRARY_TYPE
+
+	# Ship no unversioned /usr/lib/libgpr.so: grpc-dev owns that path.  Linking
+	# finds the library through the project's lib dir (usr/lib/gpr.relocatable).
+	# Promote the versioned SONAME to a real file so abuild's soname tracer
+	# (scanelf, non-recursive, skips symlinks) records so:libgpr.so.N.
+	rm -f "$pkgdir"/usr/lib/libgpr.so
+	for _so in "$pkgdir"/usr/lib/libgpr.so.*; do
+		[ -L "$_so" ] || continue
+		_target=$(readlink -f "$_so")
+		rm -f "$_so"
+		cp -a "$_target" "$_so"
+	done
 }
 
 sha512sums="

@@ -1,14 +1,14 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-projects
 pkgver=26.0.0_git20260915
-pkgrel=1
+pkgrel=2
 _commit="358c384d11ad0d9d26d78744d3a78259c3ce0451"
 pkgdesc="GNAT Components Collection – project file support"
 url="https://github.com/AdaCore/gnatcoll-core"
 arch="all"
 license="GPL-3.0-or-later WITH GCC-exception-3.1"
-depends="libgnat gnatcoll libgpr"
-makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static libgpr libgpr-static"
+depends="libgnat gnatcoll libgprbuild"
+makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static libgprbuild libgprbuild-static"
 subpackages="$pkgname-static"
 source="gnatcoll-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-core/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-core-$_commit"

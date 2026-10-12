@@ -67,7 +67,7 @@ tooling and the language server. This is the set proposed for Alpine.
 | `langkit` | Built: parser framework (static + shared) + lkt tools |
 | `gpr` | Built: GPR2 project parser library (static) |
 | `gpr2-tools` | **WIP, disabled** (`arch=""`): next-gen GPR tools, installed as `gprbuild2`, … alongside classic gprbuild; `gprbuild2` crashes on library projects |
-| `libgpr` | Built: gprbuild's project parser library (static + shared) |
+| `libgprbuild` | Built: gprbuild's project parser library (static + shared); not named `libgpr`, which is gRPC's in Alpine |
 | `gnatcoll-projects` | Built: GNATcoll project-file support (static + shared) |
 | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
 | `templates-parser` | Built: AWS templates-parser engine (static + shared; aws builds it in-tree but doesn't install it) |
@@ -121,7 +121,7 @@ gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ─�
                         │            │              ├─► gnatcoll-gmp
                         │            │              ├─► gnatcoll-iconv
                         │            │              └─► aws
-                        │            └─► libgpr ───► gnatcoll-projects
+                        │            └─► libgprbuild ► gnatcoll-projects
                         │            └─► templates-parser
                         ├─► aunit
                         ├─► spawn
@@ -175,7 +175,7 @@ that shape: 20 libraries build `static + shared` and ship their archive in a
 `<name>-static` subpackage —
 
     adasat, aws, bracke-cryptolib, bracke-zlib, gnatcoll, gnatcoll-db,
-    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgpr,
+    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgprbuild,
     libsodium-ada, mustache-ada, prettier-ada, spawn, templates-parser, vss,
     xdiff, xmlada
 
@@ -210,7 +210,7 @@ disabled (`arch=""`). Its tools install under a `2` suffix (`gprbuild2`,
 
 ## License
 
-- GPL-3.0-or-later: gprbuild, libgpr, fswatch, ada_language_server, gpr2-tools.
+- GPL-3.0-or-later: gprbuild, libgprbuild, fswatch, ada_language_server, gpr2-tools.
 - GPL-3.0-or-later WITH GCC-exception-3.1: xmlada, aunit, gnatcoll,
   gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, gnatdoc,
   libadalang-tools, spawn, templates-parser, ada-libfswatch, aws.
