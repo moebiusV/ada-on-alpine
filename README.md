@@ -30,7 +30,7 @@ builds and is tested as a whole.
 
 | Target | Kind | Alpine today | Ours | Content |
 | --- | --- | --- | --- | --- |
-| `gprbuild` | MR | testing 25.0.0 | 26.0.0 | Version bump; `alpine.xml` so gprbuild links on musl triples other than x86_64; armv7/armhf built without `-fstack-clash-protection`; 32-bit builds link a private patched GNAT runtime until the `main/gcc` patch lands |
+| `gprbuild` | MR | testing 25.0.0 | 26.0.0 | Version bump; `alpine.xml` so gprbuild links on musl triples other than x86_64; armv7/armhf built without `-fstack-clash-protection`; requires `gcc-gnat` >= 15.2.0-r10, i.e. the `main/gcc` time64 patch below, for 32-bit targets |
 | `afl++` | MR | community 4.40c | 5.03c | Version bump; GCC-only build that drops upstream's broken `clang22-rtlib` dependency |
 | `odin` | retired | testing 0.2026.07 | — | Dropped from the overlay: Alpine already ships it, and our rewrite lacked its vendor-library build. At most a version-bump MR against Alpine's own aport (ours was 2026.09) |
 | `vlang` | retired | testing 0.4.11 | — | Dropped from the overlay: Alpine already ships it, and our rewrite lacked `thirdparty/` and the built tools. At most a version-bump MR against Alpine's own aport (ours was 0.5.2) |

@@ -253,7 +253,48 @@ gnat-14 14.2.0-19, container armv7-debian-dev):
   * Not done on glibc: applying the whole patch (it is made against GCC
     15.2.0, Debian's runtime is 14.2 with the C_Time rework).
 
-Not done: a full gcc-gnat build with the patches (only the runtime units were
+Full gcc build (2026-10-12, x86, native 32-bit musl, Alpine's gcc aport 15.2.0-r10
+with 0044 and 0045 added to source=, languages c,c++,ada, --disable-bootstrap,
+4 CPUs): builds in 10 minutes and produces the 13 normal packages.  The first
+attempt failed in the Ada runtime build: GCC builds the runtime with warnings as
+errors and GNAT said 's-osprim.adb:56:28: warning: 32 bits of "timespec"
+unused' (the 4 bytes of C padding); the earlier private-runtime tests had used
+-gnatws and missed it.  Fixed with a scoped pragma Warnings in s-osprim__posix.adb
+and s-linux.ads.  With the packages installed, the stock gnatmake and no
+private runtime: t64, t64b (incl. Execution_Time) and t64c all pass (clock =
+uptime, delay 0.050, timed entry call 0.300, select 0.300), and libgnat-15.so
+exports __gnat_clock_gettime, __gnat_nanosleep and __gnat_select.
+
+Still not done: a full gcc-gnat build on the other architectures (only the runtime units were
+rebuilt privately); testing on glibc.  GNAT.Sockets' other users of timeval
+(setsockopt timeouts) go through OS_Constants-sized types and were not
+exercised.
+
+Possible fixes (for discussion)
+-------------------------------
+  * In the Alpine gcc aport (main/gcc, not this overlay): patch the Ada runtime
+    so that, on musl 32-bit, the imports use the musl time64 symbols
+    (exported by ld-musl-i386.so.1 in musl 1.2.6: __clock_gettime64,
+    __clock_getres_time64, __nanosleep_time64, __clock_nanosleep_time64,
+    __pthread_cond_timedwait_time64), or declare the timespec with the 32-bit
+    layout.
+  * Independently, Timed_Sleep should not spin on EINVAL.
+
+
+Not yet established
+-------------------
+  * gnat-musl-time64.patch was made against the INSTALLED runtime sources, which
+    are flat (gcc/ada/s-linux.ads).  In the GCC 15.2.0 source tree they are
+    under gcc/ada/libgnat/ and gcc/ada/libgnarl/, and the Linux files carry
+    target suffixes (s-osinte__linux.ads, s-osprim__posix.adb,
+    a-exetim__posix.adb), so the patch does not apply to Alpine's main/gcc
+    as it stands and must be remade against the source tree.
+  * (Checked: the musl time64 symbol names listed above exist in
+    ld-musl-i386.so.1 of musl 1.2.6; the armv7 library was not inspected.)
+  * The armv7 hang was seen only under QEMU; the wrong clock was seen on both.
+  * Whether the PR114065 series, once complete, would cover musl is unknown.
+  * No upstream report has been filed for the musl case.
+ (only the runtime units were
 rebuilt privately); testing on glibc.  GNAT.Sockets' other users of timeval
 (setsockopt timeouts) go through OS_Constants-sized types and were not
 exercised.

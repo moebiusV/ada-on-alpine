@@ -154,7 +154,7 @@ Let the C compiler say what the target does:
  
  package System.Linux is
     pragma Preelaborate;
-@@ -46,16 +46,34 @@
+@@ -46,16 +46,38 @@
     ----------
  
     subtype long        is Interfaces.C.long;
@@ -183,12 +183,16 @@ Let the C compiler say what the target does:
        tv_nsec : long;
     end record;
     pragma Convention (C, timespec);
++   pragma Warnings (Off, "*bits of*unused");
++   --  The C structure may be larger than its two fields (padding that the C
++   --  library or the kernel writes).
 +   for timespec use record
 +      tv_sec  at 0 range 0 .. 8 * System.OS_Constants.SIZEOF_tv_sec - 1;
 +      tv_nsec at System.OS_Constants.OFFSET_tv_nsec
 +        range 0 .. 8 * System.OS_Constants.SIZEOF_tv_nsec - 1;
 +   end record;
 +   for timespec'Size use 8 * System.OS_Constants.SIZEOF_timespec;
++   pragma Warnings (On, "*bits of*unused");
  
     type timeval is record
        tv_sec  : time_t;
@@ -256,7 +260,7 @@ Let the C compiler say what the target does:
  
  package body System.OS_Primitives is
  
-@@ -39,17 +39,30 @@
+@@ -39,17 +39,34 @@
     --  these declarations in System.OS_Interface and move these ones in
     --  the spec.
  
@@ -271,12 +275,16 @@ Let the C compiler say what the target does:
        tv_nsec : Long_Integer;
     end record;
     pragma Convention (C, timespec);
++   pragma Warnings (Off, "*bits of*unused");
++   --  The C structure may be larger than its two fields (padding that the C
++   --  library or the kernel writes).
 +   for timespec use record
 +      tv_sec  at 0 range 0 .. 8 * System.OS_Constants.SIZEOF_tv_sec - 1;
 +      tv_nsec at System.OS_Constants.OFFSET_tv_nsec
 +        range 0 .. 8 * System.OS_Constants.SIZEOF_tv_nsec - 1;
 +   end record;
 +   for timespec'Size use 8 * System.OS_Constants.SIZEOF_timespec;
++   pragma Warnings (On, "*bits of*unused");
 +
 +   Time64_Wrappers : constant Boolean :=
 +     System.OS_Constants.TIME64_REDIRECTED /= 0;
@@ -290,7 +298,7 @@ Let the C compiler say what the target does:
  
     -----------
     -- Clock --
-@@ -57,10 +70,11 @@
+@@ -57,10 +74,11 @@
  
     function Clock return Duration is
  
@@ -305,7 +313,7 @@ Let the C compiler say what the target does:
        --  since it is not accessed directly.
  
        procedure timeval_to_duration
-@@ -79,7 +93,9 @@
+@@ -79,7 +97,9 @@
        function gettimeofday
          (Tv : access timeval;
           Tz : System.Address := System.Null_Address) return Integer;
