@@ -34,7 +34,7 @@ builds and is tested as a whole.
 | `afl++` | MR | community 4.40c | 5.03c | Version bump; GCC-only build that drops upstream's broken `clang22-rtlib` dependency |
 | `odin` | MR | testing 0.2026.07 | 2026.09 | Version bump |
 | `vlang` | MR | testing 0.4.11 | 0.5.2 | Version bump |
-| `fpc` | none | testing 3.2.2 | 3.2.2 | Nothing to submit: same version; ours is an x86_64-only binary bootstrap, Alpine's also builds on x86, armv7 and aarch64 |
+| `fpc` | retired | testing 3.2.2 (added 2020, re-added 2021) | — | Dropped from the overlay. Alpine's aport builds 3.2.2 from source with `fpc-stage0` on x86_64, x86, armv7, armhf and aarch64, runs the test suite and ships `fpc-doc`; ours only repackaged upstream's x86_64 binary build, minus every glibc tool |
 | `main/gcc` (`gcc-gnat`) | patch MR, plus a GCC report | 15.2.0-r9 | `docs/bugs/gnat-32bit-musl-time64-mismatch/` | The GNAT runtime on 32-bit musl calls the legacy 32-bit-time entry points with a 64-bit `timespec`: wrong clocks and endless timed waits. Patch for 6 runtime files; related to GCC PR ada/114065 |
 | GCC | bug report | 15.2.0 | `docs/bugs/armv7-gcc-stack-clash-miscompile/` | GCC 15 miscompiles the binder's `adainit` on armv7 (and armhf) with `-Os -fstack-clash-protection`; to be searched in GCC Bugzilla before filing |
 
