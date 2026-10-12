@@ -110,7 +110,7 @@ jobs:
           qemu: ${{ inputs.qemu }}
           stage: s6
           prev: "s5"
-          pkgs: "odin newlisp vlang"
+          pkgs: "newlisp"
 
   smoke:
     needs: s6
