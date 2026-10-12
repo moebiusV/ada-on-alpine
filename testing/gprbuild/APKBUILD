@@ -16,8 +16,39 @@ source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_
 	xmlada-$_xmlada_commit.tar.gz::https://github.com/AdaCore/xmlada/archive/$_xmlada_commit.tar.gz
 	gprconfig_kb-$_kb_commit.tar.gz::https://github.com/AdaCore/gprconfig_kb/archive/$_kb_commit.tar.gz
 	alpine.xml
+	gnat-musl-time64.diff
 	"
 builddir="$srcdir/gprbuild-$_commit"
+
+# 32-bit targets (x86, armhf, armv7) with musl >= 1.2 have a 64-bit time_t, but
+# gcc-gnat's runtime calls the legacy 32-bit-time entry points with a 64-bit
+# timespec: clocks are wrong and a timed wait (gprconfig at exit) spins forever.
+# Until main/gcc is fixed, build gprbuild against a private patched copy of the
+# runtime and link it statically.  See docs/bugs/gnat-32bit-musl-time64-mismatch/.
+case "$CARCH" in
+x86|armhf|armv7) _rts="$srcdir"/rts ;;
+*) _rts= ;;
+esac
+
+_private_rts() {
+	[ -n "$_rts" ] || return 0
+	local gccdir
+	gccdir=$(dirname "$(gcc -print-libgcc-file-name)")
+	rm -rf "$_rts"; mkdir -p "$_rts"
+	cp -a "$gccdir"/adainclude "$gccdir"/adalib "$_rts"/
+	chmod -R u+w "$_rts"
+	# The patch is made against gcc/ada/ in the GCC tree; the installed
+	# runtime sources are flat.
+	patch -p3 -d "$_rts"/adainclude < "$srcdir"/gnat-musl-time64.diff
+	# Reuse the system runtime archives for the units the patch leaves alone
+	# (gnatmake -a recompiles only the changed units).
+	local n
+	for n in libgnat.a libgnarl.a libgnat_pic.a libgnarl_pic.a libgnat-15.so libgnarl-15.so; do
+		ln -sf /usr/lib/$n "$_rts"/adalib/$n
+	done
+	ln -sf /usr/lib/libgnat.a "$_rts"/adalib/libgnat-15.a
+	ln -sf /usr/lib/libgnarl.a "$_rts"/adalib/libgnarl-15.a
+}
 
 _bootstrap() {
 	# GCC 15 miscompiles the binder's adainit on armv7 with -Os plus
@@ -25,7 +56,12 @@ _bootstrap() {
 	# a call), which crashes every Ada program at start-up.  See
 	# docs/bugs/armv7-gcc-stack-clash-miscompile/.
 	[ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
-	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
+	local gnatmake=gnatmake gnatmakeflags="-j${JOBS:-1}"
+	if [ -n "$_rts" ]; then
+		gnatmake="gnatmake --RTS=$_rts -a"
+		gnatmakeflags="$gnatmakeflags -largs -static"
+	fi
+	GNATMAKE="$gnatmake" GNATMAKEFLAGS="$gnatmakeflags" ./bootstrap.sh \
 		--prefix=/usr \
 		--with-xmlada="$srcdir"/xmlada-$_xmlada_commit \
 		--with-kb="$srcdir"/gprconfig_kb-$_kb_commit \
@@ -37,6 +73,7 @@ build() {
 	# native targets (aarch64-alpine-linux-musl, ...) gprbuild finds no archive
 	# builder and silently skips linking.  alpine.xml adds the missing rules.
 	cp "$srcdir"/alpine.xml "$srcdir"/gprconfig_kb-$_kb_commit/db/
+	_private_rts
 	_bootstrap --build
 }
 
@@ -84,4 +121,5 @@ cff86ffbbb9cb0c92337ac81dffc37946f61d13a1e066479984d0ca8b28c2bcdf7e38681c8a49b8e
 fb5718ee5e3a6932eacbf861aef3d75718e5892cf28ac49697fb589839517e721ff4533ef046ca25ed291af235c9b92d9d5383e3ed4be48a35d789411fc30db4  xmlada-9823ffb294187897a08b14bbce00743ff647cae1.tar.gz
 ed5b663df7cea9ea50a0fc8033c4ce0262796c35bb5d5849e6d1cef306247eec157235c8d6335cfa441bf7ada43322ccfdb3fe33694906cd9264a39c83e157a5  gprconfig_kb-ba383a7fa2a1ce8d27d44b00b8052acc0d49493c.tar.gz
 f04b85a58210c99bcbbdb054ec2c5f6551a0cf635276008e62818ba621d2c8573f351d5d983e7e3c8f514c74c5a15ae1bf98314cc69a594c37c7b347580faa72  alpine.xml
+7adef1cb60bb46b58cf54300b73a3bd2348b026f084518acfaaaccddcb329b669e3c650c5297dd2f52f732ae063689dbaa02a40f0eed11f424e9218a1277e64f  gnat-musl-time64.diff
 "
