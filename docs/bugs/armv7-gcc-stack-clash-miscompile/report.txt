@@ -198,7 +198,12 @@ Not yet established
     armv7 hardware has not been done.  (Whether the PLT stub's use of the
     stack below sp is what clobbers the value on real hardware was inferred
     from the corrupted value, not observed directly.)
-  * Other architectures were not checked for the same pattern.
+  * armhf (armv6kz, ARM mode, not Thumb-2) crashes the same way at start-up
+    (SIGSEGV turned into STORAGE_ERROR) with the default flags, and passes with
+    -fstack-clash-protection removed (QEMU user-mode, 2026-10-11).  Its
+    adainit does not obviously show the armv7 below-sp reload, so the exact
+    mechanism there was not examined; only the flag dependence is established.
+    The other architectures were not checked for the same pattern.
   * A minimal reproducer (small Ada or C source) is not available.
   * Whether this is a GCC 15 regression has not been checked (GCC 14 was not
     tried).

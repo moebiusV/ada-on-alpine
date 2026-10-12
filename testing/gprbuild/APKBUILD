@@ -56,11 +56,13 @@ _private_rts() {
 }
 
 _bootstrap() {
-	# GCC 15 miscompiles the binder's adainit on armv7 with -Os plus
+	# GCC 15 miscompiles the binder's adainit on armv7 (and, to be confirmed, armhf) with -Os plus
 	# -fstack-clash-protection (a local is kept below the stack pointer across
 	# a call), which crashes every Ada program at start-up.  See
 	# docs/bugs/armv7-gcc-stack-clash-miscompile/.
-	[ "$CARCH" = armv7 ] && CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//')
+	case "$CARCH" in
+	armv7|armhf) CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//') ;;
+	esac
 	local gnatmake=gnatmake gnatmakeflags="-j${JOBS:-1}"
 	if [ -n "$_rts" ]; then
 		gnatmake="gnatmake --RTS=$_rts -a"
