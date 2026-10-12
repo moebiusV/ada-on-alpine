@@ -38,8 +38,13 @@ _private_rts() {
 	cp -a "$gccdir"/adainclude "$gccdir"/adalib "$_rts"/
 	chmod -R u+w "$_rts"
 	# The patch is made against gcc/ada/ in the GCC tree; the installed
-	# runtime sources are flat.
-	patch -p3 -d "$_rts"/adainclude < "$srcdir"/gnat-musl-time64.diff
+	# runtime sources are flat.  Not every target installs every unit (armv7
+	# has no a-exetim.adb), so drop the sections of absent files.
+	awk -v dir="$_rts"/adainclude '
+		/^--- / { f = $2; sub(/.*\//, "", f); skip = (system("test -f " dir "/" f) != 0) }
+		!skip
+	' "$srcdir"/gnat-musl-time64.diff > "$srcdir"/rts-time64.diff
+	patch -p3 -d "$_rts"/adainclude < "$srcdir"/rts-time64.diff
 	# Reuse the system runtime archives for the units the patch leaves alone
 	# (gnatmake -a recompiles only the changed units).
 	local n
