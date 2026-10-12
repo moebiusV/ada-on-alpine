@@ -1,0 +1,71 @@
+From: David Walther <david@clearbrookdistillery.com>
+Date: Mon, 12 Oct 2026 00:00:00 +0000
+Subject: [PATCH] ada: enable Ada.Execution_Time on arm, riscv and s390 Linux
+
+Makefile.rtl selects the POSIX implementation of Ada.Execution_Time
+(a-exetim__posix.adb with the a-exetim__default.ads spec) for x86, x86-64,
+x32, ia64, PowerPC, AArch64 and LoongArch Linux, but not for ARM, RISC-V or
+S/390 Linux, where the stub a-exetim.ads is used and any use of the package
+fails to compile with "Execution_Time is not supported in this
+configuration".
+
+The POSIX version needs only pthread_getcpuclockid and clock_gettime, which
+Linux provides on every architecture.  Select it for those three, and build
+a-exetim.o into the tasking library as the other Linux blocks do.
+---
+--- a/gcc/ada/Makefile.rtl
++++ b/gcc/ada/Makefile.rtl
+@@ -1999,6 +1999,8 @@
+   SELECTED_PAIRS=s390-linux
+ 
+   LIBGNAT_TARGET_PAIRS = \
++  a-exetim.adb<libgnarl/a-exetim__posix.adb \
++  a-exetim.ads<libgnarl/a-exetim__default.ads \
+   a-intnam.ads<libgnarl/a-intnam__linux.ads \
+   a-nallfl.ads<libgnat/a-nallfl__wraplf.ads \
+   s-inmaop.adb<libgnarl/s-inmaop__posix.adb \
+@@ -2033,7 +2035,7 @@
+ 
+   EXTRA_GNATRTL_NONTASKING_OBJS += $(TRASYM_DWARF_UNIX_OBJS)
+ 
+-  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o
++  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o a-exetim.o
+   EH_MECHANISM=-gcc
+   THREADSLIB = -lpthread
+   GNATLIB_SHARED = gnatlib-shared-dual
+@@ -2505,6 +2507,8 @@
+   SELECTED_PAIRS=arm-linux-gnueabi
+ 
+   LIBGNAT_TARGET_PAIRS = \
++  a-exetim.adb<libgnarl/a-exetim__posix.adb \
++  a-exetim.ads<libgnarl/a-exetim__default.ads \
+   a-intnam.ads<libgnarl/a-intnam__linux.ads \
+   s-inmaop.adb<libgnarl/s-inmaop__posix.adb \
+   s-intman.adb<libgnarl/s-intman__posix.adb \
+@@ -2527,7 +2531,7 @@
+   TOOLS_TARGET_PAIRS = indepsw.adb<indepsw-gnu.adb
+ 
+   EXTRA_GNATRTL_NONTASKING_OBJS += $(TRASYM_DWARF_UNIX_OBJS)
+-  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o
++  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o a-exetim.o
+   EH_MECHANISM=-arm
+   THREADSLIB = -lpthread
+   GNATLIB_SHARED = gnatlib-shared-dual
+@@ -2984,6 +2988,8 @@
+   SELECTED_PAIRS=riscv-linux
+ 
+   LIBGNAT_TARGET_PAIRS = \
++  a-exetim.adb<libgnarl/a-exetim__posix.adb \
++  a-exetim.ads<libgnarl/a-exetim__default.ads \
+   a-intnam.ads<libgnarl/a-intnam__linux.ads \
+   a-nallfl.ads<libgnat/a-nallfl__wraplf.ads \
+   s-dorepr.adb<libgnat/s-dorepr__fma.adb \
+@@ -3019,7 +3025,7 @@
+ 
+   EXTRA_GNATRTL_NONTASKING_OBJS += $(TRASYM_DWARF_UNIX_OBJS)
+ 
+-  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o
++  EXTRA_GNATRTL_TASKING_OBJS=s-linux.o a-exetim.o
+   EH_MECHANISM=-gcc
+   THREADSLIB = -lpthread
+   GNATLIB_SHARED = gnatlib-shared-dual

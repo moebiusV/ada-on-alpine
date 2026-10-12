@@ -173,6 +173,68 @@ Tested on x86 (native 32-bit, musl 1.2.6) with a private copy of the runtime
             gprbuild builds and runs a hello program in about 1 s.
   armv7:    test in progress when this was written; see the status below.
 
+Fix for the main/gcc MR (v2, 2026-10-12)
+----------------------------------------
+0044-ada-use-the-time64-functions-on-32-bit-targets-with-a-64-bit-time_t.patch
+(git-format style; applies cleanly to GCC 15.2.0 plus Alpine's Ada patches
+0015, 0026, 0027, 0028, 0034, 0040, 0041, 16 hunks in 9 files) replaces the
+flat-runtime patch (kept as gnat-musl-time64-flat-runtime.patch, which is what
+the gprbuild aport uses for its private runtime).
+
+Design: the Ada runtime must not assume the C types; the C compiler says what
+the target does.
+  * s-oscons-tmplt.c now reports SIZEOF_timespec, SIZEOF_tv_nsec,
+    OFFSET_tv_nsec and TIME64_REDIRECTED (the C library redirects its plain
+    time functions to time64 variants and long is narrower than time_t:
+    musl on 32-bit targets, glibc built with _TIME_BITS=64).
+  * adaint.c has six thin __gnat_ wrappers (clock_gettime, clock_getres,
+    nanosleep, gettimeofday, pthread_cond_timedwait, select), compiled against
+    the same headers, so they reach whichever function the headers bind to.
+    They exist only when TIME64_REDIRECTED would be 1.
+  * s-osinte__linux.ads, a-exetim__posix.adb, s-osprim__posix.adb and
+    g-socthi.ads import the wrappers when TIME64_REDIRECTED is 1 and the plain
+    names otherwise.
+  * time_t, suseconds_t and timespec (System.Linux, System.OS_Primitives,
+    GNAT.Sockets.Thin_Common) take their widths from System.OS_Constants, and
+    timespec gets the C size and tv_nsec offset: on 32-bit musl it is 16 bytes
+    and the kernel writes all of it, so a 12-byte Ada record overflowed.
+  Nothing changes where TIME64_REDIRECTED is 0: every 64-bit target and 32-bit
+  glibc by default.  glibc built with _TIME_BITS=64 is covered by
+  __USE_TIME_BITS64 but NOT tested (no 32-bit glibc here).
+
+0045-ada-enable-Ada.Execution_Time-on-arm-riscv-and-s390-linux.patch is a
+separate, two-line-per-block Makefile.rtl change: the POSIX Ada.Execution_Time
+was selected for x86, x86-64, x32, ia64, PowerPC, AArch64 and LoongArch Linux
+but not ARM, RISC-V or S/390, where any use failed with "Execution_Time is not
+supported in this configuration".  No bug report for that gap was found.
+
+Tests (t64.adb: clock/delay/calendar; t64b.adb: adds a timed entry call,
+Ada.Execution_Time and a GNAT.Sockets select timeout; t64c.adb: t64b without
+Execution_Time; test-one-arch.sh runs them in an Alpine container).  Each
+arch's s-oscons.ads was regenerated with GNAT's own xoscons from the patched
+template, and the runtime was a private copy of the installed one with the
+patched units recompiled (gnatmake -a), the wrappers linked in.  All on Alpine
+edge, gcc-gnat 15.2.0-r9, musl 1.2.6, natively (x86, x86_64) or under QEMU:
+
+  arch         TIME64  control (unpatched)         patched
+  x86          1       garbage clock, year 2310,   all pass (clock = uptime,
+                       timed entry call hangs      delay 0.050, timed entry
+                                                   call 0.300, select 0.300)
+  armv7        1       clock -2800018356 s,        all pass, incl. Execution_Time
+                       year 2256                   (with 0045)
+  armhf        1       (same bug)                  all pass, incl. Execution_Time
+  x86_64       0       correct                     all pass, unchanged
+  aarch64      0       correct                     all pass, unchanged
+  ppc64le      0       correct                     all pass, unchanged
+  s390x        0       correct                     all pass; Execution_Time (0045)
+  riscv64      0       correct                     all pass; Execution_Time (0045)
+  loongarch64  0       correct                     all pass, unchanged
+
+Not done: a full gcc-gnat build with the patches (only the runtime units were
+rebuilt privately); testing on glibc.  GNAT.Sockets' other users of timeval
+(setsockopt timeouts) go through OS_Constants-sized types and were not
+exercised.
+
 Possible fixes (for discussion)
 -------------------------------
   * In the Alpine gcc aport (main/gcc, not this overlay): patch the Ada runtime
