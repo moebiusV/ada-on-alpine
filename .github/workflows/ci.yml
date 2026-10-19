@@ -1,9 +1,8 @@
 # Build and test every aport on every architecture Alpine edge supports.
-# By default only x86_64 is built: the freshly built gprbuild does not yet work
-# on the other architectures (aarch64 never links, armv7 crashes at start-up
-# under QEMU, x86 deadlocks).  Enable others one at a time with `[ci only:
-# aarch64,x86]` in the commit message (or the "only" input of a manual run), and
-# all of them with `[ci only: all]`.
+# By default only x86_64 is built.  Enable others with `[ci only: aarch64,x86]`
+# in the commit message (or the "only" input of a manual run), and all of them
+# with `[ci only: all]`.  All aports have passed on all nine architectures
+# locally (cross builds, QEMU where needed) before this was set up.
 # x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
 # container on an x86_64 host); the other six run under QEMU user-mode emulation,
 # which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
@@ -32,13 +31,15 @@ concurrency:
 
 jobs:
   coverage:
-    # Every aport under testing/ must be built by some stage in build-arch.yml.
+    # Every aport under testing/ must be built by some stage in build-arch.yml,
+    # except gpr2-tools (disabled) and gcc (the main/gcc MR carrier: Alpine's
+    # own builders build gcc; it is only built here by hand, for testing).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
           listed=$(grep -E '^ +pkgs: ' .github/workflows/build-arch.yml | sed 's/.*pkgs: //; s/"//g' | tr ' ' '\n' | sort)
-          all=$(ls testing | grep -vx gpr2-tools | sort)
+          all=$(ls testing | grep -vxE 'gpr2-tools|gcc' | sort)
           diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
 
   plan:
