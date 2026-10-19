@@ -89,6 +89,11 @@ Suggested commit message:
   and armhf and none on s390x and riscv64 (64-bit long, flag 0).  With the
   stock r9 packages the same program does not even compile on any of the four
   ("Execution_Time is not supported in this configuration").
+  Time control with the stock r9 gcc-gnat in clean Alpine edge containers,
+  program t64.adb (Real_Time.Clock, `delay 0.05`, Calendar.Clock): armv7 gives
+  year 2124 and an elapsed time of 7912334164 s after the 0.05 s delay; armhf
+  gives year 2167 and an elapsed time of -8573477101 s.  With the packages
+  from this MR the same checks pass (13/13 above).
 * The cross compilers of all seven non-x86 architectures, configured like the
   aport (--enable-default-pie --enable-default-ssp, --with-mode=thumb on
   armv7, the aport's per-arch options), built from the patched source, are
