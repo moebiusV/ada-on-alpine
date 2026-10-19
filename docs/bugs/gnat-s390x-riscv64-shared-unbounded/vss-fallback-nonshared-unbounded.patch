@@ -1,0 +1,94 @@
+vss_gnat: support GNAT runtimes without shared Unbounded strings
+
+source/text/gnat/a-szuvau.adb (Ada.Strings.Wide_Wide_Unbounded.VSS_Aux) uses
+Shared_Wide_Wide_String and its operations, which only exist in the "shared"
+implementation of Ada.Strings.Wide_Wide_Unbounded.  Upstream GCC uses that
+implementation only on targets listed with ATOMICS_TARGET_PAIRS in
+gcc/ada/Makefile.rtl; on others, s390x and riscv64 Linux among them, the
+runtime has the plain implementation (a single owner of the string, with
+Reference and Last components), and vss_gnat fails to compile:
+
+  a-szuvau.adb:18:21: error: "Shared_Wide_Wide_String_Access" is undefined
+
+Add a second body for the child package, a-szuvau__nonshared.adb, and select
+it with the VSS_UNBOUNDED_IMPL scenario variable (default "shared", so nothing
+changes for the targets that work today).
+
+diff -ruN a/gnat/vss_gnat.gpr b/gnat/vss_gnat.gpr
+--- a/gnat/vss_gnat.gpr
++++ b/gnat/vss_gnat.gpr
+@@ -20,9 +20,39 @@
+    for Library_Dir use VSS_Common.Library_Dir;
+    for Source_Dirs use ("../source/text/gnat");
+ 
++   --  GNAT has two implementations of Ada.Strings.Wide_Wide_Unbounded: the
++   --  "shared" one (reference-counted, used where atomic operations are
++   --  available) and a plain one with a single owner of the string.  Targets
++   --  such as s390x and riscv64 Linux get the plain one in upstream GCC, so
++   --  VSS_UNBOUNDED_IMPL=nonshared selects the matching implementation of
++   --  the VSS_Aux child.
++
++   type Unbounded_Impl_Kind is ("shared", "nonshared");
++   Unbounded_Impl : Unbounded_Impl_Kind :=
++     external ("VSS_UNBOUNDED_IMPL", "shared");
++
++   case Unbounded_Impl is
++      when "nonshared" =>
++         for Excluded_Source_Files use ("a-szuvau.adb");
++      when "shared" =>
++         for Excluded_Source_Files use ("a-szuvau__nonshared.adb");
++   end case;
++
++   package Naming is
++      case Unbounded_Impl is
++         when "nonshared" =>
++            for Body ("Ada.Strings.Wide_Wide_Unbounded.VSS_Aux")
++              use "a-szuvau__nonshared.adb";
++         when "shared" =>
++            null;
++      end case;
++   end Naming;
++
+    package Compiler is
+       for Switches ("a-suvsau.adb") use ("-g", "-gnatpg", "-O2");
+       for Switches ("a-szuvau.adb") use ("-g", "-gnatpg", "-O2");
++      for Switches ("a-szuvau.ads") use ("-g", "-gnatpg", "-O2");
++      for Switches ("a-szuvau__nonshared.adb") use ("-g", "-gnatpg", "-O2");
+    end Compiler;
+ 
+    package Linker renames VSS_Common.Linker;
+diff -ruN a/source/text/gnat/a-szuvau__nonshared.adb b/source/text/gnat/a-szuvau__nonshared.adb
+--- a/source/text/gnat/a-szuvau__nonshared.adb
++++ b/source/text/gnat/a-szuvau__nonshared.adb
+@@ -0,0 +1,31 @@
++--
++--  Copyright (C) 2021-2026, AdaCore
++--
++--  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++--
++
++--  Implementation for the GNAT runtime where Ada.Strings.Wide_Wide_Unbounded
++--  is not the "shared" (reference counted) one: the string is owned by a
++--  single Unbounded_Wide_Wide_String (see a-szuvau.adb for the shared one).
++
++package body Ada.Strings.Wide_Wide_Unbounded.VSS_Aux is
++
++   ----------------
++   -- Set_String --
++   ----------------
++
++   procedure Set_String
++     (U      : out Unbounded_Wide_Wide_String;
++      Length : Positive;
++      Set    : not null access procedure (S : out Wide_Wide_String)) is
++   begin
++      --  Release the previous contents (this also resets U to the empty
++      --  string), then allocate the new string and let Set fill it.
++
++      Finalize (U);
++      U.Reference := new Wide_Wide_String (1 .. Length);
++      Set (U.Reference.all);
++      U.Last := Length;
++   end Set_String;
++
++end Ada.Strings.Wide_Wide_Unbounded.VSS_Aux;

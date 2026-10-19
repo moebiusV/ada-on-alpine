@@ -1,12 +1,14 @@
-# main/gcc: fix the GNAT runtime's time functions on 32-bit targets (time64)
+# main/gcc: GNAT runtime fixes: time64 on 32-bit musl, shared strings on s390x and riscv64
 
 Target: alpine/aports, `main/gcc` (15.2.0-r9 -> r10).  NOT POSTED.  Files to
-add to the aport are in `aports-main-gcc/`: the two patches and the `APKBUILD`
-change (pkgrel 9 -> 10, two `source=` lines, two checksums).
+add to the aport are in `aports-main-gcc/`: the three patches and the `APKBUILD`
+change (pkgrel 9 -> 10, three `source=` lines, three checksums).  Verified:
+all 48 patches of the aport (Alpine's 45 and these three, in `source=` order)
+apply to the gcc-15.2.0 tarball with no rejects.
 
 Suggested commit message:
 
-    main/gcc: fix GNAT time functions on 32-bit (x86, armhf, armv7)
+    main/gcc: GNAT runtime fixes: time64 on 32-bit, atomics on s390x/riscv64
 
     The GNAT runtime declares a 64-bit time_t on musl (0034) but still
     imports clock_gettime, nanosleep, pthread_cond_timedwait and select by
@@ -29,12 +31,24 @@ Suggested commit message:
     0045: enable Ada.Execution_Time on arm, riscv and s390 Linux (the POSIX
     implementation was only selected for the other Linux targets).
 
+    0046: use the shared Ada.Strings.Unbounded family on s390x and riscv64.
+    Makefile.rtl selects the reference counted implementation (and
+    Indefinite_Holders, Text_IO.Unbounded_IO) for the targets with atomic
+    primitives; on Linux it lists aarch64 but not s390x nor riscv64, which
+    have them, so those two get the plain implementation.  Code written
+    against the shared one, such as AdaCore's VSS, then fails to compile:
+    a-szuvau.adb: "Shared_Wide_Wide_String_Access" is undefined.  GCC 15
+    branch, 16 branch and trunk have the same gap.  Unbounded strings change
+    layout on those two targets, so the runtime and what is built with it
+    must agree.
+
 ## What it changes
 
 `0044` (9 files, `gcc/ada/` only): `s-oscons-tmplt.c`, `adaint.c`,
 `libgnarl/{s-linux.ads,s-osinte__linux.ads,a-exetim__posix.adb}`,
 `libgnat/{s-osprim__posix.adb,g-socthi.ads,g-sothco.ads,g-calend.ads}`.
 `0045`: `Makefile.rtl` (three Linux blocks).
+`0046`: `Makefile.rtl` (the s390x and riscv64 Linux blocks).
 
 ## Evidence (all Alpine edge, musl 1.2.6, gcc 15.2.0)
 
@@ -56,10 +70,27 @@ Suggested commit message:
   `__gnat_select` fixes a bug in Debian's runtime (GNAT.Sockets select
   timeouts return immediately); not built against glibc.
 
+* 0046, s390x and riscv64: cross compilers built from the patched source
+  (plain configure/make, languages c and ada) have the shared
+  Ada.Strings.Unbounded and Wide_Wide_Unbounded in their runtime; a test
+  program that copies, appends to and measures both kinds of unbounded string
+  prints the expected result under qemu-user on each.  AdaCore's VSS (which
+  does not compile without it) then builds on both.
+* The cross compilers of all seven non-x86 architectures, configured like the
+  aport (--enable-default-pie --enable-default-ssp, --with-mode=thumb on
+  armv7, the aport's per-arch options), built from the patched source, are
+  what the overlay's Ada aports are being built with on armv7, armhf, aarch64,
+  ppc64le, s390x, riscv64 and loongarch64; the sweep is in progress.
+
 ## Not done / caveats
 
-* Only x86 has been built as a real gcc; armv7 and armhf (and the rest) were
-  tested with a private runtime copy, a cross build is next.
+* Only x86 has been built as a real gcc package (and before 0046, which does
+  not touch x86).  The other architectures used plain configure/make cross
+  builds from the patched source, not the aport; the aport itself needs a CI
+  run on every architecture.
+* 0046 has not been reported or searched in GCC's Bugzilla (bot check) and
+  has not been looked at against GCC 16/17 beyond Makefile.rtl having the
+  same gap.
 * Related: GCC trunk (GCC 16) reworked these types (System.C_Time,
   PR ada/114065, commit 41974d6ed3) and still imports the plain names on
   musl; an upstream patch has to be rebased onto it.  GCC Bugzilla was not

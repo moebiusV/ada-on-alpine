@@ -264,6 +264,7 @@ source="https://gcc.gnu.org/pub/gcc/releases/gcc-$_pkgbase/gcc-$_pkgbase.tar.xz
 	0043-libsanitizer-Fix-up-build-against-latest-kernel-head.patch
 	0044-ada-use-the-time64-functions-on-32-bit-targets-with-a-64-bit-time_t.patch
 	0045-ada-enable-Ada.Execution_Time-on-arm-riscv-and-s390-linux.patch
+	0046-ada-use-the-shared-Unbounded-strings-on-s390x-and-riscv64-Linux.patch
 
 	0001-tree-object-size.cc-Fix-assert-constant-offset-in-ch.patch
 	0001-LoongArch-Only-allow-valid-binary-op-when-optimize-c.patch
@@ -800,6 +801,7 @@ c717764ef52c0226a23cbf434654cdefa6cbf38ec625648575d9143c5513b16d8914c25015db7430
 aff3b00b6244b361a5936ca37823cfde3aa6824ab1845a9c5c8b69bbd93d4bffc9b581802d1f365dcf834d042688068551fa27a181bcf85fe3aeea92afd306af  0043-libsanitizer-Fix-up-build-against-latest-kernel-head.patch
 cf8f0a0c561a09c1f297a19e22910b95767ebc23520a39901aa94d5354ed45d0e715d810e5704d6382f7f4555b34f4776f8efe134f85dcfa436e96b48c9f081d  0044-ada-use-the-time64-functions-on-32-bit-targets-with-a-64-bit-time_t.patch
 4df029b669ac62eed46808ea13140c0edc757f3794bae2950f694e22f1efbf13ab5b91fec5b08b79582a80bdafb8ea021ddb77164c910a05d14d8d66c208ac47  0045-ada-enable-Ada.Execution_Time-on-arm-riscv-and-s390-linux.patch
+c5c4a4c59ad0b4af55b310190184fc23be7db51a700c56c82d7a1db4ed99259f03a3c960336d2b04c195f3c31ac60fc64edc61df6963b1c852d930edf46fd091  0046-ada-use-the-shared-Unbounded-strings-on-s390x-and-riscv64-Linux.patch
 c3b64b05332bd4dd7fad3fff3cacd4f9de0512943f1548c6f1205fab1a74c83622024f30471805f57d625198cc32f647b32172914528fd5605d0bf61cb0c3ff1  0001-tree-object-size.cc-Fix-assert-constant-offset-in-ch.patch
 e91873055550eba051d9297bec5c6acd27abb9ee6ce8911cdd04b5faf37d77b6b2a7607ec588d2863f13f14b48af9398cb4ac42443d8567bfa5037dc6bd50404  0001-LoongArch-Only-allow-valid-binary-op-when-optimize-c.patch
 "

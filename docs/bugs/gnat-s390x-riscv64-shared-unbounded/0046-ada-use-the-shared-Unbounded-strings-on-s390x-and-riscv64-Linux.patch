@@ -1,0 +1,55 @@
+ada: use the shared Unbounded strings on s390x and riscv64 Linux
+
+Makefile.rtl selects the "shared" (reference counted, atomic counters)
+implementation of Ada.Strings.[Wide_[Wide_]]Unbounded, Ada.Containers.Indefinite_Holders
+and Ada.Text_IO.Unbounded_IO through ATOMICS_TARGET_PAIRS, for the targets that
+have atomic primitives.  On Linux that list has only aarch64 in the generic
+aarch64/riscv block and nothing in the s390 one, so s390x and riscv64 get the
+plain implementation although both have the instructions (the A extension of
+rv64gc, and the interlocked-access facility of z196 and later).
+
+Code written against the shared implementation, such as AdaCore's VSS
+(Ada.Strings.Wide_Wide_Unbounded.VSS_Aux uses Shared_Wide_Wide_String), then
+fails to compile on those two targets:
+
+  a-szuvau.adb:18:21: error: "Shared_Wide_Wide_String_Access" is undefined
+
+Add ATOMICS_TARGET_PAIRS and ATOMICS_BUILTINS_TARGET_PAIRS for s390x, and
+extend the existing condition to riscv64.
+
+gcc/ada/ChangeLog:
+
+	* Makefile.rtl (s390x-linux, riscv64-linux): Use the atomic
+	primitives target pairs.
+
+--- a/gcc/ada/Makefile.rtl
++++ b/gcc/ada/Makefile.rtl
+@@ -2031,6 +2031,14 @@
+     endif
+   endif
+ 
++  # z/Architecture has atomic primitives (z196 and later, as in the
++  # default of --with-arch)
++  ifeq ($(strip $(filter-out s390x,$(target_cpu))),)
++    LIBGNAT_TARGET_PAIRS += \
++      $(ATOMICS_TARGET_PAIRS) \
++      $(ATOMICS_BUILTINS_TARGET_PAIRS)
++  endif
++
+   TOOLS_TARGET_PAIRS = indepsw.adb<indepsw-gnu.adb
+ 
+   EXTRA_GNATRTL_NONTASKING_OBJS += $(TRASYM_DWARF_UNIX_OBJS)
+@@ -3021,6 +3029,13 @@
+     endif
+   endif
+ 
++  # RV64GC has the A extension (atomic memory operations)
++  ifeq ($(strip $(filter-out riscv64,$(target_cpu))),)
++    LIBGNAT_TARGET_PAIRS += \
++      $(ATOMICS_TARGET_PAIRS) \
++      $(ATOMICS_BUILTINS_TARGET_PAIRS)
++  endif
++
+   TOOLS_TARGET_PAIRS = indepsw.adb<indepsw-gnu.adb
+ 
+   EXTRA_GNATRTL_NONTASKING_OBJS += $(TRASYM_DWARF_UNIX_OBJS)
