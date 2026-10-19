@@ -57,7 +57,31 @@ printf 'PACKAGER_PRIVKEY="/home/build/.config/abuild/ada-on-alpine.rsa"\n' \
 cp /keys/ada-on-alpine.rsa.pub /etc/apk/keys/
 chown -R build:build /home/build /keys /repo
 
+# Install an aport's own build dependencies (makedepends, makedepends_build and
+# _host, checkdepends) before building it, so a new aport needs no edit to the
+# fixed tool list above.  The APKBUILD is sourced the way abuild sources it;
+# `!conflicts` and version operators are stripped.  Packages that are not in the
+# repositories (aports of ours that come later) fail the install harmlessly:
+# abuild then reports what is really missing.
+install_makedepends() {
+    _deps=$(cd "/repo/testing/$1" && CARCH=$(apk --print-arch) sh -c '
+        . ./APKBUILD >/dev/null 2>&1
+        for d in $makedepends $makedepends_build $makedepends_host $checkdepends; do
+            case "$d" in "!"*) ;; *) echo "${d%%[<>=~]*}" ;; esac
+        done' | sort -u)
+    [ -n "$_deps" ] || return 0
+    # shellcheck disable=SC2086
+    if ! apk add --no-cache $_deps >/tmp/makedepends.log 2>&1; then
+        # one unknown name fails the whole batch: retry one by one
+        for _d in $_deps; do
+            apk add --no-cache "$_d" >/tmp/makedepends.log 2>&1 \
+                || echo "  (makedepend $_d of $1 not installable here)"
+        done
+    fi
+}
+
 run_abuild() {
+    install_makedepends "$1"
     su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild"
 }
 
