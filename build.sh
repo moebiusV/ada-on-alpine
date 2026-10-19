@@ -9,12 +9,14 @@ ROOT=$(cd "$(dirname "$0")" && pwd)
 OUT="$ROOT/.work/packages"
 mkdir -p "$OUT"
 
+# abuild comes first: it carries the patch that drops -fstack-clash-protection on
+# 32-bit ARM (docs/mr/abuild/), and every later build then uses the patched one.
 # Dependency order: each package's build deps must precede it. libadalang OOMs
 # on <8GB (built -j1). gpr2-tools (installs as gprbuild2 etc., alongside classic
 # gprbuild) is disabled/WIP and not in the default list: gprbuild2 crashes on
 # library projects. afl++ (a C/C++ fuzzing tool) builds against neither gprbuild
 # nor gpr2-tools, so it sits after the spine.
-PKGS="${PKGS:-gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgprbuild gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server afl++}"
+PKGS="${PKGS:-abuild gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit libadagpr2 libadagpr gnatcoll-projects libadalang templates-parser vss-extra xdiff libadalang-tools lal-refactor gnatformat ada-markdown gnatdoc fswatch ada-libfswatch ada_language_server afl++}"
 
 # The signing key lives on the host in ~/.config/abuild (Alpine's standard abuild
 # key location), not in this repo, so every checkout and every machine signs with
@@ -33,7 +35,7 @@ mkdir -p "$KEYDIR"
 
 docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
-apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
+apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
 
 # Signing key: /keys is a bind-mount of the host's ~/.config/abuild, so the same
@@ -77,6 +79,8 @@ install_apks() {
     for _sub in $(sed -n 's/^subpackages="\(.*\)"$/\1/p' "/repo/testing/$_pkg/APKBUILD" 2>/dev/null); do
         _sub=${_sub%%:*}
         _sub=$(echo "$_sub" | sed "s/\$pkgname/$_pkg/")
+        # abuild's perl/ruby helper tools are built and published but not installed here
+        case "$_sub" in apkbuild-*|abuild-rootbld) continue ;; esac
         if ! apk add --allow-untrusted "$_dir"/"$_sub"-"$_ver"-*.apk; then
             echo "error: failed to install $_sub (subpackage of $_pkg)" >&2
             exit 1

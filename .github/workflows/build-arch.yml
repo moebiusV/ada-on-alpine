@@ -35,7 +35,7 @@ jobs:
           qemu: ${{ inputs.qemu }}
           stage: s1
           prev: ""
-          pkgs: "gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
+          pkgs: "abuild gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
 
   s2:
     needs: s1
@@ -50,7 +50,7 @@ jobs:
           qemu: ${{ inputs.qemu }}
           stage: s2
           prev: "s1"
-          pkgs: "py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit gpr libgprbuild gnatcoll-projects"
+          pkgs: "py3-e3-core py3-e3-testsuite prettier-ada py3-langkit langkit libadagpr2 libadagpr gnatcoll-projects"
 
   s3:
     needs: s2

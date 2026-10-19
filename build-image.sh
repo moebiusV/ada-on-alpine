@@ -20,6 +20,7 @@ cat > "$tmp/Dockerfile" <<'EOF'
 FROM alpine:edge
 COPY pkgs /pkgs
 RUN set -e; \
+    rm -f /pkgs/apkbuild-*.apk /pkgs/abuild-rootbld-*.apk; \
     apk add --no-cache --allow-untrusted gcc-gnat musl-dev gmp /pkgs/*.apk >/dev/null 2>&1
 EOF
 
