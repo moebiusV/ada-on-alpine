@@ -1,0 +1,97 @@
+From adeb3be49877e5b16a9ad72328d5fd1ff878f084 Mon Sep 17 00:00:00 2001
+From: David Walther <tederific@gmail.com>
+Date: Tue, 13 Oct 2026 15:48:15 -0700
+Subject: [PATCH 1/2] functions.sh: do not use -fstack-clash-protection on
+ armhf and armv7
+
+With GCC 15, -Os together with -fstack-clash-protection miscompiles code on
+armv7 (Thumb-2): a local is kept below the stack pointer across a call, and
+the callee or the PLT lazy-binding stub then overwrites it.  The
+binder-generated adainit of every GNAT program is hit, which then crashes at
+start-up, and the same pattern can occur in any code.
+
+The flag only ever reached 32-bit ARM through default.conf, which enables it
+for every architecture.  GCC's 32-bit ARM implementation of it is newer and
+less used than the others (Red Hat's articles on the feature did not cover
+32-bit ARM, Fedora's optflags do not set it for armv7hl).  Remove the flag
+from CFLAGS and CXXFLAGS once CARCH is known, for armhf and armv7 only, until
+the miscompile is fixed in GCC.
+---
+ functions.sh.in      | 10 ++++++++++
+ tests/functions_test | 35 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/functions.sh.in b/functions.sh.in
+index c4a8ea5..5419687 100644
+--- a/functions.sh.in
++++ b/functions.sh.in
+@@ -193,6 +193,16 @@ readconfig() {
+ 	fi
+ 
+ 	[ -z "$CARCH" ] && CARCH="$(triplet_to_arch $CHOST)"
++
++	# With GCC 15, -Os together with -fstack-clash-protection miscompiles code on
++	# 32-bit ARM (a local is kept below the stack pointer across a call), so do
++	# not use the flag on those targets, whatever the configuration files say.
++	case "$CARCH" in
++	armhf|armv7)
++		CFLAGS=$(printf '%s\n' "$CFLAGS" | sed 's/[[:space:]]*-fstack-clash-protection//')
++		CXXFLAGS=$(printf '%s\n' "$CXXFLAGS" | sed 's/[[:space:]]*-fstack-clash-protection//')
++		;;
++	esac
+ 	[ -z "$CLIBC" ] && CLIBC="$(triplet_to_libc $CHOST)"
+ 	[ -z "$CBUILD_ARCH" ] && CBUILD_ARCH="$(triplet_to_arch $CBUILD)"
+ 	[ -z "$CTARGET_ARCH" ] && CTARGET_ARCH="$(triplet_to_arch $CTARGET)"
+diff --git a/tests/functions_test b/tests/functions_test
+index 2b42a7c..1553603 100755
+--- a/tests/functions_test
++++ b/tests/functions_test
+@@ -6,7 +6,8 @@ init_tests \
+ 	funcs_check_missing_apk \
+ 	funcs_check_missing_git \
+ 	funcs_check_env_set_but_empty \
+-	funcs_check_defconfig
++	funcs_check_defconfig \
++	funcs_check_stack_clash_protection
+ 
+ FUNCS=$(atf_get_srcdir)/../functions.sh
+ 
+@@ -80,3 +81,35 @@ funcs_check_defconfig_body() {
+ 		CFLAGS="envcflags" \
+ 		sh -e -c " . $FUNCS; echo \"\$CFLAGS\""
+ }
++
++funcs_check_stack_clash_protection_body() {
++	# abuild exports its flags when it runs the tests
++	unset CFLAGS CXXFLAGS LDFLAGS RUSTFLAGS
++	# GCC has no -fstack-clash-protection support on 32-bit ARM
++	cat >def.conf<<-EOF
++		export CFLAGS="-Os -fstack-clash-protection -Wformat"
++		export CXXFLAGS="-Os -fstack-clash-protection -Wformat"
++	EOF
++	for arch in aarch64 armhf armv7 ppc64le s390x x86 x86_64; do
++		case $arch in
++		armhf|armv7) expected="absent kept" ;;
++		*) expected="present kept" ;;
++		esac
++		cat >script<<-EOF
++			CHOST=$arch
++			. $FUNCS
++			case "\$CFLAGS \$CXXFLAGS" in
++			*-fstack-clash-protection*) printf 'present ' ;;
++			*) printf 'absent ' ;;
++			esac
++			case "\$CFLAGS" in
++			*-Os*-Wformat*) echo kept ;;
++			*) echo "lost: \$CFLAGS" ;;
++			esac
++		EOF
++		atf_check -s exit:0 \
++			-o inline:"$expected\n" \
++			-e empty \
++			env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF=/dev/null sh script
++	done
++}
+-- 
+2.47.3
+

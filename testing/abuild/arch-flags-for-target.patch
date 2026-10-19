@@ -1,0 +1,231 @@
+From b941f92a5445746d6c7d40d76e38680bd6ad66d8 Mon Sep 17 00:00:00 2001
+From: David Walther <tederific@gmail.com>
+Date: Tue, 13 Oct 2026 15:57:46 -0700
+Subject: [PATCH 2/2] Add architecture specific defaults: default-$CARCH.conf
+
+The flags that default to a particular architecture (-fno-plt on x86_64,
+-z pack-relative-relocs on aarch64, loongarch64, x86, x86_64 and ppc64le) are
+appended to default.conf when the abuild package is built, using the CARCH of
+the machine that builds abuild.  Cross compiling with abuild from x86_64 for
+another architecture therefore applies the x86_64 flags to the target, and
+building the abuild package on one architecture changes what it does on all.
+
+Keep them in default-$CARCH.conf files next to default.conf instead, and read
+the one of the architecture being built for once CARCH is known.  As for
+default.conf, flags that a configuration file or the environment set are left
+alone.
+---
+ Makefile                          |  5 ++-
+ default-aarch64.conf              |  1 +
+ default-loongarch64.conf          |  1 +
+ default-pack-relative-relocs.conf |  3 ++
+ default-ppc64le.conf              |  1 +
+ default-x86.conf                  |  1 +
+ default-x86_64.conf               | 10 +++++
+ functions.sh.in                   | 17 +++++++++
+ tests/functions_test              | 61 ++++++++++++++++++++++++++++++-
+ 9 files changed, 97 insertions(+), 3 deletions(-)
+ create mode 100644 default-aarch64.conf
+ create mode 100644 default-loongarch64.conf
+ create mode 100644 default-pack-relative-relocs.conf
+ create mode 100644 default-ppc64le.conf
+ create mode 100644 default-x86.conf
+ create mode 100644 default-x86_64.conf
+
+diff --git a/Makefile b/Makefile
+index 57329a1..669f9cc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -14,6 +14,7 @@ SCRIPTS		:= abuild abuild-keygen abuild-sign newapkbuild \
+ USR_BIN_FILES	:= $(SCRIPTS) abuild-tar abuild-gzsplit abuild-sudo abuild-fetch abuild-rm
+ MAN_1_PAGES	:= newapkbuild.1 abuild.1 abump.1
+ MAN_5_PAGES	:= APKBUILD.5 abuild.conf.5
++DEFAULT_CONFS	:= $(wildcard default-*.conf)
+ SAMPLES		:= sample.APKBUILD sample.initd sample.confd \
+ 		sample.pre-install sample.post-install
+ MAN_PAGES	:= $(MAN_1_PAGES) $(MAN_5_PAGES)
+@@ -130,7 +131,7 @@ Kyuafile: tests/Kyuafile
+ check: $(SCRIPTS) $(USR_BIN_FILES) functions.sh tests/Kyuafile Kyuafile tests/testdata/abuild.key.pub
+ 	kyua --variable parallelism=$(shell nproc) test || (kyua report --verbose && exit 1)
+ 
+-install: $(USR_BIN_FILES) $(SAMPLES) $(MAN_PAGES) $(AUTOTOOLS_TOOLCHAIN_FILES) default.conf abuild.conf functions.sh
++install: $(USR_BIN_FILES) $(SAMPLES) $(MAN_PAGES) $(AUTOTOOLS_TOOLCHAIN_FILES) default.conf $(DEFAULT_CONFS) abuild.conf functions.sh
+ 	install -D -m 755 -t $(DESTDIR)/$(bindir)/ $(USR_BIN_FILES);\
+ 	chmod 4555 $(DESTDIR)/$(bindir)/abuild-sudo
+ 	for i in adduser addgroup apk; do \
+@@ -143,7 +144,7 @@ install: $(USR_BIN_FILES) $(SAMPLES) $(MAN_PAGES) $(AUTOTOOLS_TOOLCHAIN_FILES) d
+ 	fi
+ 
+ 	install -D -t $(DESTDIR)/$(sharedir)/ $(AUTOTOOLS_TOOLCHAIN_FILES)
+-	install -D -m 644 -t $(DESTDIR)/$(sharedir)/ functions.sh default.conf $(SAMPLES)
++	install -D -m 644 -t $(DESTDIR)/$(sharedir)/ functions.sh default.conf $(DEFAULT_CONFS) $(SAMPLES)
+ 
+ 	install -D -m 644 -t $(DESTDIR)/$(zshdir)/ $(ZSH_COMPLETIONS)
+ 
+diff --git a/default-aarch64.conf b/default-aarch64.conf
+new file mode 100644
+index 0000000..7b256c6
+--- /dev/null
++++ b/default-aarch64.conf
+@@ -0,0 +1 @@
++. "$_DEFDIR/default-pack-relative-relocs.conf"
+diff --git a/default-loongarch64.conf b/default-loongarch64.conf
+new file mode 100644
+index 0000000..7b256c6
+--- /dev/null
++++ b/default-loongarch64.conf
+@@ -0,0 +1 @@
++. "$_DEFDIR/default-pack-relative-relocs.conf"
+diff --git a/default-pack-relative-relocs.conf b/default-pack-relative-relocs.conf
+new file mode 100644
+index 0000000..9e31fdd
+--- /dev/null
++++ b/default-pack-relative-relocs.conf
+@@ -0,0 +1,3 @@
++# binutils ld.bfd supports this on this architecture; default to it
++export RUSTFLAGS="${RUSTFLAGS-} -Clink-arg=-Wl,-z,pack-relative-relocs"
++export LDFLAGS="$LDFLAGS -Wl,-z,pack-relative-relocs"
+diff --git a/default-ppc64le.conf b/default-ppc64le.conf
+new file mode 100644
+index 0000000..7b256c6
+--- /dev/null
++++ b/default-ppc64le.conf
+@@ -0,0 +1 @@
++. "$_DEFDIR/default-pack-relative-relocs.conf"
+diff --git a/default-x86.conf b/default-x86.conf
+new file mode 100644
+index 0000000..7b256c6
+--- /dev/null
++++ b/default-x86.conf
+@@ -0,0 +1 @@
++. "$_DEFDIR/default-pack-relative-relocs.conf"
+diff --git a/default-x86_64.conf b/default-x86_64.conf
+new file mode 100644
+index 0000000..8bfcd9d
+--- /dev/null
++++ b/default-x86_64.conf
+@@ -0,0 +1,10 @@
++. "$_DEFDIR/default-pack-relative-relocs.conf"
++
++# https://lists.alpinelinux.org/~alpine/devel/%3C1628515011.zujvcn248v.none%40localhost%3E
++# note that this is x86-exclusive. on other architectures, this is pretty much always bad
++# https://github.com/rust-lang/rust/pull/106380
++#
++# -fno-plt has very slight improvements to general code size and speed on x86-only,
++# for the common system dynamic linking case
++export CFLAGS="$CFLAGS -fno-plt"
++export CXXFLAGS="$CXXFLAGS -fno-plt"
+diff --git a/functions.sh.in b/functions.sh.in
+index 5419687..190669d 100644
+--- a/functions.sh.in
++++ b/functions.sh.in
+@@ -115,6 +115,9 @@ readconfig() {
+ 	[ -n "${USE_CCACHE+x}" ] && _USE_CCACHE="$USE_CCACHE"
+ 	: ${ABUILD_DEFCONF:=$sharedir/default.conf}
+ 	[ -f "$ABUILD_DEFCONF" ] && . "$ABUILD_DEFCONF"
++	# remember the defaults, to know later whether a configuration file or the
++	# environment replaced them
++	_DEF_CFLAGS=$CFLAGS _DEF_CXXFLAGS=$CXXFLAGS _DEF_LDFLAGS=$LDFLAGS
+ 	: ${ABUILD_CONF:=$sysconfdir/abuild.conf}
+ 	[ -f "$ABUILD_CONF" ] && . "$ABUILD_CONF"
+ 	if [ -n "${_ABUILD_USERDIR+x}" ] || [ -n "$ABUILD_USERDIR" ]; then
+@@ -203,6 +206,20 @@ readconfig() {
+ 		CXXFLAGS=$(printf '%s\n' "$CXXFLAGS" | sed 's/[[:space:]]*-fstack-clash-protection//')
+ 		;;
+ 	esac
++
++	# Flags that default to a particular architecture are in default-$CARCH.conf,
++	# next to default.conf, so that they follow the architecture we build for and
++	# not the one abuild was built on (it matters when cross compiling).  As for
++	# the ones in default.conf, flags that were set by a configuration file or the
++	# environment are left alone.
++	_DEFDIR=$(dirname "$ABUILD_DEFCONF")
++	if [ -f "$_DEFDIR/default-$CARCH.conf" ]; then
++		_PRE_CFLAGS=$CFLAGS _PRE_CXXFLAGS=$CXXFLAGS _PRE_LDFLAGS=$LDFLAGS
++		. "$_DEFDIR/default-$CARCH.conf"
++		[ "$_PRE_CFLAGS" = "$_DEF_CFLAGS" ] || CFLAGS=$_PRE_CFLAGS
++		[ "$_PRE_CXXFLAGS" = "$_DEF_CXXFLAGS" ] || CXXFLAGS=$_PRE_CXXFLAGS
++		[ "$_PRE_LDFLAGS" = "$_DEF_LDFLAGS" ] || LDFLAGS=$_PRE_LDFLAGS
++	fi
+ 	[ -z "$CLIBC" ] && CLIBC="$(triplet_to_libc $CHOST)"
+ 	[ -z "$CBUILD_ARCH" ] && CBUILD_ARCH="$(triplet_to_arch $CBUILD)"
+ 	[ -z "$CTARGET_ARCH" ] && CTARGET_ARCH="$(triplet_to_arch $CTARGET)"
+diff --git a/tests/functions_test b/tests/functions_test
+index 1553603..3bfd531 100755
+--- a/tests/functions_test
++++ b/tests/functions_test
+@@ -7,7 +7,8 @@ init_tests \
+ 	funcs_check_missing_git \
+ 	funcs_check_env_set_but_empty \
+ 	funcs_check_defconfig \
+-	funcs_check_stack_clash_protection
++	funcs_check_stack_clash_protection \
++	funcs_check_arch_flags
+ 
+ FUNCS=$(atf_get_srcdir)/../functions.sh
+ 
+@@ -113,3 +114,61 @@ funcs_check_stack_clash_protection_body() {
+ 			env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF=/dev/null sh script
+ 	done
+ }
++
++funcs_check_arch_flags_body() {
++	# abuild exports its flags when it runs the tests
++	unset CFLAGS CXXFLAGS LDFLAGS RUSTFLAGS
++	# the flags depend on the architecture we build for, not the one abuild runs on
++	cp "$(atf_get_srcdir)"/../default-*.conf .
++	cat >def.conf<<-EOF
++		export CFLAGS="-Os -Wformat"
++		export CXXFLAGS="-Os -Wformat"
++		export LDFLAGS="-Wl,--as-needed"
++	EOF
++	echo 'CFLAGS="-O2"' > user.conf
++	for arch in aarch64 armhf armv7 loongarch64 ppc64le riscv64 s390x x86 x86_64; do
++		case $arch in
++		x86_64) expected="noplt relr" ;;
++		aarch64|loongarch64|ppc64le|x86) expected="plain relr" ;;
++		*) expected="plain norelr" ;;
++		esac
++		cat >script<<-EOF
++			CHOST=$arch
++			. $FUNCS
++			case "\$CFLAGS \$CXXFLAGS" in
++			*-fno-plt*) printf 'noplt ' ;;
++			*) printf 'plain ' ;;
++			esac
++			case "\$LDFLAGS" in
++			*pack-relative-relocs*) echo relr ;;
++			*) echo norelr ;;
++			esac
++		EOF
++		atf_check -s exit:0 \
++			-o inline:"$expected\n" \
++			-e empty \
++			env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF=/dev/null sh script
++	done
++
++	# the defaults of the architecture are not added to flags set in a
++	# configuration file or the environment
++	echo 'LDFLAGS="-Wl,-z,now"' > ldflags.conf
++	cat >script<<-EOF
++		CHOST=x86_64
++		. $FUNCS
++		case "\$LDFLAGS" in
++		*pack-relative-relocs*) echo "added" ;;
++		*-z,now*) echo "kept" ;;
++		esac
++		case "\$CFLAGS" in
++		*-fno-plt*) echo "added" ;;
++		*-O[23]*) echo "kept" ;;
++		esac
++	EOF
++	atf_check -s exit:0 -o inline:"kept\nkept\n" -e empty \
++		env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF="$PWD"/ldflags.conf CFLAGS=-O3 sh script
++	atf_check -s exit:0 -o inline:"kept\nadded\n" -e empty \
++		env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF="$PWD"/ldflags.conf sh script
++	atf_check -s exit:0 -o inline:"added\nkept\n" -e empty \
++		env ABUILD_DEFCONF="$PWD"/def.conf ABUILD_CONF=/dev/null ABUILD_USERCONF="$PWD"/user.conf sh script
++}
+-- 
+2.47.3
+

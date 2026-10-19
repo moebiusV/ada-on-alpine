@@ -210,3 +210,39 @@ Not yet established
   * No upstream bug report has been filed, so there is no PR number.
   * Search GCC Bugzilla directly (stack-clash, arm, thumb2, wrong-code) before
     filing; the web searches above could not reach it.
+
+Policy check (2026-10-13)
+-------------------------
+An earlier version of this section said GCC does not support the flag on
+32-bit ARM.  That came from Red Hat's "Stack clash mitigation in GCC, part 3"
+(GCC 8, 2020) and is out of date.  Checked against current sources:
+  * Debian's dpkg-buildflags (dpkg 1.22+, scripts/Dpkg/Vendor/Debian.pm and
+    man/dpkg-buildflags.pod) ENABLES -fstack-clash-protection by default on
+    amd64, arm64, armhf and armel.
+  * Fedora's redhat-rpm-config rpmrc sets it for i386..i686, x86_64, ppc64le,
+    s390x and aarch64 and has no armv7hl entry (no statement of intent found).
+  * A Debian ports thread (Nov 2023, seen only as a search snippet) says Arm's
+    GCC maintainers confirm it is supported on 32-bit, with a different and
+    buggier implementation.
+So the flag is supported, and the miscompile described above is a GCC bug that
+should be reported (still to do).  Meanwhile the overlay's abuild leaves the
+flag out on armhf and armv7 as a workaround.
+
+Reproduced on Debian (2026-10-13), so this is not Alpine-specific
+-------------------------------------------------------------------
+Debian sid, armhf (linux/arm/v7 container under QEMU), gcc-15 / gnat-15
+15.3.0-4, glibc.  The same gprbuild commit (2781289e9e2b) built with
+bootstrap.sh and run with `gprbuild --version`:
+
+  flags                                                      result
+  -Os -fstack-clash-protection -Wformat                      STORAGE_ERROR s-intman.adb:136
+  -g -O2 -fstack-protector-strong -fstack-clash-protection   STORAGE_ERROR s-intman.adb:136
+    (Debian's own dpkg-buildflags for armhf)
+  -g -O2 -fstack-protector-strong   (no stack-clash flag)    works
+  -Os                               (no stack-clash flag)    works
+
+So the flag alone triggers it, at -O2 as well as -Os, with Debian's compiler and
+libc: a GCC bug (target arm), not a problem of Alpine's gcc aport, musl or
+abuild.  The title and summary above say -Os; correct them before filing.
+Test-only change: gpr-util-put_resource_usage__unix.adb replaced by the __null
+unit (GNAT 15.3 moved timeval out of GNAT.Sockets.Thin_Common).
