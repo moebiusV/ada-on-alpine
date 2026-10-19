@@ -1,4 +1,5 @@
-# Maintainer: David Walther <david@clearbrookdistillery.com>
+# Contributor: Marian Buschsieweke <marian.buschsieweke@posteo.net>
+# Maintainer: Marian Buschsieweke <marian.buschsieweke@posteo.net>
 pkgname=afl++
 pkgver=5.03c
 pkgrel=0
