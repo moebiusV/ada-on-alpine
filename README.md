@@ -30,7 +30,8 @@ builds and is tested as a whole.
 
 | Target | Kind | Alpine today | Ours | Content |
 | --- | --- | --- | --- | --- |
-| `gprbuild` | MR | testing 25.0.0 | 26.0.0 | Version bump; `alpine.xml` so gprbuild links on musl triples other than x86_64; armv7/armhf built without `-fstack-clash-protection`; requires `gcc-gnat` >= 15.2.0-r10, i.e. the `main/gcc` time64 patch below, for 32-bit targets |
+| `gprbuild` | MR | testing 25.0.0 | 26.0.0 | Version bump; `alpine.xml` so gprbuild links on musl triples other than x86_64; requires `gcc-gnat` >= 15.2.0-r10, i.e. the `main/gcc` time64 patch below, for 32-bit targets |
+| `abuild` | MR | main 3.18.0_rc7-r1 | 3.18.0_rc7-r2 | Two commits (`docs/mr/abuild/`): no `-fstack-clash-protection` in the default `CFLAGS`/`CXXFLAGS` on armhf and armv7, where GCC 15 miscompiles with it; and the per-architecture flags (`-fno-plt`, `pack-relative-relocs`) follow the target architecture, not the one abuild was built on. Built and installed first in every build; dropped here once merged |
 | `afl++` | MR | community 4.40c | 5.03c | Version bump; GCC-only build that drops upstream's broken `clang22-rtlib` dependency |
 | `odin` | retired | testing 0.2026.07 | — | Dropped from the overlay: Alpine already ships it, and our rewrite lacked its vendor-library build. At most a version-bump MR against Alpine's own aport (ours was 2026.09) |
 | `vlang` | retired | testing 0.4.11 | — | Dropped from the overlay: Alpine already ships it, and our rewrite lacked `thirdparty/` and the built tools. At most a version-bump MR against Alpine's own aport (ours was 0.5.2) |
@@ -39,7 +40,7 @@ builds and is tested as a whole.
 | GCC | bug report | 15.2.0 | `docs/bugs/armv7-gcc-stack-clash-miscompile/` | GCC 15 miscompiles the binder's `adainit` on armv7 (and armhf) with `-Os -fstack-clash-protection`; to be searched in GCC Bugzilla before filing |
 
 Alpine's community `libgpr` is gRPC's C library, unrelated to gprbuild's project
-library, which this overlay ships as `libgprbuild`.
+library, which this overlay ships as `libadagpr` (and the newer GPR2 library as `libadagpr2`).
 
 ## Use as an Alpine repository
 
@@ -86,9 +87,9 @@ tooling and the language server. This is the set proposed for Alpine.
 | `prettier-ada` | Built: Prettier formatter core (static + shared) |
 | `py3-langkit` | Built: Langkit Python parser framework |
 | `langkit` | Built: parser framework (static + shared) + lkt tools |
-| `gpr` | Built: GPR2 project parser library (static) |
+| `libadagpr2` | Built: GPR2, the new-generation project parser library (static); project `gpr2.gpr` |
 | `gpr2-tools` | **WIP, disabled** (`arch=""`): next-gen GPR tools, installed as `gprbuild2`, … alongside classic gprbuild; `gprbuild2` crashes on library projects |
-| `libgprbuild` | Built: gprbuild's project parser library (static + shared); not named `libgpr`, which is gRPC's in Alpine |
+| `libadagpr` | Built: gprbuild's own project parser library (static + shared, project `gpr.gpr`); not named `libgpr`, which is gRPC's in Alpine |
 | `gnatcoll-projects` | Built: GNATcoll project-file support (static + shared) |
 | `libadalang` | Built: Ada semantic analysis (needs ≥8 GB RAM) + lal_parse/lal_unparse |
 | `templates-parser` | Built: AWS templates-parser engine (static + shared; aws builds it in-tree but doesn't install it) |
@@ -141,7 +142,7 @@ gcc-gnat ──► gprbuild ──┬─► xmlada ──┬─► gnatcoll ─�
                         │            │              ├─► gnatcoll-gmp
                         │            │              ├─► gnatcoll-iconv
                         │            │              └─► aws
-                        │            └─► libgprbuild ► gnatcoll-projects
+                        │            └─► libadagpr ► gnatcoll-projects
                         │            └─► templates-parser
                         ├─► aunit
                         ├─► spawn
@@ -158,8 +159,8 @@ The langkit / GPR2 spine:
 ```
 gnatcoll + vss ──► prettier-ada
 gnatcoll + gnatcoll-gmp/iconv + adasat + prettier-ada ──► langkit
-gnatcoll + gnatcoll-gmp/iconv + xmlada ──► gpr            (GPR2 library)
-langkit + gpr + gnatcoll-projects ──► libadalang
+gnatcoll + gnatcoll-gmp/iconv + xmlada ──► libadagpr2    (GPR2 library)
+langkit + libadagpr2 + gnatcoll-projects ──► libadalang
 ```
 
 The tool / endpoint layer:
@@ -168,10 +169,10 @@ The tool / endpoint layer:
 libadalang + templates-parser + vss ──► libadalang-tools ──► lal-refactor
 libadalang + prettier-ada + vss + vss-extra ──► gnatformat
 vss + vss-extra ──► ada-markdown
-libadalang + vss/vss-extra + gpr + ada-markdown ──► gnatdoc
+libadalang + vss/vss-extra + libadagpr2 + ada-markdown ──► gnatdoc
 gnatcoll + fswatch ──► ada-libfswatch      (fswatch is pure C: build-base/gettext)
 
-gpr + libadalang + libadalang-tools + lal-refactor + gnatdoc + gnatformat
+libadagpr2 + libadalang + libadalang-tools + lal-refactor + gnatdoc + gnatformat
   + spawn + vss + vss-extra + ada-libfswatch + xdiff
       ──► ada_language_server              (editor integration)
 
@@ -195,7 +196,7 @@ that shape: 20 libraries build `static + shared` and ship their archive in a
 `<name>-static` subpackage —
 
     adasat, aws, bracke-cryptolib, bracke-zlib, gnatcoll, gnatcoll-db,
-    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libgprbuild,
+    gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, imsg-ada, langkit, libadagpr,
     libsodium-ada, mustache-ada, prettier-ada, spawn, templates-parser, vss,
     xdiff, xmlada
 
@@ -205,7 +206,7 @@ required under the langkit spine: langkit's ctypes Python bindings load a
 shared `liblktlang.so`, so every Ada dependency beneath it must be relocatable.
 
 The rest stay static-only because they exist to be pulled into one static
-binary — `gpr` (GPR2), `libadalang` (links `langkit_support`),
+binary — `libadagpr2` (GPR2), `libadalang` (links `langkit_support`),
 `libadalang-tools`, `lal-refactor`, `gnatformat`, `gnatdoc`, `ada-markdown`,
 `vss-extra`, `ada-libfswatch`, and the C `fswatch` — plus the statically-linked
 `ada_language_server` (and `gpr2-tools`, once enabled). `aunit` ships
@@ -230,11 +231,11 @@ disabled (`arch=""`). Its tools install under a `2` suffix (`gprbuild2`,
 
 ## License
 
-- GPL-3.0-or-later: gprbuild, libgprbuild, fswatch, ada_language_server, gpr2-tools.
+- GPL-3.0-or-later: gprbuild, libadagpr, fswatch, ada_language_server, gpr2-tools.
 - GPL-3.0-or-later WITH GCC-exception-3.1: xmlada, aunit, gnatcoll,
   gnatcoll-db, gnatcoll-gmp, gnatcoll-iconv, gnatcoll-projects, gnatdoc,
   libadalang-tools, spawn, templates-parser, ada-libfswatch, aws.
-- Apache-2.0 WITH LLVM-exception: prettier-ada, langkit, py3-langkit, gpr,
+- Apache-2.0 WITH LLVM-exception: prettier-ada, langkit, py3-langkit, libadagpr2,
   libadalang, ada-markdown, vss, vss-extra, gnatformat, lal-refactor.
 - Apache-2.0: adasat.
 - MIT: bracke-cryptolib, bracke-zlib.
