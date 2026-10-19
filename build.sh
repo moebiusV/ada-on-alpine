@@ -93,6 +93,23 @@ run_abuild() {
 # the APKBUILD's `subpackages=` line (e.g. `py3-langkit` -> `py3-langkit-pyc`).
 install_apks() {
     _pkg="$1" _ver="$2" _dir="$3"
+    # What the aport really built is in its manifest (every package whose origin
+    # is this aport, subpackages that depend on the architecture or on options
+    # included).  Install them in ONE transaction: a family such as gcc must
+    # move to the new version together or apk refuses (libgomp=..., gcc=...).
+    if [ -s "/repo/.work/manifest/$_pkg" ]; then
+        _files=""
+        while read -r _f; do
+            case "$_f" in apkbuild-*|abuild-rootbld-*) continue ;; esac
+            _files="$_files $_dir/$_f"
+        done < "/repo/.work/manifest/$_pkg"
+        # shellcheck disable=SC2086
+        if ! apk add --allow-untrusted $_files; then
+            echo "error: failed to install the packages of $_pkg" >&2
+            exit 1
+        fi
+        return 0
+    fi
     # A failed install is fatal: this is a dependency-ordered build, so a
     # swallowed apk failure would surface much later as a confusing compiler
     # or linker error. Keep apk's output visible for diagnosis.
@@ -216,6 +233,20 @@ for pkg in $PKGS; do
     done
     for apk_file in $(find /home/build/.local/share/abuild -name "${pkg}-*.apk" 2>/dev/null); do
         cp "$apk_file" /repo/.work/packages/
+    done
+    # Manifest: every package this aport built (by origin), and drop older
+    # versions of each from the cache.
+    mkdir -p /repo/.work/manifest
+    : > "/repo/.work/manifest/$pkg"
+    for apk_file in $(find /home/build/.local/share/abuild -name '*.apk' 2>/dev/null); do
+        _info=$(tar -xzOf "$apk_file" .PKGINFO 2>/dev/null) || continue
+        printf '%s\n' "$_info" | grep -qx "origin = $pkg" || continue
+        _name=$(printf '%s\n' "$_info" | sed -n 's/^pkgname = //p' | head -1)
+        _ver_full=$(printf '%s\n' "$_info" | sed -n 's/^pkgver = //p' | head -1)
+        case "$_ver_full" in "$pkgver"-r*) ;; *) continue ;; esac
+        rm -f /repo/.work/packages/"$_name"-[0-9]*.apk
+        cp "$apk_file" /repo/.work/packages/
+        basename "$apk_file" >> "/repo/.work/manifest/$pkg"
     done
     install_apks "$pkg" "$pkgver" /repo/.work/packages
     printf '%s\n' "$cur_hash" > "/repo/.work/hashes/$pkg"
