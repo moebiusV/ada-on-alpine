@@ -1,10 +1,12 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
-pkgname=libgprbuild
+pkgname=libadagpr
 pkgver=26.0.0_git20260518
 pkgrel=0
 _commit="2781289e9e2bdc31350962211b7ef792d7d31c6f"
-pkgdesc="GPR project-file parser library (from gprbuild)"
+pkgdesc="GPR project-file parser library (the legacy gpr library of gprbuild)"
 # Not named libgpr: Alpine community already has an unrelated libgpr (gRPC).
+# The "ada" in the name tells it apart from that one; libadagpr2 is the newer
+# GPR2 library (project gpr2.gpr), this one is project gpr.gpr / libgpr.so.N.
 url="https://github.com/AdaCore/gprbuild"
 arch="all"
 license="GPL-3.0-or-later"
