@@ -91,9 +91,20 @@ Suggested commit message:
 * 0046 has not been reported or searched in GCC's Bugzilla (bot check) and
   has not been looked at against GCC 16/17 beyond Makefile.rtl having the
   same gap.
-* Related: GCC trunk (GCC 16) reworked these types (System.C_Time,
-  PR ada/114065, commit 41974d6ed3) and still imports the plain names on
-  musl; an upstream patch has to be rebased onto it.  GCC Bugzilla was not
-  searched (bot check).
+* Other GCC versions (checked 2026-10-19 against the git branches, applying
+  the three patches in order to the files they touch):
+  - gcc-15 branch (15.3.1): 0044, 0045 and 0046 apply cleanly.  The 15
+    branch has no System.C_Time (Debian's 15.3.0-4 carries it as a backport
+    of PR ada/114065), so the aport keeps working when Alpine goes to 15.3.
+  - gcc-16 branch (16.2.1) and trunk (17): 0045 and 0046 apply cleanly, but
+    0044 does not (4 of its 9 files conflict: s-linux.ads, s-osinte__linux.ads,
+    s-osprim__posix.adb, g-calend.ads), because System.C_Time now defines
+    time_t and timespec from System.OS_Constants.  The bug itself is still
+    there: both still import the plain "clock_gettime", "pthread_cond_timedwait"
+    and "select" (musl keeps the 32-bit time_t entry points under those
+    names, and C_Time only mentions the glibc __TIME_BITS=64 case).  So an
+    upstream submission needs 0044 rebased onto C_Time (the same
+    __gnat_ wrappers, driven by the TIME64_REDIRECTED flag); not done.
+  GCC Bugzilla (PR ada/114065 and others) was not searched (bot check).
 * The aport used `--disable-bootstrap` for the test build; the MR's
   APKBUILD does not change that.
