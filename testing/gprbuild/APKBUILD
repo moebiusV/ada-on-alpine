@@ -10,10 +10,13 @@ pkgdesc="Builder for multi-language systems"
 url="https://github.com/AdaCore/gprbuild"
 arch="all"
 license="GPL-3.0-or-later"
-# gcc-gnat >= 15.2.0-r10 carries the fix for the 32-bit musl time64 mismatch in
-# the GNAT runtime (docs/bugs/gnat-32bit-musl-time64-mismatch/): without it
-# gprconfig hangs at exit on x86, armv7 and armhf.
-depends="gcc-gnat>=15.2.0-r10"
+# On 32-bit targets gcc-gnat >= 15.2.0-r10 carries the fix for the musl time64
+# mismatch in the GNAT runtime (docs/bugs/gnat-32bit-musl-time64-mismatch/):
+# without it gprconfig hangs at exit on x86, armv7 and armhf.
+case "$CARCH" in
+x86|armv7|armhf) depends="gcc-gnat>=15.2.0-r10" ;;
+*) depends="gcc-gnat" ;;
+esac
 makedepends="build-base which gawk"
 source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_commit.tar.gz
 	xmlada-$_xmlada_commit.tar.gz::https://github.com/AdaCore/xmlada/archive/$_xmlada_commit.tar.gz
@@ -23,13 +26,6 @@ source="gprbuild-$_commit.tar.gz::https://github.com/AdaCore/gprbuild/archive/$_
 builddir="$srcdir/gprbuild-$_commit"
 
 _bootstrap() {
-	# GCC 15 miscompiles the binder's adainit on armv7 (and, to be confirmed, armhf) with -Os plus
-	# -fstack-clash-protection (a local is kept below the stack pointer across
-	# a call), which crashes every Ada program at start-up.  See
-	# docs/bugs/armv7-gcc-stack-clash-miscompile/.
-	case "$CARCH" in
-	armv7|armhf) CFLAGS=$(echo "$CFLAGS" | sed 's/-fstack-clash-protection//') ;;
-	esac
 	GNATMAKEFLAGS="-j${JOBS:-1}" ./bootstrap.sh \
 		--prefix=/usr \
 		--with-xmlada="$srcdir"/xmlada-$_xmlada_commit \
