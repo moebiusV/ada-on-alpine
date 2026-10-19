@@ -290,10 +290,11 @@ CI (`.github/workflows/install-test.yml`) does not use an image: it starts from
 plain `alpine:edge`, adds the published repo as shown above, installs the
 toolchain and smoke-tests it, so it checks what users actually install.
 
-`.github/workflows/ci.yml` builds and tests every aport, but only for x86_64 by
-default: the freshly built `gprbuild` does not work on the other
-architectures. Enable one with `[ci only: aarch64]` in the commit message (or all
-with `[ci only: all]`).
+`.github/workflows/ci.yml` builds and tests every aport on all nine
+architectures. Build fewer with `[ci only: aarch64,x86]` in the commit message.
+A stage that nears GitHub's 6 h job limit checkpoints between packages and
+`ci-resume.yml` reruns it. On the 32-bit targets the `testing/gcc` carrier is
+built first (stage `sg`), until the `main/gcc` MR is merged.
 
 ### Adding a package
 
