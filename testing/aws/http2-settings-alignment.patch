@@ -1,0 +1,30 @@
+HTTP/2 SETTINGS: align the receive buffer that Vect is overlaid on
+
+AWS.HTTP2.Frame.Settings.Read reads the frame payload into Data, a
+Stream_Element_Array (alignment 1), and then overlays the array Vect (of
+Payload, alignment 2 or 4) on it with an Address clause.  On targets that need
+strict alignment (32-bit ARM) GNAT warns:
+
+  warning: specified address for "Vect" may be inconsistent with alignment
+  warning: program execution may be erroneous (RM 13.3(27))
+  warning: alignment of "Vect" is 2
+  warning: alignment of "Data" is 1
+
+which is fatal in AWS' debug profile (-gnatwe), and is a real problem: nothing
+guarantees the stack slot of Data is aligned for Payload.
+
+Give Data the maximum alignment so that the overlay is valid.
+
+--- a/src/http2/aws-http2-frame-settings.adb
++++ b/src/http2/aws-http2-frame-settings.adb
+@@ -114,7 +114,9 @@
+       Size : Stream_Element_Count :=
+                Stream_Element_Count (Len) / (Payload'Size / 8);
+       Idx  : Stream_Element_Count := 1;
+-      Data : Stream_Element_Array (1 .. Stream_Element_Count (Len));
++      Data : Stream_Element_Array (1 .. Stream_Element_Count (Len))
++        with Alignment => Standard'Maximum_Alignment;
++      --  Vect is overlaid on Data, so Data must be aligned for Payload
+       Vect : Set (1 .. Size);
+       for Vect'Address use Data'Address;
+       Head : Frame.Object;
