@@ -5,7 +5,9 @@ pkgrel=0
 _commit="816c721c69c69d9c55eeb07c7134bb39bbd95ca8"
 pkgdesc="Build tool for long manuscripts: outline + chapter sources -> Typst book"
 url="https://github.com/moebiusV/buildabook"
-arch="all"
+# Needs hbnf at build time, which is only built where GNAT has 128-bit
+# integers (not x86, armhf or armv7).
+arch="x86_64 aarch64 ppc64le s390x riscv64 loongarch64"
 license="ISC"
 depends="libgnat mustache-ada"
 makedepends="gcc-gnat gprbuild build-base hbnf"

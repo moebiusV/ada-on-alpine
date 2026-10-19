@@ -5,7 +5,10 @@ pkgrel=0
 _tag="v$pkgver"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
 url="https://github.com/moebiusV/hbnf"
-arch="all"
+# hbnf_config.ads declares `type Decimal is delta 10.0 ** (-8) digits 38`: a
+# 38-digit decimal needs 128-bit integers, which GNAT only has on 64-bit
+# targets (32-bit ones stop at 18 digits).  Not built for x86, armhf or armv7.
+arch="x86_64 aarch64 ppc64le s390x riscv64 loongarch64"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): the hbnf binary is
 # fully static, so the CLI itself has no runtime component.  But the installed
@@ -25,16 +28,15 @@ build() {
 	# musl alike. gprbuild emits -lgnat-15/-lgnarl-15 (versioned), but Alpine
 	# ships the static runtime unversioned as libgnat.a/libgnarl.a.  Provide
 	# the versioned names as symlinks in a writable dir (abuild's build user
-	# cannot write into the root-owned adalib/) and point the linker at it via
-	# LIBRARY_PATH.
+	# cannot write into the root-owned adalib/) and point the linker at it with
+	# -L (LIBRARY_PATH is ignored by a cross compiler).
 	ADALIB="$(gcc -print-file-name=adalib)"
 	GNAT_MAJOR="$(gcc -dumpversion | cut -d. -f1)"
 	linklib="$srcdir/.linklibs"
 	mkdir -p "$linklib"
 	ln -sf "$ADALIB/libgnat.a"  "$linklib/libgnat-$GNAT_MAJOR.a"
 	ln -sf "$ADALIB/libgnarl.a" "$linklib/libgnarl-$GNAT_MAJOR.a"
-	LIBRARY_PATH="$linklib${LIBRARY_PATH:+:$LIBRARY_PATH}" \
-		gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static
+	gprbuild -P hbnf.gpr -p -XLIBRARY_TYPE=static -largs -L"$linklib"
 }
 
 check() {
