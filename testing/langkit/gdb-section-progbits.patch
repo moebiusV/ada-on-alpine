@@ -1,0 +1,25 @@
+gdb_c.mako: write the section type of .debug_gdb_scripts as %progbits
+
+The generated *-gdb.c file defines the .debug_gdb_scripts section with inline
+assembly using ",@progbits,1".  On ARM "@" starts a comment in the assembler,
+so the section type and entity size are lost and every compilation of the file
+prints
+
+  Assembler messages:
+  missing merge / string entity size, 1 assumed
+
+which fails any test that compares the output of a build.  "%progbits" is
+accepted by GNU as on all ELF targets (it is what GCC itself emits on ARM) and
+gives the same section on x86_64 and ARM.
+
+--- a/langkit/templates/gdb_c.mako
++++ b/langkit/templates/gdb_c.mako
+@@ -6,7 +6,7 @@
+ 
+ #if defined(DEBUG) && defined(linux)
+ asm(
+-".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\n"
++".pushsection \".debug_gdb_scripts\", \"MS\",%progbits,1\n"
+ ".byte 1 /* Python */\n"
+ ".asciz \"${gdbinit_path.replace("\\", "\\\\").replace('"', '\\\\\\"')}\"\n"
+ ".popsection\n"

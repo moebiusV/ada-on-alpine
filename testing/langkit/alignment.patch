@@ -1,0 +1,110 @@
+Fix two misaligned-address constructs that GNAT rejects on 32-bit ARM
+
+Langkit_Support is built with -gnatwe, and the bootstrap Liblktlang is always
+built in dev mode, so any warning is fatal.  On targets that need strict
+alignment (32-bit ARM) GNAT reports two real alignment problems:
+
+* Generic_Bump_Ptr.Array_Alloc.Empty_Array_Access is a pointer to a "non-null
+  junk address", and that address was 1:
+
+    warning: source alignment (1) < alignment of "Element_Array" (4)
+
+  for each of the dozens of instantiations in Liblktlang.  Use the alignment
+  of Element_Array instead of 1: it is still a non-null address that is never
+  dereferenced.
+
+* Text.Decode overlaid a Text_Type (alignment 4) on the String returned by
+  Iconv (alignment 1) with an Address clause:
+
+    warning: specified address for "Text_Result" may be inconsistent with
+    alignment / program execution may be erroneous (RM 13.3(27))
+
+  Copy the bytes into the result instead.
+
+The same two units are checked in under lkt/bootstrap/src (as Liblktlang_Support),
+for the bootstrap build, and are changed the same way.
+
+--- a/langkit/support/langkit_support-generic_bump_ptr.ads
++++ b/langkit/support/langkit_support-generic_bump_ptr.ads
+@@ -113,10 +113,13 @@
+         (Element_Array_Access, System.Address);
+ 
+       Empty_Array_Access : constant Element_Array_Access := To_Pointer
+-        (System.Null_Address + 1);
++        (System.Null_Address + Storage_Offset (Element_Array'Alignment));
+       --  Access to an empty array. As accessing its elements is forbidden, but
+       --  dereferencing it to take an empty slice is allowed, it is designed to
+-      --  point to a non-null junk address.
++      --  point to a non-null junk address. That address is a multiple of the
++      --  alignment of Element_Array, as GNAT warns about converting an
++      --  address that cannot be aligned enough on targets that need strict
++      --  alignment (32-bit ARM, for instance).
+ 
+       function Alloc
+         (Pool : Bump_Ptr_Pool; Length : Natural) return Element_Array_Access
+--- a/langkit/support/langkit_support-text.adb
++++ b/langkit/support/langkit_support-text.adb
+@@ -158,10 +158,18 @@
+          From_Code => Charset);
+       pragma Assert (Result'Length mod 4 = 0);
+ 
+-      Text_Result : constant Text_Type (1 .. Result'Length / 4)
+-         with Import, Address => Result'Address;
+    begin
+-      return Text_Result;
++      --  Copy the bytes instead of overlaying a Text_Type on Result: the
++      --  alignment of Result is 1 while the one of Text_Type is 4, which GNAT
++      --  rightfully warns about on targets that need strict alignment.
++      return Text_Result : Text_Type (1 .. Result'Length / 4) do
++         declare
++            Bytes : String (1 .. Result'Length)
++               with Import, Address => Text_Result'Address;
++         begin
++            Bytes := Result;
++         end;
++      end return;
+    end Decode;
+ 
+    -------------
+--- a/lkt/bootstrap/src/liblktlang_support-generic_bump_ptr.ads
++++ b/lkt/bootstrap/src/liblktlang_support-generic_bump_ptr.ads
+@@ -113,10 +113,13 @@
+         (Element_Array_Access, System.Address);
+ 
+       Empty_Array_Access : constant Element_Array_Access := To_Pointer
+-        (System.Null_Address + 1);
++        (System.Null_Address + Storage_Offset (Element_Array'Alignment));
+       --  Access to an empty array. As accessing its elements is forbidden, but
+       --  dereferencing it to take an empty slice is allowed, it is designed to
+-      --  point to a non-null junk address.
++      --  point to a non-null junk address. That address is a multiple of the
++      --  alignment of Element_Array, as GNAT warns about converting an
++      --  address that cannot be aligned enough on targets that need strict
++      --  alignment (32-bit ARM, for instance).
+ 
+       function Alloc
+         (Pool : Bump_Ptr_Pool; Length : Natural) return Element_Array_Access
+--- a/lkt/bootstrap/src/liblktlang_support-text.adb
++++ b/lkt/bootstrap/src/liblktlang_support-text.adb
+@@ -158,10 +158,18 @@
+          From_Code => Charset);
+       pragma Assert (Result'Length mod 4 = 0);
+ 
+-      Text_Result : constant Text_Type (1 .. Result'Length / 4)
+-         with Import, Address => Result'Address;
+    begin
+-      return Text_Result;
++      --  Copy the bytes instead of overlaying a Text_Type on Result: the
++      --  alignment of Result is 1 while the one of Text_Type is 4, which GNAT
++      --  rightfully warns about on targets that need strict alignment.
++      return Text_Result : Text_Type (1 .. Result'Length / 4) do
++         declare
++            Bytes : String (1 .. Result'Length)
++               with Import, Address => Text_Result'Address;
++         begin
++            Bytes := Result;
++         end;
++      end return;
+    end Decode;
+ 
+    -------------
