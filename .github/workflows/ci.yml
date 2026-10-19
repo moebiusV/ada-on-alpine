@@ -1,8 +1,8 @@
 # Build and test every aport on every architecture Alpine edge supports.
-# By default only x86_64 is built.  Enable others with `[ci only: aarch64,x86]`
-# in the commit message (or the "only" input of a manual run), and all of them
-# with `[ci only: all]`.  All aports have passed on all nine architectures
-# locally (cross builds, QEMU where needed) before this was set up.
+# Every architecture is built by default.  To build fewer, put `[ci only:
+# aarch64,x86]` in the commit message (or the "only" input of a manual run).
+# A stage that runs out of time checkpoints and ci-resume.yml reruns it
+# automatically.
 # x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
 # container on an x86_64 host); the other six run under QEMU user-mode emulation,
 # which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Comma-separated architectures to build, or all (default: x86_64)'
+        description: 'Comma-separated architectures to build (default: all)'
         required: false
         default: ''
 
@@ -43,9 +43,8 @@ jobs:
           diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
 
   plan:
-    # Choose the architectures to build: x86_64 by default, those named by
-    # `[ci only: a,b]` in the head commit message / the manual-run input, or
-    # every architecture for `all`.
+    # Choose the architectures to build: all of them, or only those named by
+    # `[ci only: a,b]` in the head commit message / the manual-run input.
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -76,7 +75,7 @@ jobs:
           elif want:
               sel = [e for e in full if e["arch"] in want]
           else:
-              sel = [e for e in full if e["arch"] == "x86_64"]
+              sel = full
           print("matrix=" + json.dumps({"include": sel}))
           PY
 

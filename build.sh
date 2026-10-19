@@ -33,7 +33,7 @@ BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 # a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
@@ -142,7 +142,15 @@ if [ -n "${CASCADE:-}" ] && ls /repo/.work/packages/*.apk >/dev/null 2>&1; then
     fi
 fi
 
+rm -f /repo/.work/incomplete
 for pkg in $PKGS; do
+    # CI checkpoint: out of time for this job, so stop cleanly between packages
+    # (what is built is kept; CI resumes the stage in a new job).
+    if [ -n "${DEADLINE_EPOCH:-}" ] && [ "$(date +%s)" -ge "$DEADLINE_EPOCH" ]; then
+        echo "===== time budget used up before $pkg: checkpointing ====="
+        touch /repo/.work/incomplete
+        break
+    fi
     echo "===== BUILDING $pkg ====="
     if ! arch_ok "$pkg"; then
         echo "  (skipped: not built for $(apk --print-arch))"

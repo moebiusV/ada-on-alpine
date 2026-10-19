@@ -65,6 +65,8 @@ runs:
         RUN_TAG: ${{ github.run_id }}
       run: |
         export KEYDIR="$PWD/.work/keys"
+        # Checkpoint 20 minutes before GitHub's 6 h job limit (see build.sh).
+        export DEADLINE_EPOCH=$(( $(date +%s) + 340 * 60 ))
         set -o pipefail
         ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
     # Job logs need a login to read, but annotations are public: surface the
@@ -91,3 +93,24 @@ runs:
         retention-days: 3
         compression-level: 1
         if-no-files-found: ignore
+    # The stage ran out of time between packages: fail the job so later stages
+    # do not start, and leave a marker for ci-resume.yml, which reruns it.
+    - id: inc
+      if: always()
+      shell: bash
+      run: |
+        if [ -e .work/incomplete ]; then echo "incomplete=true" >> "$GITHUB_OUTPUT"; fi
+    - if: always() && steps.inc.outputs.incomplete == 'true'
+      shell: bash
+      run: echo "stage ${{ inputs.stage }} (${{ inputs.arch }}) incomplete" > "$RUNNER_TEMP/incomplete"
+    - if: always() && steps.inc.outputs.incomplete == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: incomplete-${{ inputs.arch }}-${{ inputs.stage }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/incomplete
+        retention-days: 3
+    - if: always() && steps.inc.outputs.incomplete == 'true'
+      shell: bash
+      run: |
+        echo "::warning title=checkpoint::stage ${{ inputs.stage }} (${{ inputs.arch }}) ran out of time; it will be rerun to resume"
+        exit 1

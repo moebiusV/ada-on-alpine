@@ -1,0 +1,31 @@
+# Resume after a checkpoint: when a ci run ended because a stage used up its
+# job time (it uploads an incomplete-* artifact for this attempt and fails),
+# rerun the failed jobs.  They resume from the stage's own artifact.  A genuine
+# failure leaves no such artifact and is not retried.
+name: ci-resume
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  resume:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          REPO: ${{ github.repository }}
+        run: |
+          n=$(gh api "repos/$REPO/actions/runs/$RUN/artifacts?per_page=100" --paginate --jq '.artifacts[].name' \
+                | grep -Ec "^incomplete-.*-${ATTEMPT}$" || true)
+          echo "checkpointed stages in attempt $ATTEMPT: ${n:-0}"
+          if [ "${n:-0}" -gt 0 ]; then
+            gh api -X POST "repos/$REPO/actions/runs/$RUN/rerun-failed-jobs"
+          fi
