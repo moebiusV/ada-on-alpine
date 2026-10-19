@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          listed=$(grep -E '^ +pkgs: ' .github/workflows/build-arch.yml | sed 's/.*pkgs: //; s/"//g' | tr ' ' '\n' | sort)
+          listed=$(grep -E '^ +pkgs: ' .github/workflows/build-arch.yml | sed 's/.*pkgs: //; s/"//g' | tr ' ' '\n' | sort -u | grep -vx gcc)
           all=$(ls testing | grep -vxE 'gpr2-tools|gcc' | sort)
           diff <(echo "$listed") <(echo "$all") && echo "all aports covered"
 

@@ -2,7 +2,9 @@
 # architecture.  The dependency chain is too long for one 6-hour job, so it runs
 # as sequential stages; each stage uploads .work (packages, hashes, the CI-only
 # signing key) as an artifact that the next stage downloads.  Rerunning a failed
-# stage resumes from its own partial artifact.  abuild runs every aport's
+# stage resumes from its own partial artifact.  No timeouts of our own are set
+# (GitHub's hosted runners still end a job at 6 h; only a self-hosted runner has
+# no limit).  abuild runs every aport's
 # check(), then a final job installs the lot into a clean container.
 name: build-arch
 
@@ -23,9 +25,28 @@ on:
         required: true
 
 jobs:
-  s1:
+  # Alpine's gcc-gnat has the GNAT runtime fixed for 32-bit musl (time64) only
+  # from 15.2.0-r10, which gprbuild needs there.  Until the main/gcc MR is
+  # merged, build the carrier aport (testing/gcc) first on the 32-bit targets;
+  # abuild goes before it because armv7 and armhf need its stack-clash fix.
+  s0:
+    if: contains('x86 armv7 armhf', inputs.arch)
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: s0
+          prev: ""
+          pkgs: "abuild gcc"
+
+  s1:
+    needs: s0
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -34,13 +55,12 @@ jobs:
           platform: ${{ inputs.platform }}
           qemu: ${{ inputs.qemu }}
           stage: s1
-          prev: ""
+          prev: ${{ contains('x86 armv7 armhf', inputs.arch) && 's0' || '' }}
           pkgs: "abuild gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
 
   s2:
     needs: s1
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -55,7 +75,6 @@ jobs:
   s3:
     needs: s2
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -70,7 +89,6 @@ jobs:
   s4:
     needs: s3
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -85,7 +103,6 @@ jobs:
   s5:
     needs: s4
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -100,7 +117,6 @@ jobs:
   s6:
     needs: s5
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/stage
@@ -115,7 +131,6 @@ jobs:
   smoke:
     needs: s6
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - id: env
@@ -137,7 +152,7 @@ jobs:
   # even when this run failed part-way: take the furthest stage that produced an
   # artifact.  One cache entry per architecture per run (the repo cache is 10 GB).
   save-cache:
-    needs: [s1, s2, s3, s4, s5, s6]
+    needs: [s0, s1, s2, s3, s4, s5, s6]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -181,6 +196,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: work-${{ inputs.arch }}-s1
+          path: .work
+      - continue-on-error: true
+        if: steps.d1.outcome != 'success'
+        id: d0
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-s0
           path: .work
       - continue-on-error: true   # nothing to save if no stage produced anything
         uses: actions/cache/save@v4

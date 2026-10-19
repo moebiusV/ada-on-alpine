@@ -65,11 +65,8 @@ runs:
         RUN_TAG: ${{ github.run_id }}
       run: |
         export KEYDIR="$PWD/.work/keys"
-        # 6 h is GitHub's hosted-runner job limit (composite steps cannot take
-        # timeout-minutes); stop the build 10 minutes short so the cleanup and
-        # artifact upload below still run and a rerun resumes from what is done.
         set -o pipefail
-        timeout 350m ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
+        ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
     # Job logs need a login to read, but annotations are public: surface the
     # tail of the build log there so a failure can be diagnosed from the API.
     - if: failure()
@@ -77,7 +74,7 @@ runs:
       run: |
         msg=$(tail -n 40 "$RUNNER_TEMP/build.log" 2>/dev/null | cut -c1-160 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
         echo "::error title=build log tail (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
-    # Stop a build container left running by a timeout, then undo build.sh's
+    # Stop a build container left running by a cancelled or killed job, then undo build.sh's
     # chown of the checkout to the container's build user.
     - if: always()
       shell: bash
