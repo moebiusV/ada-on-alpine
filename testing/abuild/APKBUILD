@@ -42,7 +42,9 @@ subpackages="
 	"
 options="suid"
 pkggroups="abuild"
-source="https://gitlab.alpinelinux.org/alpine/abuild/-/archive/$pkgver/abuild-$pkgver.tar.gz
+# gitlab.alpinelinux.org answers GitHub Actions runners with HTTP 418 (bot
+# protection), so fetch the byte-identical tag archive from the GitHub mirror.
+source="abuild-$pkgver.tar.gz::https://github.com/alpinelinux/abuild/archive/refs/tags/$pkgver.tar.gz
 	0001-abuild-fix-infinity-loop-on-awk-getline-error.patch
 	no-stack-clash-on-32bit-arm.patch
 	arch-flags-for-target.patch
