@@ -17,6 +17,10 @@ fails to compile on those two targets:
 Add ATOMICS_TARGET_PAIRS and ATOMICS_BUILTINS_TARGET_PAIRS for s390x, and
 extend the existing condition to riscv64.
 
+The layout of Unbounded_String changes with it, so Ada code compiled against
+the old runtime must be rebuilt on these two targets.  Among the packages of
+Alpine's repositories only gcc-gnat itself and gprbuild link libgnat there.
+
 gcc/ada/ChangeLog:
 
 	* Makefile.rtl (s390x-linux, riscv64-linux): Use the atomic

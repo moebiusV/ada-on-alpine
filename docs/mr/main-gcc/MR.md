@@ -76,6 +76,19 @@ Suggested commit message:
   program that copies, appends to and measures both kinds of unbounded string
   prints the expected result under qemu-user on each.  AdaCore's VSS (which
   does not compile without it) then builds on both.
+* The aport itself (the three patches, as in this MR) was also cross-built as
+  packages for armv7, armhf, s390x and riscv64 (all `check()` runs pass; these
+  are test builds only, not published).  Each was unpacked over Alpine's
+  stock gcc-gnat in an Alpine edge container for that architecture under
+  QEMU, and a self-checking Ada program (Real_Time and Calendar clocks,
+  `delay`, `delay until`, timed entry calls, `GNAT.Sockets` Check_Selector and
+  SO_RCVTIMEO timeouts, `Ada.Execution_Time`, Unbounded_String copy and
+  append, 40 delays and 10 timed entry calls after deliberately dirtying the
+  stack) was compiled with the stock `gnatmake` and run: 13/13 checks pass
+  on all four.  `libgnat-15.so` exports the six `__gnat_*` wrappers on armv7
+  and armhf and none on s390x and riscv64 (64-bit long, flag 0).  With the
+  stock r9 packages the same program does not even compile on any of the four
+  ("Execution_Time is not supported in this configuration").
 * The cross compilers of all seven non-x86 architectures, configured like the
   aport (--enable-default-pie --enable-default-ssp, --with-mode=thumb on
   armv7, the aport's per-arch options), built from the patched source, are
@@ -84,10 +97,17 @@ Suggested commit message:
 
 ## Not done / caveats
 
-* Only x86 has been built as a real gcc package (and before 0046, which does
-  not touch x86).  The other architectures used plain configure/make cross
-  builds from the patched source, not the aport; the aport itself needs a CI
-  run on every architecture.
+* 0046 changes the layout of Unbounded_String, Wide_Unbounded_String and
+  Wide_Wide_Unbounded_String on s390x and riscv64.  Ada code compiled against
+  the old libgnat there must be rebuilt.  The only packages in Alpine edge's
+  repositories that depend on libgnat on those architectures are gcc-gnat and
+  testing/gprbuild (checked against the APKINDEX of main, community and
+  testing on 2026-10-19); the pkgrel bump rebuilds the former, and gprbuild
+  needs a rebuild.
+* Only x86 has been built natively as a real gcc package; armv7, armhf, s390x
+  and riscv64 were cross-built from the aport (see Evidence), the other
+  architectures only with plain configure/make cross builds.  The aport needs
+  a CI run on every architecture.
 * 0046 has not been reported or searched in GCC's Bugzilla (bot check) and
   has not been looked at against GCC 16/17 beyond Makefile.rtl having the
   same gap.

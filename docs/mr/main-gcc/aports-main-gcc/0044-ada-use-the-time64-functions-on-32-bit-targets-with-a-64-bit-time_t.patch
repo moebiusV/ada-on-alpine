@@ -65,10 +65,10 @@ Let the C compiler say what the target does:
 +   --  nanosleep, ...) to legacy entry points that take a 32-bit time_t, and
 +   --  its headers redirect every C call to a time64 variant (musl on 32-bit
 +   --  targets, glibc built with _TIME_BITS=64; a target with a 64-bit long
-+   --  never needs it).  The Ada runtime then calls
-+   --  the __gnat_ wrappers of adaint.c,
-+   --  which are compiled against those headers, instead of importing the
-+   --  plain names.  0 everywhere else, where the plain names are used.
++   --  never needs it).  The Ada runtime then calls the __gnat_ wrappers of
++   --  adaint.c, which are compiled against those headers, instead of
++   --  importing the plain names.  0 everywhere else, where the plain names
++   --  are used.
 +*/
 +#if ((defined (_REDIR_TIME64) && _REDIR_TIME64) \
 +      || defined (__USE_TIME_BITS64)) && __SIZEOF_LONG__ < 8
@@ -92,11 +92,11 @@ Let the C compiler say what the target does:
 +      || defined (__USE_TIME_BITS64)) && __SIZEOF_LONG__ < 8
 +/* The C library keeps the plain names of its time functions for the legacy
 +   ABI with a 32-bit time_t and redirects calls to the time64 variants only
-+   through its headers (musl on 32-bit targets, glibc with _TIME_BITS=64).  An Ada import by plain name
-+   would get the legacy function and pass it a 64-bit timespec, so the Ada
-+   runtime imports these wrappers instead (see TIME64_REDIRECTED in
-+   s-oscons-tmplt.c); being compiled against the headers, they reach the right
-+   function whatever it is called.  */
++   through its headers (musl on 32-bit targets, glibc with _TIME_BITS=64).
++   An Ada import by plain name would get the legacy function and pass it a
++   64-bit timespec, so the Ada runtime imports these wrappers instead (see
++   TIME64_REDIRECTED in s-oscons-tmplt.c); being compiled against the
++   headers, they reach the right function whatever it is called.  */
 +
 +#include <pthread.h>
 +#include <sys/select.h>
