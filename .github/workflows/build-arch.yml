@@ -25,12 +25,9 @@ on:
         required: true
 
 jobs:
-  # Alpine's gcc-gnat has the GNAT runtime fixed for 32-bit musl (time64) only
-  # from 15.2.0-r10, which gprbuild needs there.  Until the main/gcc MR is
-  # merged, build the carrier aport (testing/gcc) first on the 32-bit targets;
-  # abuild goes before it because armv7 and armhf need its stack-clash fix.
+  # abuild first, on every architecture: it carries the stack-clash fix that
+  # armv7 and armhf need to build anything (gcc included).
   s0:
-    if: contains('x86 armv7 armhf', inputs.arch)
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +38,28 @@ jobs:
           qemu: ${{ inputs.qemu }}
           stage: s0
           prev: ""
-          pkgs: "abuild gcc"
+          pkgs: "abuild"
+
+  # Alpine's gcc-gnat has the GNAT runtime fix for 32-bit musl (time64) only
+  # from 15.2.0-r10, which gprbuild needs there.  Until the main/gcc MR is
+  # merged, build the carrier aport (testing/gcc) on the 32-bit targets.
+  sg:
+    needs: s0
+    if: contains('x86 armv7 armhf', inputs.arch)
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/stage
+        with:
+          arch: ${{ inputs.arch }}
+          platform: ${{ inputs.platform }}
+          qemu: ${{ inputs.qemu }}
+          stage: sg
+          prev: "s0"
+          pkgs: "gcc"
 
   s1:
-    needs: s0
+    needs: [s0, sg]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ${{ inputs.runner }}
     steps:
@@ -55,8 +70,8 @@ jobs:
           platform: ${{ inputs.platform }}
           qemu: ${{ inputs.qemu }}
           stage: s1
-          prev: ${{ contains('x86 armv7 armhf', inputs.arch) && 's0' || '' }}
-          pkgs: "abuild gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
+          prev: ${{ contains('x86 armv7 armhf', inputs.arch) && 'sg' || 's0' }}
+          pkgs: "gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
 
   s2:
     needs: s1
@@ -152,7 +167,7 @@ jobs:
   # even when this run failed part-way: take the furthest stage that produced an
   # artifact.  One cache entry per architecture per run (the repo cache is 10 GB).
   save-cache:
-    needs: [s0, s1, s2, s3, s4, s5, s6]
+    needs: [s0, sg, s1, s2, s3, s4, s5, s6]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -199,6 +214,13 @@ jobs:
           path: .work
       - continue-on-error: true
         if: steps.d1.outcome != 'success'
+        id: dg
+        uses: actions/download-artifact@v4
+        with:
+          name: work-${{ inputs.arch }}-sg
+          path: .work
+      - continue-on-error: true
+        if: steps.d1.outcome != 'success' && steps.dg.outcome != 'success'
         id: d0
         uses: actions/download-artifact@v4
         with:
