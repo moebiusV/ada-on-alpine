@@ -1,0 +1,373 @@
+From: David Walther <david@clearbrookdistillery.com>
+Date: Mon, 12 Oct 2026 00:00:00 +0000
+Subject: [PATCH] ada: call the C time functions through the C headers on
+ targets whose time_t is wider than long
+
+On a 32-bit target whose C library has a 64-bit time_t (musl >= 1.2, or
+glibc built with _TIME_BITS=64), the plain names clock_gettime, clock_getres,
+nanosleep, gettimeofday, pthread_cond_timedwait and select are the legacy
+entry points that take a 32-bit time_t.  The C headers redirect every C call
+to the time64 variant with an asm label, which an Ada pragma Import cannot
+see.  The Ada runtime imported the plain names while declaring a 64-bit
+timespec (Alpine's 0034 sets time_t_bits to 64), so the legacy functions got
+a structure of the wrong layout: Ada.Real_Time.Clock and Ada.Calendar.Clock
+returned garbage, delays measured years, and System.Task_Primitives.
+Operations.Timed_Sleep spun forever on the EINVAL from
+pthread_cond_timedwait (a hang at exit in gprconfig, for one).
+
+Let the C compiler say what the target does:
+
+- s-oscons-tmplt.c reports SIZEOF_timespec, SIZEOF_tv_nsec, OFFSET_tv_nsec
+  and TIME64_REDIRECTED (the C library redirects the plain time functions
+  and long is narrower than time_t).
+- adaint.c has thin __gnat_ wrappers for the six functions, compiled
+  against the same headers and so calling whatever the headers bind to, only
+  when TIME64_REDIRECTED would be 1.
+- The Linux Ada units import the wrappers when TIME64_REDIRECTED is set and
+  the plain names otherwise, so nothing changes where it is 0 (every 64-bit
+  target, and 32-bit glibc by default).
+- time_t, suseconds_t and timespec in System.Linux, the local copies in
+  System.OS_Primitives and GNAT.Sockets.Thin_Common take their widths and
+  the layout of timespec (16 bytes: the kernel writes the whole structure)
+  from System.OS_Constants instead of assuming them.
+---
+--- a/gcc/ada/s-oscons-tmplt.c
++++ b/gcc/ada/s-oscons-tmplt.c
+@@ -147,6 +147,8 @@
+ # error Please define TARGET
+ #endif
+ 
++#include <stddef.h>
++
+ #ifndef HAVE_SOCKETS
+ # include <errno.h>
+ #endif
+@@ -1745,6 +1747,39 @@
+ CND(SIZEOF_tv_usec, "tv_usec")
+ /*
+ 
++   --  Size of struct timespec, and where its tv_nsec field is.  The C library
++   --  (or the kernel, for a 64-bit time_t on a 32-bit target) may write the
++   --  whole structure, padding included.
++*/
++{
++  struct timespec ts;
++#define SIZEOF_timespec (sizeof ts)
++CND(SIZEOF_timespec, "timespec")
++#define SIZEOF_tv_nsec (sizeof ts.tv_nsec)
++CND(SIZEOF_tv_nsec, "tv_nsec")
++#define OFFSET_tv_nsec (offsetof (struct timespec, tv_nsec))
++CND(OFFSET_tv_nsec, "offset of tv_nsec")
++}
++/*
++
++   --  Whether the C library binds the plain time functions (clock_gettime,
++   --  nanosleep, ...) to legacy entry points that take a 32-bit time_t, and
++   --  its headers redirect every C call to a time64 variant (musl on 32-bit
++   --  targets, glibc built with _TIME_BITS=64; a target with a 64-bit long
++   --  never needs it).  The Ada runtime then calls
++   --  the __gnat_ wrappers of adaint.c,
++   --  which are compiled against those headers, instead of importing the
++   --  plain names.  0 everywhere else, where the plain names are used.
++*/
++#if ((defined (_REDIR_TIME64) && _REDIR_TIME64) \
++      || defined (__USE_TIME_BITS64)) && __SIZEOF_LONG__ < 8
++# define TIME64_REDIRECTED 1
++#else
++# define TIME64_REDIRECTED 0
++#endif
++CND(TIME64_REDIRECTED, "time functions need the __gnat_ wrappers")
++/*
++
+    --  Maximum allowed value for tv_sec
+ */
+ 
+--- a/gcc/ada/adaint.c
++++ b/gcc/ada/adaint.c
+@@ -423,6 +423,58 @@
+   return (OS_Time) res;
+ }
+ 
++#if ((defined (_REDIR_TIME64) && _REDIR_TIME64) \
++      || defined (__USE_TIME_BITS64)) && __SIZEOF_LONG__ < 8
++/* The C library keeps the plain names of its time functions for the legacy
++   ABI with a 32-bit time_t and redirects calls to the time64 variants only
++   through its headers (musl on 32-bit targets, glibc with _TIME_BITS=64).  An Ada import by plain name
++   would get the legacy function and pass it a 64-bit timespec, so the Ada
++   runtime imports these wrappers instead (see TIME64_REDIRECTED in
++   s-oscons-tmplt.c); being compiled against the headers, they reach the right
++   function whatever it is called.  */
++
++#include <pthread.h>
++#include <sys/select.h>
++
++int
++__gnat_clock_gettime (int clock_id, struct timespec *tp)
++{
++  return clock_gettime ((clockid_t) clock_id, tp);
++}
++
++int
++__gnat_clock_getres (int clock_id, struct timespec *res)
++{
++  return clock_getres ((clockid_t) clock_id, res);
++}
++
++int
++__gnat_nanosleep (const struct timespec *rqtp, struct timespec *rmtp)
++{
++  return nanosleep (rqtp, rmtp);
++}
++
++int
++__gnat_gettimeofday (struct timeval *tv, void *tz)
++{
++  return gettimeofday (tv, tz);
++}
++
++int
++__gnat_pthread_cond_timedwait (pthread_cond_t *cond, pthread_mutex_t *mutex,
++                               const struct timespec *abstime)
++{
++  return pthread_cond_timedwait (cond, mutex, abstime);
++}
++
++int
++__gnat_select (int nfds, fd_set *readfds, fd_set *writefds,
++               fd_set *exceptfds, struct timeval *timeout)
++{
++  return select (nfds, readfds, writefds, exceptfds, timeout);
++}
++#endif
++
+ /* Return the current local time as a string in the ISO 8601 format of
+    "YYYY-MM-DD HH:MM:SS.SS". The returned string is 22 + 1 (NULL) characters
+    long. */
+--- a/gcc/ada/libgnarl/s-linux.ads
++++ b/gcc/ada/libgnarl/s-linux.ads
+@@ -36,7 +36,7 @@
+ --  Preelaborate. This package is designed to be a bottom-level (leaf) package
+ 
+ with Interfaces.C;
+-with System.Parameters;
++with System.OS_Constants;
+ 
+ package System.Linux is
+    pragma Preelaborate;
+@@ -46,16 +46,38 @@
+    ----------
+ 
+    subtype long        is Interfaces.C.long;
+-   subtype suseconds_t is Interfaces.C.long;
+-   type time_t is range -2 ** (System.Parameters.time_t_bits - 1)
+-        .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
+    subtype clockid_t   is Interfaces.C.int;
+ 
++   --  The widths of the C time types come from the C compiler (see
++   --  System.OS_Constants), not from an assumption: a 32-bit target whose
++   --  C library has a 64-bit time_t (musl, glibc with _TIME_BITS=64) has a
++   --  64-bit tv_sec, tv_usec and a 16-byte timespec.
++
++   type suseconds_t is range
++     -2 ** (8 * System.OS_Constants.SIZEOF_tv_usec - 1)
++       .. 2 ** (8 * System.OS_Constants.SIZEOF_tv_usec - 1) - 1;
++   for suseconds_t'Size use 8 * System.OS_Constants.SIZEOF_tv_usec;
++
++   type time_t is range
++     -2 ** (8 * System.OS_Constants.SIZEOF_tv_sec - 1)
++       .. 2 ** (8 * System.OS_Constants.SIZEOF_tv_sec - 1) - 1;
++   for time_t'Size use 8 * System.OS_Constants.SIZEOF_tv_sec;
++
+    type timespec is record
+       tv_sec  : time_t;
+       tv_nsec : long;
+    end record;
+    pragma Convention (C, timespec);
++   pragma Warnings (Off, "*bits of*unused");
++   --  The C structure may be larger than its two fields (padding that the C
++   --  library or the kernel writes).
++   for timespec use record
++      tv_sec  at 0 range 0 .. 8 * System.OS_Constants.SIZEOF_tv_sec - 1;
++      tv_nsec at System.OS_Constants.OFFSET_tv_nsec
++        range 0 .. 8 * System.OS_Constants.SIZEOF_tv_nsec - 1;
++   end record;
++   for timespec'Size use 8 * System.OS_Constants.SIZEOF_timespec;
++   pragma Warnings (On, "*bits of*unused");
+ 
+    type timeval is record
+       tv_sec  : time_t;
+--- a/gcc/ada/libgnarl/s-osinte__linux.ads
++++ b/gcc/ada/libgnarl/s-osinte__linux.ads
+@@ -234,14 +234,24 @@
+    subtype timeval   is System.Linux.timeval;
+    subtype clockid_t is System.Linux.clockid_t;
+ 
++   Time64_Wrappers : constant Boolean :=
++     System.OS_Constants.TIME64_REDIRECTED /= 0;
++   --  True where the plain C time functions are legacy entry points taking a
++   --  32-bit time_t (musl on 32-bit targets); the runtime then imports the
++   --  __gnat_ wrappers of adaint.c, which reach the right C function.
++
+    function clock_gettime
+      (clock_id : clockid_t; tp : access timespec) return int;
+-   pragma Import (C, clock_gettime, "clock_gettime");
++   pragma Import (C, clock_gettime,
++                  (if Time64_Wrappers then "__gnat_clock_gettime"
++                   else "clock_gettime"));
+ 
+    function clock_getres
+      (clock_id : clockid_t;
+       res      : access timespec) return int;
+-   pragma Import (C, clock_getres, "clock_getres");
++   pragma Import (C, clock_getres,
++                  (if Time64_Wrappers then "__gnat_clock_getres"
++                   else "clock_getres"));
+ 
+    function To_Duration (TS : timespec) return Duration;
+    pragma Inline (To_Duration);
+@@ -448,7 +458,9 @@
+      (cond    : access pthread_cond_t;
+       mutex   : access pthread_mutex_t;
+       abstime : access timespec) return int;
+-   pragma Import (C, pthread_cond_timedwait, "pthread_cond_timedwait");
++   pragma Import (C, pthread_cond_timedwait,
++                  (if Time64_Wrappers then "__gnat_pthread_cond_timedwait"
++                   else "pthread_cond_timedwait"));
+ 
+    --------------------------
+    -- POSIX.1c  Section 13 --
+--- a/gcc/ada/libgnarl/a-exetim__posix.adb
++++ b/gcc/ada/libgnarl/a-exetim__posix.adb
+@@ -114,7 +114,9 @@
+         (clock_id : Interfaces.C.int;
+          tp       : access timespec)
+          return Interfaces.C.int;
+-      pragma Import (C, clock_gettime, "clock_gettime");
++      pragma Import (C, clock_gettime,
++                     (if Time64_Wrappers then "__gnat_clock_gettime"
++                      else "clock_gettime"));
+       --  Function from the POSIX.1b Realtime Extensions library
+ 
+       function pthread_getcpuclockid
+--- a/gcc/ada/libgnat/s-osprim__posix.adb
++++ b/gcc/ada/libgnat/s-osprim__posix.adb
+@@ -30,7 +30,7 @@
+ ------------------------------------------------------------------------------
+ 
+ --  This version is for POSIX-like operating systems
+-with System.Parameters;
++with System.OS_Constants;
+ 
+ package body System.OS_Primitives is
+ 
+@@ -39,17 +39,34 @@
+    --  these declarations in System.OS_Interface and move these ones in
+    --  the spec.
+ 
+-   type time_t is range -2 ** (System.Parameters.time_t_bits - 1)
+-     .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
++   type time_t is range -2 ** (8 * System.OS_Constants.SIZEOF_tv_sec - 1)
++     .. 2 ** (8 * System.OS_Constants.SIZEOF_tv_sec - 1) - 1;
++   for time_t'Size use 8 * System.OS_Constants.SIZEOF_tv_sec;
+ 
+    type timespec is record
+       tv_sec  : time_t;
+       tv_nsec : Long_Integer;
+    end record;
+    pragma Convention (C, timespec);
++   pragma Warnings (Off, "*bits of*unused");
++   --  The C structure may be larger than its two fields (padding that the C
++   --  library or the kernel writes).
++   for timespec use record
++      tv_sec  at 0 range 0 .. 8 * System.OS_Constants.SIZEOF_tv_sec - 1;
++      tv_nsec at System.OS_Constants.OFFSET_tv_nsec
++        range 0 .. 8 * System.OS_Constants.SIZEOF_tv_nsec - 1;
++   end record;
++   for timespec'Size use 8 * System.OS_Constants.SIZEOF_timespec;
++   pragma Warnings (On, "*bits of*unused");
++
++   Time64_Wrappers : constant Boolean :=
++     System.OS_Constants.TIME64_REDIRECTED /= 0;
++   --  See System.OS_Interface
+ 
+    function nanosleep (rqtp, rmtp : not null access timespec) return Integer;
+-   pragma Import (C, nanosleep, "nanosleep");
++   pragma Import (C, nanosleep,
++                  (if Time64_Wrappers then "__gnat_nanosleep"
++                   else "nanosleep"));
+ 
+    -----------
+    -- Clock --
+@@ -57,10 +74,11 @@
+ 
+    function Clock return Duration is
+ 
+-      type timeval is array (1 .. 3) of Long_Integer;
++      type timeval is array (1 .. 4) of Long_Integer;
+       --  The timeval array is sized to contain Long_Long_Integer sec and
+-      --  Long_Integer usec. If Long_Long_Integer'Size = Long_Integer'Size then
+-      --  it will be overly large but that will not effect the implementation
++      --  Long_Long_Integer usec (16 bytes: 64-bit time_t and suseconds_t on a
++      --  32-bit target). Where Long_Long_Integer'Size = Long_Integer'Size it
++      --  will be overly large but that will not effect the implementation
+       --  since it is not accessed directly.
+ 
+       procedure timeval_to_duration
+@@ -79,7 +97,9 @@
+       function gettimeofday
+         (Tv : access timeval;
+          Tz : System.Address := System.Null_Address) return Integer;
+-      pragma Import (C, gettimeofday, "gettimeofday");
++      pragma Import (C, gettimeofday,
++                     (if Time64_Wrappers then "__gnat_gettimeofday"
++                      else "gettimeofday"));
+ 
+    begin
+       --  The return codes for gettimeofday are as follows (from man pages):
+--- a/gcc/ada/libgnat/g-socthi.ads
++++ b/gcc/ada/libgnat/g-socthi.ads
+@@ -256,7 +256,9 @@
+    pragma Inline (C_Getsockname);
+    pragma Inline (C_Getsockopt);
+    pragma Import (C, C_Listen, "listen");
+-   pragma Import (C, C_Select, "select");
++   pragma Import (C, C_Select,
++                  (if SOSC.TIME64_REDIRECTED /= 0 then "__gnat_select"
++                   else "select"));
+    pragma Inline (C_Setsockopt);
+    pragma Import (C, C_Shutdown, "shutdown");
+    pragma Import (C, C_Socketpair, "socketpair");
+--- a/gcc/ada/libgnat/g-sothco.ads
++++ b/gcc/ada/libgnat/g-sothco.ads
+@@ -34,7 +34,6 @@
+ 
+ with Ada.Unchecked_Conversion;
+ with Interfaces.C.Strings;
+-with System.Parameters;
+ 
+ package GNAT.Sockets.Thin_Common is
+ 
+@@ -45,9 +44,9 @@
+    Failure : constant C.int := -1;
+ 
+    type time_t is
+-     range -2 ** (System.Parameters.time_t_bits - 1)
+-        .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
+-   for time_t'Size use System.Parameters.time_t_bits;
++     range -2 ** (8 * SOSC.SIZEOF_tv_sec - 1)
++        .. 2 ** (8 * SOSC.SIZEOF_tv_sec - 1) - 1;
++   for time_t'Size use 8 * SOSC.SIZEOF_tv_sec;
+    pragma Convention (C, time_t);
+ 
+    type suseconds_t is
+--- a/gcc/ada/libgnat/g-calend.ads
++++ b/gcc/ada/libgnat/g-calend.ads
+@@ -162,7 +162,7 @@
+    --  This is a dummy declaration that should be the largest possible timeval
+    --  structure of all supported targets.
+ 
+-   type timeval is array (1 .. 3) of Interfaces.C.long;
++   type timeval is array (1 .. 4) of Interfaces.C.long;
+ 
+    function Julian_Day
+      (Year  : Ada.Calendar.Year_Number;
