@@ -10,7 +10,9 @@ license="GPL-3.0-only"
 depends="python3 py3-defusedxml py3-colorama py3-yaml py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-setuptools py3-packaging py3-resolvelib py3-psutil py3-distro"
 makedepends="py3-setuptools py3-build py3-installer py3-wheel python3-dev"
 subpackages="$pkgname-pyc:pyc:noarch"
-source="e3-core-$_commit.tar.gz::https://github.com/AdaCore/e3-core/archive/$_commit.tar.gz"
+source="e3-core-$_commit.tar.gz::https://github.com/AdaCore/e3-core/archive/$_commit.tar.gz
+	linux-platforms.patch
+	"
 builddir="$srcdir/e3-core-$_commit"
 
 build() {
@@ -28,4 +30,5 @@ package() {
 
 sha512sums="
 1ea679bbf63fce4ef58fb632b7ee90bf6c7af660c480916ab36b9f57b22edbc340a5755b7b990b376ed2d5f41d54b7dc666977d023a108cfa4aa98cf0634b5b1  e3-core-2bfafcc7e12e1f24c6b22e99265e1028d11dae79.tar.gz
+aa234fc105de2d138c77e9f8969f680a130353ec0eac572b7d20fde077bd594defae61f3035583710af781a70ab0fd550a468eb9c2b0608fc5844399cc60a2ff  linux-platforms.patch
 "

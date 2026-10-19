@@ -1,0 +1,58 @@
+Recognise every Linux CPU Alpine builds for.
+
+Platform.get() guesses the host platform from uname(2) with the HOST_GUESS
+table, which has Linux entries only for x86, x86_64, aarch64 and powerpc.
+On armv7l, riscv64, s390x and loongarch64 the guess is "unknown" and every
+e3 tool, e3-testsuite based testsuites included, dies at start-up with
+"KeyError: 'unknown'".  ppc64le is guessed as the 32-bit big-endian "ppc-linux".
+
+Add the missing CPUs to CPU_INFO, PLATFORM_INFO, BUILD_TARGETS and HOST_GUESS.
+
+--- a/src/e3/platform_db/knowledge_base.py
++++ b/src/e3/platform_db/knowledge_base.py
+@@ -18,6 +18,10 @@
+     "avr": {"endian": "little", "bits": 16},
+     "powerpc": {"endian": "big", "bits": 32},
+     "powerpc64": {"endian": "big", "bits": 64},
++    "powerpc64le": {"endian": "little", "bits": 64},
++    "riscv64": {"endian": "little", "bits": 64},
++    "s390x": {"endian": "big", "bits": 64},
++    "loongarch64": {"endian": "little", "bits": 64},
+     "sparc": {"endian": "big", "bits": 32},
+     "sparc64": {"endian": "big", "bits": 64},
+     "x86": {"endian": "little", "bits": 32},
+@@ -92,6 +96,10 @@
+     "arm-linux": {"cpu": "arm", "os": "linux", "is_hie": False, "endian": "little"},
+     "ppc-aix": {"cpu": "powerpc", "os": "aix", "is_hie": False},
+     "ppc-linux": {"cpu": "powerpc", "os": "linux", "is_hie": False},
++    "ppc64le-linux": {"cpu": "powerpc64le", "os": "linux", "is_hie": False},
++    "riscv64-linux": {"cpu": "riscv64", "os": "linux", "is_hie": False},
++    "s390x-linux": {"cpu": "s390x", "os": "linux", "is_hie": False},
++    "loongarch64-linux": {"cpu": "loongarch64", "os": "linux", "is_hie": False},
+     "raspberrypi-linux": {
+         "cpu": "arm",
+         "os": "linux",
+@@ -132,6 +140,10 @@
+     "arm-linux": {"name": "arm-linux-gnueabi"},
+     "ppc-aix": {"name": "powerpc-ibm-aix%(os_version)s.0.0"},
+     "ppc-linux": {"name": "powerpc-generic-linux-gnu"},
++    "ppc64le-linux": {"name": "powerpc64le-linux-gnu"},
++    "riscv64-linux": {"name": "riscv64-linux-gnu"},
++    "s390x-linux": {"name": "s390x-linux-gnu"},
++    "loongarch64-linux": {"name": "loongarch64-linux-gnu"},
+     "raspberrypi-linux": {"name": "arm-linux-gnueabihf"},
+     "sparc64-solaris": {"name": "sparc64-sun-solaris%(os_version)s"},
+     "sparc-solaris": {"name": "sparc-sun-solaris%(os_version)s"},
+@@ -178,7 +190,12 @@
+     "x86_64-openbsd": {"os": "OpenBSD", "cpu": None},
+     "x86_64-netbsd": {"os": "NetBSD", "cpu": None},
+     "x86_64-dragonfly": {"os": "DragonFly", "cpu": None},
++    "ppc64le-linux": {"os": "Linux", "cpu": "ppc64le|powerpc64le"},
+     "ppc-linux": {"os": "Linux", "cpu": "powerpc.*|ppc64"},
++    "arm-linux": {"os": "Linux", "cpu": "armv[0-9]"},
++    "riscv64-linux": {"os": "Linux", "cpu": "riscv64"},
++    "s390x-linux": {"os": "Linux", "cpu": "s390x"},
++    "loongarch64-linux": {"os": "Linux", "cpu": "loongarch64"},
+     "x86-linux": {"os": "Linux", "cpu": "i.86|pentium"},
+     "x86_64-linux": {"os": "Linux", "cpu": "x86_64"},
+     "sparc-solaris": {"os": "SunOS", "cpu": "sparc"},
