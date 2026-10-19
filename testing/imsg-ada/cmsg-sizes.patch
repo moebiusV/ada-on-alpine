@@ -1,0 +1,45 @@
+Compute CMSG_LEN and CMSG_SPACE instead of assuming a 64-bit target
+
+The SCM_RIGHTS code hard-coded CMSG_LEN as 20 and CMSG_SPACE as 24, which
+are the values for a 16-byte cmsghdr.  On a 32-bit target the cmsghdr is 12
+bytes, so a control message is 16 bytes long and its space is 16: with 20 and
+24 the kernel rejects the message (sendmsg fails with EINVAL) or reads past
+the buffer.
+
+Derive both from the size of the Cmsghdr record and of size_t, the way
+CMSG_LEN and CMSG_SPACE are defined: 20 and 24 on 64-bit targets, 16 and 16
+on 32-bit ones.
+
+--- a/imsg.adb
++++ b/imsg.adb
+@@ -118,8 +118,10 @@
+    pragma Convention (C, Cmsghdr);
+ 
+    --  A cmsghdr immediately followed by one int (the SCM_RIGHTS data):
+-   --  CMSG_LEN is 20 bytes (cmsghdr + one int); the control buffer must be
+-   --  CMSG_SPACE, which rounds that up to the next size_t alignment (24).
++   --  CMSG_LEN is the size of the aligned header plus one int (20 bytes on
++   --  64-bit targets, 16 on 32-bit ones); the control buffer must be
++   --  CMSG_SPACE, which rounds the data up to the next size_t alignment
++   --  (24 bytes on 64-bit targets, 16 on 32-bit ones).
+    type Cmsg_With_Fd is record
+       Hdr : Cmsghdr;
+       Fd  : int;
+@@ -145,8 +147,15 @@
+    SCM_RIGHTS       : constant := 1;
+    MSG_CMSG_CLOEXEC : constant := 16#4000_0000#;
+ 
+-   Cmsg_Len   : constant size_t := 20;  --  CMSG_LEN: hdr + one int
+-   Cmsg_Space : constant size_t := 24;  --  CMSG_SPACE: aligned
++   --  CMSG_ALIGN rounds to the size of a size_t.
++   Cmsg_Align : constant size_t := size_t (size_t'Size / 8);
++   Cmsg_Hdr   : constant size_t :=
++     (size_t (Cmsghdr'Size / 8) + Cmsg_Align - 1) / Cmsg_Align * Cmsg_Align;
++   Int_Size   : constant size_t := size_t (int'Size / 8);
++
++   Cmsg_Len   : constant size_t := Cmsg_Hdr + Int_Size;  --  CMSG_LEN
++   Cmsg_Space : constant size_t :=                       --  CMSG_SPACE
++     Cmsg_Hdr + (Int_Size + Cmsg_Align - 1) / Cmsg_Align * Cmsg_Align;
+ 
+    function C_Sendmsg (S : int; Msg : access Msghdr; Flags : int)
+      return long;
