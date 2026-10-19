@@ -20,19 +20,23 @@ builddir="$srcdir/libadalang-$_commit"
 
 build() {
 	# Generate the parser from the LKT spec and build libadalang (static).
-	python3 -m langkit.scripts.lkm make --library-types=static -j"${JOBS:-1}"
+	# --build-mode=prod: the default dev mode builds with -O0 -g -gnata, which
+	# is not what a package should ship, and on 32-bit ARM the library is then a
+	# single 27 MB .text, beyond the +-16 MiB reach of a Thumb-2 BL ("relocation
+	# truncated to fit: R_ARM_THM_CALL" when linking the mains).
+	python3 -m langkit.scripts.lkm make --build-mode=prod --library-types=static -j"${JOBS:-1}"
 }
 
 check() {
 	# Stage-install and verify the installed project/library layout.
-	python3 -m langkit.scripts.lkm install \
+	python3 -m langkit.scripts.lkm install --build-mode=prod \
 		"$srcdir"/stage/usr --library-types=static --disable-all-mains
 	test -f "$srcdir"/stage/usr/share/gpr/libadalang.gpr
 	test -n "$(find "$srcdir"/stage/usr/lib -name 'libadalang.a' | head -1)"
 }
 
 package() {
-	python3 -m langkit.scripts.lkm install \
+	python3 -m langkit.scripts.lkm install --build-mode=prod \
 		"$pkgdir"/usr --library-types=static
 	# Drop the gprinstall uninstall-manifest for the generic "mains" project:
 	# langkit ships the same-named manifest, and apk owns uninstall here.
