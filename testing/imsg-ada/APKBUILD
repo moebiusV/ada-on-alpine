@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=imsg-ada
-pkgver=0.4.0
-pkgrel=1
+pkgver=0.4.1
+pkgrel=0
 _tag="v$pkgver"
 pkgdesc="OpenBSD imsg message-passing protocol (portable imsg.c wire format) in Ada"
 url="https://github.com/moebiusV/imsg-ada"
@@ -49,6 +49,6 @@ package() {
 }
 
 sha512sums="
-ff0685f9b52c6ebe7af80e03be054c775ef5e3961a7581e6a8dfd20d195993dfb4b557ea0250c1aa659bedfffb7f680e145db6ca9ac255d676aea639a68bddaa    imsg-ada-v0.4.0.tar.gz
+bfd0e39ae6f9c3b9a880f2432aa8b7fafef4eb257afff0ff8cf00905c0c2ff2addc2bbc300fada050b07a686672710adcbab318bcd97585829131e216abb6a98  imsg-ada-v0.4.1.tar.gz
 54d75f9ad483e010c8f992160b8276919e4ccbd0c251fc43f6adfba6d56822e4e8eada5220a506916751655a6513ecfae23fa3cd9dcc4402e9c6fe0ea71bb18c  cmsg-sizes.patch
 "
