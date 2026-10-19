@@ -23,9 +23,12 @@ build() {
 	# "static" linker profile (in lsp_server.gpr) adds -static-libstdc++/-static-
 	# libgcc so libfswatch's C++ links in, keeping only libc dynamic. BUILD_MODE
 	# =prod avoids dev-mode -gnatwe/-gnaty* warnings-as-errors that trip GNAT 15.
-	export GPR_PROJECT_PATH=/usr/share/gpr
+	export GPR_PROJECT_PATH="${CBUILDROOT%/}"/usr/share/gpr
+	# LIBFSWATCH_PREFIX: where c_libfswatch.gpr finds libfswatch's headers and
+	# library; its default is /usr, which in a cross build is the host's.
 	FLAGS="-XBUILD_MODE=prod -XLSP_OS=unix -XALS_LIBRARY_TYPE=static \
-		-XLIBRARY_TYPE=static -XXMLADA_BUILD=static -XGPR_BUILD=static"
+		-XLIBRARY_TYPE=static -XXMLADA_BUILD=static -XGPR_BUILD=static \
+		-XLIBFSWATCH_PREFIX=${CBUILDROOT%/}/usr"
 	# s-memory.adb overrides System.Memory; force its recompile, else a stale
 	# object survives a GNAT upgrade and breaks the link (see upstream Makefile).
 	gprbuild -d -ws -c -u -p -P gnat/lsp_server.gpr $FLAGS s-memory.adb

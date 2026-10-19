@@ -23,7 +23,7 @@ build() {
 	# headers to a writable dir (the build user can't write /usr/include) and
 	# run gcc there so the .ads files keep the upstream filenames.
 	mkdir -p generated c_api
-	cp /usr/include/libfswatch/c/*.h c_api/
+	cp "${CBUILDROOT%/}"/usr/include/libfswatch/c/*.h c_api/
 	( cd c_api && \
 		gcc -C -fdump-ada-spec libfswatch.h -D_TIMEZONE_DEFINED && \
 		mv *.ads ../generated/ )
@@ -54,7 +54,7 @@ library project Ada_Libfswatch is
    end Compiler;
 end Ada_Libfswatch;
 GPR
-	gprbuild -p -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX=/usr -XLIBRARY_TYPE=static
+	gprbuild -p -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX="${CBUILDROOT%/}"/usr -XLIBRARY_TYPE=static
 }
 
 check() {
@@ -63,7 +63,7 @@ check() {
 
 package() {
 	# Install the prebuilt library (.a + .ali + sources + Externally_Built .gpr).
-	gprinstall -p -f -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX=/usr -XLIBRARY_TYPE=static \
+	gprinstall -p -f -P ada_libfswatch.gpr -XLIBFSWATCH_PREFIX="${CBUILDROOT%/}"/usr -XLIBRARY_TYPE=static \
 		--prefix="$pkgdir"/usr --build-name=static --build-var=LIBRARY_TYPE
 
 	# gprinstall rewrites the relative `with "c_lib/c_libfswatch"` to a plain
