@@ -293,7 +293,7 @@ toolchain and smoke-tests it, so it checks what users actually install.
 `.github/workflows/ci.yml` builds and tests every aport on all nine
 architectures. Build fewer with `[ci only: aarch64,x86]` in the commit message.
 A stage that nears GitHub's 6 h job limit checkpoints between packages and
-`ci-resume.yml` reruns it. On the 32-bit targets the `testing/gcc` carrier is
+`ci-resume.yml` reruns it. On the targets that need the GNAT runtime fixes (x86, armv7, armhf, s390x, riscv64) the `testing/gcc` carrier is
 built first (stage `sg`), until the `main/gcc` MR is merged.
 
 ### Adding a package

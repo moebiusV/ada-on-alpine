@@ -175,6 +175,21 @@ mkdir -p /repo/.work/hashes /repo/.work/runs
 # build against the earlier stages' output, which is in .work/packages but not
 # installed here, so install it all up front (a package rebuilt below simply
 # upgrades its entry).
+# A cache can hold the packages of an aport whose build or install failed half
+# way (the hash is written only after both succeeded).  Such leftovers can be an
+# inconsistent family (some of gcc's packages at the new version), which apk
+# then refuses to install: drop every cached package whose aport has no hash.
+if [ -n "${CASCADE:-}" ]; then
+    for _f in /repo/.work/packages/*.apk; do
+        [ -e "$_f" ] || break
+        _origin=$(tar -xzOf "$_f" .PKGINFO 2>/dev/null | sed -n 's/^origin = //p' | head -1)
+        if [ -n "$_origin" ] && [ -d "/repo/testing/$_origin" ] && [ ! -s "/repo/.work/hashes/$_origin" ]; then
+            echo "  (dropping $(basename "$_f"): $_origin was not completed)"
+            rm -f "$_f"
+        fi
+    done
+fi
+
 if [ -n "${CASCADE:-}" ] && ls /repo/.work/packages/*.apk >/dev/null 2>&1; then
     echo "===== installing previously built packages ====="
     if ! apk add --allow-untrusted /repo/.work/packages/*.apk; then

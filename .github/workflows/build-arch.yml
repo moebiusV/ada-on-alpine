@@ -40,12 +40,13 @@ jobs:
           prev: ""
           pkgs: "abuild"
 
-  # Alpine's gcc-gnat has the GNAT runtime fix for 32-bit musl (time64) only
-  # from 15.2.0-r10, which gprbuild needs there.  Until the main/gcc MR is
-  # merged, build the carrier aport (testing/gcc) on the 32-bit targets.
+  # Alpine's gcc-gnat lacks two GNAT runtime fixes: the 32-bit musl time64 one
+  # (x86, armv7, armhf; gprbuild needs it) and the shared Unbounded strings on
+  # s390x and riscv64 (vss needs them).  Until the main/gcc MR is merged, build
+  # the carrier aport (testing/gcc) on those targets.
   sg:
     needs: s0
-    if: contains('x86 armv7 armhf', inputs.arch)
+    if: contains('x86 armv7 armhf s390x riscv64', inputs.arch)
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +71,7 @@ jobs:
           platform: ${{ inputs.platform }}
           qemu: ${{ inputs.qemu }}
           stage: s1
-          prev: ${{ contains('x86 armv7 armhf', inputs.arch) && 'sg' || 's0' }}
+          prev: ${{ contains('x86 armv7 armhf s390x riscv64', inputs.arch) && 'sg' || 's0' }}
           pkgs: "gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustache-ada hbnf imsg-ada xmlada aunit buildabook gnatcoll gnatcoll-db gnatcoll-gmp gnatcoll-iconv spawn vss aws adasat"
 
   s2:
