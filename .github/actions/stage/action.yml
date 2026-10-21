@@ -18,6 +18,10 @@ inputs:
   pkgs:
     description: Space-separated aports to build, in dependency order
     required: true
+  seed:
+    description: Restore prebuilt gcc packages (tools/seed-restore.sh) before building
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -55,6 +59,9 @@ runs:
     - if: steps.own.outcome != 'success' && inputs.prev == ''
       shell: bash
       run: rm -f .work/dirty
+    - if: inputs.seed == 'true'
+      shell: bash
+      run: tools/seed-restore.sh "${{ inputs.arch }}"
     - name: Build (abuild runs each aport's check())
       shell: bash
       env:

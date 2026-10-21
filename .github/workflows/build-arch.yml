@@ -58,6 +58,7 @@ jobs:
           stage: sg
           prev: "s0"
           pkgs: "gcc"
+          seed: "true"
 
   s1:
     needs: [s0, sg]
