@@ -82,9 +82,24 @@ install_makedepends() {
     fi
 }
 
+# After a failed build, show what e3-testsuite recorded for the tests that
+# failed (out/new/<test>.yaml + .log under the kept src/): CI keeps only the
+# tail of the log, so end with the failing names and the first outputs.
+dump_testsuite_failures() {
+    _bad=$(find "/repo/testing/$1/src" -path '*/out/new/*.yaml' 2>/dev/null \
+        | while read -r _y; do grep -qE '^status: *(FAIL|ERROR|XPASS)' "$_y" && echo "$_y"; done)
+    [ -n "$_bad" ] || return 0
+    echo "===== failing tests of $1 (e3-testsuite results) ====="
+    echo "$_bad" | head -3 | while read -r _y; do
+        echo "--- ${_y%.yaml}"; tail -n 14 "${_y%.yaml}.log" 2>/dev/null | cut -c1-200
+    done
+    echo "$_bad" | sed 's|.*/out/new/||; s|\.yaml$||' | sed 's/^/FAILED TEST: /'
+}
+
 run_abuild() {
     install_makedepends "$1"
-    su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild"
+    su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild" \
+        || { _rc=$?; dump_testsuite_failures "$1"; return $_rc; }
 }
 
 # Install a package's main .apk plus any subpackages from a directory. The
