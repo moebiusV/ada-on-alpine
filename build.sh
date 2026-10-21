@@ -230,6 +230,15 @@ for pkg in $PKGS; do
         echo "  (a dependency was rebuilt this run)"
         force=1
     fi
+    # Toolchain stamp: when this run uses a carrier gcc (hashes/gcc, from the
+    # gcc stage or its seed), anything built against another gcc, or against none
+    # (the stock one), is stale: Ada libraries record the runtime's s-oscons.
+    tc=$(cat /repo/.work/hashes/gcc 2>/dev/null || true)
+    if [ "$force" = 0 ] && [ "$pkg" != gcc ] && [ -n "$tc" ] \
+        && [ "$(cat "/repo/.work/toolchain/$pkg" 2>/dev/null)" != "$tc" ]; then
+        echo "  (built with another gcc than $(printf %s "$tc" | cut -c1-12))"
+        force=1
+    fi
     if [ "$force" = 0 ] && [ -n "$prev_hash" ] && [ "$prev_hash" = "$cur_hash" ] \
         && ls "/repo/.work/packages/${pkg}-${pkgver}-"*.apk >/dev/null 2>&1; then
         echo "  (cached, installing)"
@@ -267,6 +276,8 @@ for pkg in $PKGS; do
     done
     install_apks "$pkg" "$pkgver" /repo/.work/packages
     printf '%s\n' "$cur_hash" > "/repo/.work/hashes/$pkg"
+    mkdir -p /repo/.work/toolchain
+    printf '%s\n' "$tc" > "/repo/.work/toolchain/$pkg"
     printf '%s\n' "${RUN_TAG:-}" > "/repo/.work/runs/$pkg"
     [ -n "${CASCADE:-}" ] && echo "$pkg" >> /repo/.work/dirty
     true
