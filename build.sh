@@ -102,6 +102,14 @@ dump_ada_runtime_state() {
     echo "===== installed gcc family ====="
     apk list -I 2>/dev/null | grep -E '^(gcc|g\+\+|libgnat|libgcc|libstdc\+\+|libatomic|libgomp)[a-z+-]*-[0-9]' | cut -d' ' -f1 | tr '\n' ' '
     echo
+    # Does the shipped source still have the checksum recorded in its .ali?
+    for _u in a-strunb s-tpoben; do
+        _inc=$(ls -d /usr/lib/gcc/*/*/adainclude | head -1)
+        _t=$(mktemp -d); cp "$_inc/$_u.ads" "$_inc/$_u.adb" "$_t/" 2>/dev/null
+        ( cd "$_t" && gcc -c -gnatg -gnatc -gnatws "$_u.adb" >/dev/null 2>&1; \
+          echo "recompiled now:  $(grep -h "^D $_u.adb" "$_u.ali" 2>/dev/null | cut -f1,3,4)"; \
+          echo "installed .ali:  $(grep -h "^D $_u.adb" "$_inc"/../adalib/"$_u".ali | cut -f1,3,4)" )
+    done
     for _u in s-tpoben s-oscons; do
         ls -l --full-time /usr/lib/gcc/*/*/adalib/$_u.ali /usr/lib/gcc/*/*/adainclude/$_u.ad[sb] 2>/dev/null | awk '{print $6, $7, $9}'
     done
