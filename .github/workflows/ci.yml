@@ -2,7 +2,7 @@
 # Every architecture is built by default.  To build fewer, put `[ci only:
 # aarch64,x86]` in the commit message (or the "only" input of a manual run).
 # A stage that runs out of time checkpoints and ci-resume.yml reruns it
-# automatically.
+# automatically.  Stages after a skipped one (sg) still run: see build-arch.yml.
 # x86_64, x86 and aarch64 run natively on GitHub's runners (x86 as a 32-bit
 # container on an x86_64 host); the other six run under QEMU user-mode emulation,
 # which is slow -- the heavy aports (libadalang, ada_language_server) may exceed
