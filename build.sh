@@ -64,7 +64,9 @@ chown -R build:build /home/build /keys /repo
 # repositories (aports of ours that come later) fail the install harmlessly:
 # abuild then reports what is really missing.
 install_makedepends() {
-    _deps=$(cd "/repo/testing/$1" && CARCH=$(apk --print-arch) sh -c '
+    # abuild's own variables: aports branch on CTARGET_ARCH, CBUILD, CHOST, CTARGET.
+    _arch=$(apk --print-arch)
+    _deps=$(cd "/repo/testing/$1" && CARCH=$_arch CTARGET_ARCH=$_arch CBUILD=$_arch CHOST=$_arch CTARGET=$_arch sh -c '
         . ./APKBUILD >/dev/null 2>&1
         for d in $makedepends $makedepends_build $makedepends_host $checkdepends; do
             case "$d" in "!"*) ;; *) echo "${d%%[<>=~]*}" ;; esac
