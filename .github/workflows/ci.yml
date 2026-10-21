@@ -13,9 +13,9 @@ name: ci
 on:
   push:
     branches: [main]
-    paths: ['testing/**', 'build.sh', 'tools/ci-smoke.sh', '.github/**']
+    paths: ['testing/**', 'build.sh', 'tools/**', '.github/**']
   pull_request:
-    paths: ['testing/**', 'build.sh', 'tools/ci-smoke.sh', '.github/**']
+    paths: ['testing/**', 'build.sh', 'tools/**', '.github/**']
   workflow_dispatch:
     inputs:
       only:
