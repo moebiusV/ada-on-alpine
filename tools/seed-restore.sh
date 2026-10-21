@@ -28,6 +28,13 @@ if [ "$(cat "$tmp/HASH" 2>/dev/null)" != "$cur" ]; then
     exit 0
 fi
 mkdir -p .work/packages .work/hashes .work/manifest
+# Whatever was built earlier against another gcc (the cache can hold packages
+# compiled with Alpine's own) must be recompiled: say gcc was rebuilt in this
+# run, which makes build.sh rebuild its dependents.  When the cache already has
+# this very gcc nothing changes and nothing is marked.
+if [ "$(cat .work/hashes/gcc 2>/dev/null)" != "$cur" ]; then
+    echo gcc >> .work/dirty
+fi
 while read -r f; do
     n=${f%%-[0-9]*}
     rm -f .work/packages/"$n"-[0-9]*.apk
