@@ -96,10 +96,21 @@ dump_testsuite_failures() {
     echo "$_bad" | sed 's|.*/out/new/||; s|\.yaml$||' | sed 's/^/FAILED TEST: /'
 }
 
+# After any failed build: which gcc family is installed and whether the runtime's
+# .ali files match its sources (a mix of gcc versions shows up here).
+dump_ada_runtime_state() {
+    echo "===== installed gcc family ====="
+    apk list -I 2>/dev/null | grep -E '^(gcc|g\+\+|libgnat|libgcc|libstdc\+\+|libatomic|libgomp)[a-z+-]*-[0-9]' | cut -d' ' -f1 | tr '\n' ' '
+    echo
+    for _u in s-tpoben s-oscons; do
+        ls -l --full-time /usr/lib/gcc/*/*/adalib/$_u.ali /usr/lib/gcc/*/*/adainclude/$_u.ad[sb] 2>/dev/null | awk '{print $6, $7, $9}'
+    done
+}
+
 run_abuild() {
     install_makedepends "$1"
     su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild" \
-        || { _rc=$?; dump_testsuite_failures "$1"; return $_rc; }
+        || { _rc=$?; dump_testsuite_failures "$1"; dump_ada_runtime_state; return $_rc; }
 }
 
 # Install a package's main .apk plus any subpackages from a directory. The
