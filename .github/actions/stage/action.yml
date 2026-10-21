@@ -83,6 +83,13 @@ runs:
       run: |
         msg=$(tail -n 40 "$RUNNER_TEMP/build.log" 2>/dev/null | cut -c1-160 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
         echo "::error title=build log tail (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
+        # the tail is often repeats of one error: also show the first error with its lead-up
+        first=$(grep -n -m1 -E '(^|[^a-z])(error|ERROR)[: ]' "$RUNNER_TEMP/build.log" 2>/dev/null | cut -d: -f1)
+        if [ -n "$first" ]; then
+          from=$(( first > 14 ? first - 14 : 1 ))
+          msg=$(sed -n "${from},$((first + 10))p" "$RUNNER_TEMP/build.log" | cut -c1-200 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=first error (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
+        fi
     # Stop a build container left running by a cancelled or killed job, then undo build.sh's
     # chown of the checkout to the container's build user.
     - if: always()
