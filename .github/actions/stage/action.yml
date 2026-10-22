@@ -72,8 +72,10 @@ runs:
         RUN_TAG: ${{ github.run_id }}
       run: |
         export KEYDIR="$PWD/.work/keys"
-        # Checkpoint 20 minutes before GitHub's 6 h job limit (see build.sh).
-        export DEADLINE_EPOCH=$(( $(date +%s) + 340 * 60 ))
+                # Nothing new is started after 4h15m; HARD is just before GitHub kills the
+        # job (a killed job uploads nothing, so its work would be lost).
+        export DEADLINE_EPOCH=$(( $(date +%s) + 255 * 60 ))
+        export HARD_EPOCH=$(( $(date +%s) + 345 * 60 ))
         set -o pipefail
         ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
     # Job logs need a login to read, but annotations are public: surface the
