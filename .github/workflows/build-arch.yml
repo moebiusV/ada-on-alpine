@@ -62,7 +62,9 @@ jobs:
 
   s1:
     needs: [s0, sg]
-    if: ${{ needs.s0.result == 'success' && (needs.sg.result == 'success' || needs.sg.result == 'skipped') }}
+    # !cancelled() makes this a status-check expression: without one GitHub adds an
+    # implicit success(), which a skipped sg (arches without a gcc stage) fails.
+    if: ${{ !cancelled() && needs.s0.result == 'success' && (needs.sg.result == 'success' || needs.sg.result == 'skipped') }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +79,7 @@ jobs:
 
   s2:
     needs: s1
-    if: ${{ needs.s1.result == 'success' }}
+    if: ${{ !cancelled() && needs.s1.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -92,7 +94,7 @@ jobs:
 
   s3:
     needs: s2
-    if: ${{ needs.s2.result == 'success' }}
+    if: ${{ !cancelled() && needs.s2.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +109,7 @@ jobs:
 
   s4:
     needs: s3
-    if: ${{ needs.s3.result == 'success' }}
+    if: ${{ !cancelled() && needs.s3.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -122,7 +124,7 @@ jobs:
 
   s5:
     needs: s4
-    if: ${{ needs.s4.result == 'success' }}
+    if: ${{ !cancelled() && needs.s4.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -137,7 +139,7 @@ jobs:
 
   s6:
     needs: s5
-    if: ${{ needs.s5.result == 'success' }}
+    if: ${{ !cancelled() && needs.s5.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -152,7 +154,7 @@ jobs:
 
   smoke:
     needs: s6
-    if: ${{ needs.s6.result == 'success' }}
+    if: ${{ !cancelled() && needs.s6.result == 'success' }}
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
