@@ -110,6 +110,49 @@ dump_ada_runtime_state() {
           echo "recompiled now:  $(grep -h "^D $_u.adb" "$_u.ali" 2>/dev/null | cut -f1,3,4)"; \
           echo "installed .ali:  $(grep -h "^D $_u.adb" "$_inc"/../adalib/"$_u".ali | cut -f1,3,4)" )
     done
+    # Reproduce a stand-alone-library bind in miniature against this runtime.
+    command -v gprbuild >/dev/null 2>&1 && for _v in "-O2 -gnatn" "-O2"; do
+        _d=$(mktemp -d); cd "$_d" || continue
+        cat > sal_pkg.ads <<'ADS'
+with Ada.Strings.Unbounded;
+package Sal_Pkg is
+   protected type P is
+      procedure Inc;
+      function Get return Natural;
+   private
+      N : Natural := 0;
+   end P;
+   function Name return Ada.Strings.Unbounded.Unbounded_String;
+end Sal_Pkg;
+ADS
+        cat > sal_pkg.adb <<'ADB'
+package body Sal_Pkg is
+   protected body P is
+      procedure Inc is begin N := N + 1; end Inc;
+      function Get return Natural is begin return N; end Get;
+   end P;
+   function Name return Ada.Strings.Unbounded.Unbounded_String is
+   begin
+      return Ada.Strings.Unbounded.To_Unbounded_String ("x");
+   end Name;
+end Sal_Pkg;
+ADB
+        cat > sal.gpr <<GPR
+library project Sal is
+   for Source_Dirs use (".");
+   for Object_Dir use "obj";
+   for Library_Name use "sal";
+   for Library_Dir use "lib";
+   for Library_Kind use "relocatable";
+   for Library_Interface use ("sal_pkg");
+   for Library_Standalone use "standard";
+   package Compiler is for Default_Switches ("Ada") use ("$(echo $_v | sed 's/ /","/g')"); end Compiler;
+end Sal;
+GPR
+        mkdir -p obj lib
+        echo "--- mini SAL ($_v): $(gprbuild -q -p -P sal.gpr >bind.log 2>&1 && echo OK || { echo FAILED; grep -c 'must be compiled' bind.log; head -4 bind.log | cut -c1-140; })"
+        cd /
+    done
     for _u in s-tpoben s-oscons; do
         ls -l --full-time /usr/lib/gcc/*/*/adalib/$_u.ali /usr/lib/gcc/*/*/adainclude/$_u.ad[sb] 2>/dev/null | awk '{print $6, $7, $9}'
     done
