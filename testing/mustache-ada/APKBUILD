@@ -1,8 +1,8 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=mustache-ada
-pkgver=0.2.1
+pkgver=0.2.1_git20261004
 pkgrel=0
-_tag="v$pkgver"
+_commit="35e3b1d64d504ec97cd643c035e5f72acfba9bbe"
 pkgdesc="A Mustache template engine in Ada"
 url="https://github.com/moebiusV/mustache-ada"
 arch="all"
@@ -12,8 +12,8 @@ license="ISC"
 # GPR projects.
 depends="libgnat"
 makedepends="gcc-gnat gprbuild build-base"
-source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/$pkgname-$pkgver"
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
 subpackages="$pkgname-static $pkgname-doc"
 
 build() {
@@ -43,5 +43,5 @@ doc() {
 }
 
 sha512sums="
-af35f9a3d3a1d7ef5af5e3c956ae916161cb3dd5cd8f317737ef7eea91edaedc49dd09386cb3743988e7f078e2f64bb43c1f80a25709dfd1c0c2524852e02cd7    mustache-ada-v0.2.1.tar.gz
+ce7adaf93f70d6738d1e8b2f4b383d89ddc4f726b213249062aaf612f6ac9f1dadf72c6b64c3c2ce74f793d74128a34e074d6a5d639e16b62d7b53a1b9f03dc8    mustache-ada-35e3b1d64d504ec97cd643c035e5f72acfba9bbe.tar.gz
 "

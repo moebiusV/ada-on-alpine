@@ -1,8 +1,8 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=imsg-ada
-pkgver=0.4.1
+pkgver=0.4.1_git20261019
 pkgrel=0
-_tag="v$pkgver"
+_commit="c5669d0625f756a2fd7e64ba379b39dad6da65f2"
 pkgdesc="OpenBSD imsg message-passing protocol (portable imsg.c wire format) in Ada"
 url="https://github.com/moebiusV/imsg-ada"
 arch="all"
@@ -12,10 +12,10 @@ license="ISC"
 # GPR projects.
 depends="libgnat"
 makedepends="gcc-gnat gprbuild build-base"
-source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz
 	cmsg-sizes.patch
 	"
-builddir="$srcdir/$pkgname-$pkgver"
+builddir="$srcdir/$pkgname-$_commit"
 subpackages="$pkgname-static"
 
 build() {
@@ -49,6 +49,6 @@ package() {
 }
 
 sha512sums="
-bfd0e39ae6f9c3b9a880f2432aa8b7fafef4eb257afff0ff8cf00905c0c2ff2addc2bbc300fada050b07a686672710adcbab318bcd97585829131e216abb6a98  imsg-ada-v0.4.1.tar.gz
+f93c7730f70dceb31f99777aa9fd9a745d3ad95cb78e93aed4131b56ba8b4daf7fd759e562256c94382246ef7fffb23f54b1708378dbad9cc9ce18f30fb24205  imsg-ada-c5669d0625f756a2fd7e64ba379b39dad6da65f2.tar.gz
 54d75f9ad483e010c8f992160b8276919e4ccbd0c251fc43f6adfba6d56822e4e8eada5220a506916751655a6513ecfae23fa3cd9dcc4402e9c6fe0ea71bb18c  cmsg-sizes.patch
 "

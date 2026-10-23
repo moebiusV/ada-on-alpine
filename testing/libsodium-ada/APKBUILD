@@ -1,16 +1,16 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=libsodium-ada
-pkgver=0.2.16
+pkgver=0.2.16_git20261004
 pkgrel=0
-_tag="v$pkgver"
+_commit="4b19b7148bdcc862ba3c71a5faaf3f77788974f7"
 pkgdesc="Complete thin Ada binding to libsodium (hashes, HMAC, AEAD, base64/hex, secure memory, and the full crypto suites)"
 url="https://github.com/moebiusV/libsodium-ada"
 arch="all"
 license="ISC"
 depends="libgnat libsodium"
 makedepends="gcc-gnat gprbuild build-base libsodium-dev"
-source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/$pkgname-$pkgver"
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
 subpackages="$pkgname-static $pkgname-doc"
 
 build() {
@@ -53,5 +53,5 @@ doc() {
 }
 
 sha512sums="
-569a1716ba300c40b0457bc6c1cd7d30dd3d5b2217a77f7f089cf33f1c73cff790c605e62f0076e49423d55c6c6a39caa9fcad91082ebd7426181f3c34b8a13b    libsodium-ada-v0.2.16.tar.gz
+750c60cab344e7828232411ba0267fdd3518d662ff386d42a835e52f1c95957eceddd6bfa1dbc4c1d4a0bcedf905f373540a963fc5acef069fd1b5efe709b6b4    libsodium-ada-4b19b7148bdcc862ba3c71a5faaf3f77788974f7.tar.gz
 "

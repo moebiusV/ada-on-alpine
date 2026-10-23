@@ -1,29 +1,27 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.7.0
+pkgver=0.7.0_git20261022
 pkgrel=0
-_tag="v$pkgver"
+_commit="cd94a1621dcca5946522e29e454bea132f33e16c"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
 url="https://github.com/moebiusV/hbnf"
-# hbnf_config.ads declares `type Decimal is delta 10.0 ** (-8) digits 38`: a
-# 38-digit decimal needs 128-bit integers, which GNAT only has on 64-bit
-# targets (32-bit ones stop at 18 digits).  Not built for x86, armhf or armv7.
-arch="x86_64 aarch64 ppc64le s390x riscv64 loongarch64"
+# Pure Ada, no 128-bit types (the old hbnf_config reader, whose 38-digit Decimal
+# needed them, is gone), so it builds on every architecture.
+arch="all"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): the hbnf binary is
 # fully static, so the CLI itself has no runtime component.  But the installed
-# hbnf_config.gpr does `with "mustache.gpr"` (the code templates are rendered
-# by mustache-ada), so consumers of libhbnf.a need mustache-ada installed too.
+# libhbnf.gpr does `with "mustache.gpr"` (the code templates are rendered by
+# mustache-ada), so consumers of libhbnf.a need mustache-ada installed too.
 # hbnf is its own dev package (no -dev split); it ships one library,
-# libhbnf.a: the config parser plus the schema engine and the C/Rust/Zig/Ada
-# emitters.
+# libhbnf.a: the schema engine and the C/Rust/Zig/Ada emitters.
 depends="mustache-ada"
 makedepends="gcc-gnat gprbuild build-base mustache-ada"
-source="$pkgname-$_tag.tar.gz::https://github.com/moebiusV/$pkgname/archive/refs/tags/$_tag.tar.gz"
-builddir="$srcdir/$pkgname-$pkgver"
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
 
 build() {
-	gprbuild -P hbnf_config.gpr -p -XLIBRARY_TYPE=static
+	gprbuild -P libhbnf.gpr -p -XLIBRARY_TYPE=static
 	# hbnf links -static (see hbnf.gpr) so the shipped binary runs on glibc and
 	# musl alike. gprbuild emits -lgnat-15/-lgnarl-15 (versioned), but Alpine
 	# ships the static runtime unversioned as libgnat.a/libgnarl.a.  Provide
@@ -40,24 +38,16 @@ build() {
 }
 
 check() {
-	# Build the conformance drivers against the built library and run them:
-	# hbnf_check (every accept/*.conf parses and round-trips, every reject
-	# fails), hbnf_match_check (the hbnf binder agrees with hbnf's own
-	# parser on the whole corpus), and hbnf_emit_check (the C/Ada emitters).
+	# hbnf_emit_check: the C/Ada emitters against the schema grammar.
 	gprbuild -P tests/check.gpr -p
-	for f in tests/accept/*.conf; do
-		./tests/hbnf_check "$f" accept
-	done
-	for f in tests/reject/*.conf; do
-		./tests/hbnf_check "$f" reject
-	done
-	for f in tests/accept/*.conf; do
-		./tests/hbnf_match_check ./hbnf_schema.hbnf "$f" accept
-	done
-	for f in tests/reject/*.conf; do
-		./tests/hbnf_match_check ./hbnf_schema.hbnf "$f" reject
-	done
 	./tests/hbnf_emit_check tests/server.hbnf hbnf_schema.hbnf
+
+	# The schema grammar (tests/accept and tests/reject) and the portable
+	# grammar through the backends this builder has compilers for: C and Ada.
+	# (Rust and Zig need rustc and zig; upstream runs all four.)
+	export HBNF=./hbnf HBNF_TEMPLATES="$PWD/templates"
+	SCHEMA_BACKENDS="c ada" sh tests/schema.sh
+	sh tests/portable.sh
 
 	# The CLI emits a self-contained C parser; smoke-test that it compiles.
 	# Generate into a mktemp dir (the djb dance) rather than a fixed /tmp
@@ -69,7 +59,7 @@ check() {
 }
 
 package() {
-	gprinstall -P hbnf_config.gpr -p --prefix="$pkgdir/usr" \
+	gprinstall -P libhbnf.gpr -p --prefix="$pkgdir/usr" \
 		--sources-subdir=include/hbnf
 	install -Dm755 hbnf "$pkgdir/usr/bin/hbnf"
 	# The code-generator templates: loaded at runtime from the XDG data
@@ -78,4 +68,4 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="74917d978e782ece0bd729db32ea84bbe73d7f5d115ad6a503898a169c59b6cf77e14a6b8a0fe6f6b9286d26cb4d89f8d03eaa8306e583664ba880c51448ff14  hbnf-v0.7.0.tar.gz"
+sha512sums="281222cf935732b46d77984d44f5fff2aede4e415915a884bb2610ffb555270b19ac85c8fef77c11ccd23d6e97163792740ca7cfd7a08562de94e26283e75b76  hbnf-cd94a1621dcca5946522e29e454bea132f33e16c.tar.gz"

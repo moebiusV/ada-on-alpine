@@ -1,8 +1,8 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=buildabook
-pkgver=0.1.0_git20261005
+pkgver=0.1.0_git20261023
 pkgrel=0
-_commit="816c721c69c69d9c55eeb07c7134bb39bbd95ca8"
+_commit="96160fb5e8c83761cefaccd3536ac73161519858"
 pkgdesc="Build tool for long manuscripts: outline + chapter sources -> Typst book"
 url="https://github.com/moebiusV/buildabook"
 # Needs hbnf at build time, which is only built where GNAT has 128-bit
@@ -22,6 +22,12 @@ build() {
 check() {
 	gprbuild -P tests/tests.gpr -p
 	./tests/tests
+
+	# The checked-in parsers must be what the installed hbnf generates from
+	# the grammars (regen.sh needs hbnf main of 2026-10-22 or later).
+	cp -r src "$srcdir"/src.checked-in
+	sh grammars/regen.sh
+	diff -r "$srcdir"/src.checked-in src
 }
 
 package() {
@@ -29,4 +35,4 @@ package() {
 	install -Dm644 man/buildabook.1 "$pkgdir"/usr/share/man/man1/buildabook.1
 	gzip -9 "$pkgdir"/usr/share/man/man1/buildabook.1
 }
-sha512sums="8cb864e1d8f5539273c39e5f8877056e8d7c514cd74a8195f550d8c9c34e5c8c4e608d1070ca140d4b729cfca37826ac87ea9756d301e122f044ac4ace93438a  buildabook-816c721c69c69d9c55eeb07c7134bb39bbd95ca8.tar.gz"
+sha512sums="2950775cb16c6b209a43dfac632f4093f357a90248b14dbf650c85cbbe3b66cb71a7d6973e87640c74050bc56d226414ccf53ade5c3ee8adf90f07c67f470053  buildabook-96160fb5e8c83761cefaccd3536ac73161519858.tar.gz"
