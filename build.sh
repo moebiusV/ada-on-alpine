@@ -243,8 +243,11 @@ for pkg in $PKGS; do
     # recorded duration (.work/durations, seconds) would run past it.
     _now=$(date +%s)
     _est=$(cat "/repo/.work/durations/$pkg" 2>/dev/null || echo 0)
-    if { [ -n "${DEADLINE_EPOCH:-}" ] && [ "$_now" -ge "$DEADLINE_EPOCH" ]; } \
-        || { [ -n "${HARD_EPOCH:-}" ] && [ $(( _now + _est + _est / 5 )) -ge "$HARD_EPOCH" ]; }; then
+    # Never refuse the first package this job builds: a job that builds nothing
+    # makes no progress, and CI would resume it forever.
+    if [ "${_built_any:-0}" = 1 ] \
+        && { { [ -n "${DEADLINE_EPOCH:-}" ] && [ "$_now" -ge "$DEADLINE_EPOCH" ]; } \
+        || { [ -n "${HARD_EPOCH:-}" ] && [ $(( _now + _est + _est / 5 )) -ge "$HARD_EPOCH" ]; }; }; then
         echo "===== time budget used up before $pkg (estimate ${_est}s): checkpointing ====="
         touch /repo/.work/incomplete
         break
@@ -286,6 +289,7 @@ for pkg in $PKGS; do
         continue
     fi
     _t0=$(date +%s)
+    _built_any=1
     run_abuild "$pkg"
     mkdir -p /repo/.work/durations
     printf '%s\n' $(( $(date +%s) - _t0 )) > "/repo/.work/durations/$pkg"
