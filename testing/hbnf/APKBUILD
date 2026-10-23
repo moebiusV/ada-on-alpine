@@ -17,7 +17,13 @@ license="ISC"
 # libhbnf.a: the schema engine and the C/Rust/Zig/Ada emitters.
 depends="mustache-ada"
 makedepends="gcc-gnat gprbuild build-base mustache-ada"
-source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
+# libhbnf-sources.patch: libhbnf.gpr at this commit omits hbnf_lookahead,
+# hbnf_tree_sitter, hbnf_wire-zig and hbnf_wire-ada_lang, so a clean checkout
+# cannot build the hbnf command ("hbnf_lookahead.ali not found").  Pending
+# upstream (moebiusV/hbnf); drop the patch once libhbnf.gpr lists them.
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz
+	libhbnf-sources.patch
+	"
 builddir="$srcdir/$pkgname-$_commit"
 
 build() {
@@ -68,4 +74,6 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="281222cf935732b46d77984d44f5fff2aede4e415915a884bb2610ffb555270b19ac85c8fef77c11ccd23d6e97163792740ca7cfd7a08562de94e26283e75b76  hbnf-cd94a1621dcca5946522e29e454bea132f33e16c.tar.gz"
+sha512sums="281222cf935732b46d77984d44f5fff2aede4e415915a884bb2610ffb555270b19ac85c8fef77c11ccd23d6e97163792740ca7cfd7a08562de94e26283e75b76  hbnf-cd94a1621dcca5946522e29e454bea132f33e16c.tar.gz
+232467b8ba43f2879e6889cf2f2638407671fca43042674d15a80978efc7e9bceb71433c9e73a1e4a5d3d1d335ac01095e0a98b171aa28d251b13e9cd2641995  libhbnf-sources.patch
+"

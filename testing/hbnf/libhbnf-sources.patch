@@ -1,0 +1,17 @@
+diff --git a/libhbnf.gpr b/libhbnf.gpr
+index dfb526d..6e332c8 100644
+--- a/libhbnf.gpr
++++ b/libhbnf.gpr
+@@ -24,7 +24,11 @@ library project Libhbnf is
+       "hbnf_wire.ads", "hbnf_wire.adb",
+       "hbnf_wire-c.ads", "hbnf_wire-c.adb",
+       "hbnf_wire-lower.ads", "hbnf_wire-lower.adb",
+-      "hbnf_wire-rust.ads", "hbnf_wire-rust.adb");
++      "hbnf_wire-rust.ads", "hbnf_wire-rust.adb",
++      "hbnf_wire-zig.ads", "hbnf_wire-zig.adb",
++      "hbnf_wire-ada_lang.ads", "hbnf_wire-ada_lang.adb",
++      "hbnf_lookahead.ads", "hbnf_lookahead.adb",
++      "hbnf_tree_sitter.ads", "hbnf_tree_sitter.adb");
+    for Object_Dir use "obj-hbnf";
+    for Create_Missing_Dirs use "True";
+    for Library_Dir use "lib-hbnf";
