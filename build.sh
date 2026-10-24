@@ -86,14 +86,18 @@ install_makedepends() {
 # failed (out/new/<test>.yaml + .log under the kept src/): CI keeps only the
 # tail of the log, so end with the failing names and the first outputs.
 dump_testsuite_failures() {
-    _bad=$(find "/repo/testing/$1/src" -path '*/out/new/*.yaml' 2>/dev/null \
+    # e3-testsuite writes <output-dir>/<test>.yaml and <test>.log; the output
+    # dir defaults to ./out under the directory the suite was started from.
+    _bad=$(find "/repo/testing/$1/src" -path '*/out/*' -name '*.yaml' 2>/dev/null \
         | while read -r _y; do grep -qE '(^|[: ])(FAIL|ERROR|XPASS)([^A-Za-z]|$)' "$_y" && echo "$_y"; done)
-    [ -n "$_bad" ] || return 0
+    [ -n "$_bad" ] || return 1
     echo "===== failing tests of $1 (e3-testsuite results) ====="
-    echo "$_bad" | head -3 | while read -r _y; do
-        echo "--- ${_y%.yaml}"; tail -n 30 "${_y%.yaml}.log" 2>/dev/null | cut -c1-200
+    echo "$_bad" | head -4 | while read -r _y; do
+        echo "--- ${_y%.yaml}"
+        # the diff of expected and actual output, when the log has one
+        grep -E '^[-+@]' "${_y%.yaml}.log" 2>/dev/null | head -9 | cut -c1-150
     done
-    echo "$_bad" | sed 's|.*/out/new/||; s|\.yaml$||' | sed 's/^/FAILED TEST: /'
+    echo "$_bad" | sed 's|.*/out/||; s|\.yaml$||' | sed 's/^/FAILED TEST: /'
 }
 
 # After any failed build: which gcc family is installed and whether the runtime's
@@ -161,7 +165,7 @@ GPR
 run_abuild() {
     install_makedepends "$1"
     su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild" \
-        || { _rc=$?; dump_testsuite_failures "$1"; dump_ada_runtime_state; return $_rc; }
+        || { _rc=$?; dump_testsuite_failures "$1" || dump_ada_runtime_state; return $_rc; }
 }
 
 # Install a package's main .apk plus any subpackages from a directory. The
