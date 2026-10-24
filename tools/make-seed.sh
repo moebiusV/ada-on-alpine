@@ -7,7 +7,8 @@
 # the hash recorded is that of testing/gcc in HEAD.  The packages must have been
 # built from exactly those files.  Pushes the orphan branch seed-gcc-<arch>
 # (force: only the latest seed is kept; pushing it does not trigger CI).  The
-# packages are stored without their signature (see below).
+# packages are stored without their signature (see below).  Seeds exist for
+# s390x and riscv64 (their gcc build cannot finish within a GitHub job).
 set -eu
 arch=$1 dir=$2 push=${3:-}
 root=$(cd "$(dirname "$0")/.." && pwd)
