@@ -19,6 +19,7 @@ subpackages="$pkgname-static"
 checkdepends="py3-e3-core py3-e3-testsuite"
 source="langkit-$_commit.tar.gz::https://github.com/AdaCore/langkit/archive/$_commit.tar.gz
 	alignment.patch
+	vectors-alignment.patch
 	gdb-section-progbits.patch
 	"
 builddir="$srcdir/langkit-$_commit"
@@ -30,7 +31,7 @@ build() {
 	# gprbuild keeps resolving "adasat" through /usr/share/gpr.
 	# --build-mode=prod: the packaged libraries are release builds.  (The bootstrap
 	# Liblktlang is still built in dev mode, with warnings as errors, which is why
-	# alignment.patch is needed on 32-bit ARM.)
+	# alignment.patch is needed on 32-bit ARM and vectors-alignment.patch on riscv64.)
 	mkdir -p langkit/adasat/src
 	cp "${CBUILDROOT%/}"/usr/include/adasat/*.ad[sb] langkit/adasat/src/
 
@@ -90,5 +91,6 @@ package() {
 sha512sums="
 fe48c813ff321b2c4650db6762e14ac435295206406becd01cd7aa7804e9d20550e60a504787ad977e3893678668aa1e08f25cefb40ca6cd556b9f2fc4d09921  langkit-537d30227cbc46f28de59a933ba4570e074cbf98.tar.gz
 d9728636cebacc65ce2e1bcb8f62666419a805bd069cb7aff563a7fda9ca8e675ec754e549d263b519fbb1878e4bc3143eb5037528cac5b08ef8e8845fd8f67a  alignment.patch
+37894d1accea10173a78bf4538c2cad4505cb8031d456ea63ea060eaaa9a8c9d4f7bc734076f2d07b5e2671d59f59437bd29f348a1bf284ea9f7e1fe86c356f5  vectors-alignment.patch
 00703e64403bfb6f5e4f9fd00ae53d809a5f3f77db4a02a638112de72b1094bb3f9f6083a6114dcc930c359df350e55047d65ee5dbcefebf2e183989f225ba03  gdb-section-progbits.patch
 "
