@@ -89,9 +89,9 @@ runs:
         ft=$(grep -E '^(INFO +)?(FAIL|ERROR|XPASS) ' "$RUNNER_TEMP/build.log" 2>/dev/null | grep -v PASS | head -20 | cut -c1-200 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
         [ -n "$ft" ] && echo "::error title=failed tests (${{ inputs.arch }} ${{ inputs.stage }})::$ft"
         # the tail is often repeats of one error: also show the first error with its lead-up
-        first=$(grep -n -m1 -E '^error: |: error: |^>>> ERROR|^make: \*\*\*' "$RUNNER_TEMP/build.log" 2>/dev/null | cut -d: -f1)
+        first=$(grep -n -m1 -E '^error: |: error: |^>>> ERROR|^make: \*\*\*|^Traceback|Segmentation|SIGSEGV|raised [A-Z][A-Z_]+|Killed|core dumped|Illegal instruction|Bus error' "$RUNNER_TEMP/build.log" 2>/dev/null | cut -d: -f1)
         if [ -n "$first" ]; then
-          from=$(( first > 14 ? first - 14 : 1 ))
+          from=$(( first > 30 ? first - 30 : 1 ))
           msg=$(sed -n "${from},$((first + 10))p" "$RUNNER_TEMP/build.log" | cut -c1-200 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
           echo "::error title=first error (${{ inputs.arch }} ${{ inputs.stage }})::$msg"
         fi
