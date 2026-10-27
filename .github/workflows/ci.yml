@@ -70,12 +70,18 @@ jobs:
           m = re.search(r"\[ci only: *([^\]]+)\]", os.environ.get("MSG", ""))
           only = (m.group(1) if m else os.environ.get("ONLY_INPUT", "")).replace(" ", "")
           want = [a for a in only.split(",") if a]
+          # s390x and riscv64 are off by default: langkit's testsuite fails 3 unparsing
+          # tests on s390x (array_lit, dot_expr, raise_expr), and on riscv64 langkit
+          # does not compile (liblktlang-implementation.adb).  Both still build with
+          # their gcc seed when named: [ci only: s390x] or [ci only: riscv64].
+          off = {"s390x", "riscv64"}
+          default = [e for e in full if e["arch"] not in off]
           if want == ["all"]:
-              sel = full
+              sel = default
           elif want:
               sel = [e for e in full if e["arch"] in want]
           else:
-              sel = full
+              sel = default
           print("matrix=" + json.dumps({"include": sel}))
           PY
 

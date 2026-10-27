@@ -290,11 +290,17 @@ CI (`.github/workflows/install-test.yml`) does not use an image: it starts from
 plain `alpine:edge`, adds the published repo as shown above, installs the
 toolchain and smoke-tests it, so it checks what users actually install.
 
-`.github/workflows/ci.yml` builds and tests every aport on all nine
-architectures. Build fewer with `[ci only: aarch64,x86]` in the commit message.
-A stage that nears GitHub's 6 h job limit checkpoints between packages and
-`ci-resume.yml` reruns it. On the targets that need the GNAT runtime fixes (x86, armv7, armhf, s390x, riscv64) the `testing/gcc` carrier is
-built first (stage `sg`), until the `main/gcc` MR is merged.
+`.github/workflows/ci.yml` builds and tests every aport on seven architectures:
+x86_64, x86, aarch64, armv7, armhf, ppc64le and loongarch64.  **s390x and riscv64
+are off by default** until `langkit` works there (s390x: three unparsing tests of
+its testsuite fail; riscv64: `liblktlang` does not compile); name them to build
+them, e.g. `[ci only: s390x]` in the commit message.  Build fewer with
+`[ci only: aarch64,x86]`.  A stage that nears GitHub's 6 h job limit
+checkpoints between packages and `ci-resume.yml` reruns it.  On the targets that
+need the GNAT runtime fixes (x86, armv7, armhf, s390x, riscv64) the `testing/gcc`
+carrier is built first (stage `sg`, or restored from the `seed-gcc-<arch>`
+branch on s390x and riscv64, whose gcc build cannot finish in a GitHub job),
+until the `main/gcc` MR is merged.
 
 ### Adding a package
 
