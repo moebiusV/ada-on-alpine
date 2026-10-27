@@ -10,7 +10,13 @@ license="Apache-2.0"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
 subpackages="$pkgname-static"
-source="adasat-$_commit.tar.gz::https://github.com/AdaCore/AdaSAT/archive/$_commit.tar.gz"
+# descriptor-size.patch: Vectors assumes the bounds descriptor of a thin-pointer
+# array is 8 bytes; for 16-byte aligned elements (the DPLL Watcher on riscv64)
+# GNAT pads it and the package fails its elaboration-time assertion.  Pending
+# upstream (AdaCore/AdaSAT, src/adasat-vectors.adb).
+source="adasat-$_commit.tar.gz::https://github.com/AdaCore/AdaSAT/archive/$_commit.tar.gz
+	descriptor-size.patch
+	"
 builddir="$srcdir/AdaSAT-$_commit"
 
 build() {
@@ -48,4 +54,5 @@ package() {
 
 sha512sums="
 bf91c4621f293691b773ea4c8cfbb1472497882a36b7e27708b38e3cf521051ab2fd9170a5187ae40c62150a5a22f0c82e2b5da409cedb0be1e9b5a645e51bcb  adasat-5d8866bc4547373ff36e461f6d179568fd74b524.tar.gz
+505fd8a511427f86ef7125cf70a2c40c51f43d4c145484801d97dd97dc6c7036bcc13257dccaef9da26efb15bd99fa12830c85a3df0450563be7dbb2ccb1319a  descriptor-size.patch
 "
