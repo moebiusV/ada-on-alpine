@@ -18,6 +18,7 @@ source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$
 builddir="$srcdir/$pkgname-$_commit"
 subpackages="$pkgname-static"
 
+# (Small and quick: also the package CI interrupts to test the multi-job resume.)
 build() {
 	# Relocatable first: imsg.gpr doesn't split its object dir by Library_Type,
 	# so build the shared lib first (-fPIC objects) and let the static archive
