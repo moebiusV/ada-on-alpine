@@ -123,6 +123,18 @@ runs:
       run: |
         docker ps -q | xargs -r docker kill || true
         sudo chown -R "$(id -u):$(id -g)" . || true
+    # Evidence for the multi-job resume (annotations are readable without a login).
+    - name: Resume report
+      if: always()
+      shell: bash
+      run: |
+        log="$RUNNER_TEMP/build.log"
+        [ -f "$log" ] || exit 0
+        resumed=$(grep -c 'resuming the saved build tree' "$log" || true)
+        interrupted=$(grep -c 'out of time; interrupting' "$log" || true)
+        units=$(grep -cE '^ *\[Ada\] ' "$log" || true)
+        gens=$(grep -c 'Generating source for' "$log" || true)
+        echo "::notice title=resume report (${{ inputs.arch }} ${{ inputs.stage }})::resumed=$resumed interrupted=$interrupted ada_units_compiled=$units generator_runs=$gens"
     # Pack the build trees of packages that build.sh interrupted (marker
     # .pending), on the runner at native speed.
     - name: Pack build trees of interrupted packages
