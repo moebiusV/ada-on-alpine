@@ -62,6 +62,18 @@ runs:
     - if: inputs.seed == 'true'
       shell: bash
       run: tools/seed-restore.sh "${{ inputs.arch }}"
+    # A package interrupted by an earlier job left its build tree packed in
+    # .work/partial/: put it back (here, natively; build.sh may run under QEMU).
+    - name: Unpack build trees saved by an earlier job
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for f in .work/partial/*.tar.zst; do
+          p=$(basename "$f" .tar.zst)
+          echo "unpacking the saved build tree of $p ($(du -h "$f" | cut -f1))"
+          mkdir -p "testing/$p"
+          zstd -dc "$f" | sudo tar -C "testing/$p" -xpf -
+        done
     - name: Build (abuild runs each aport's check())
       shell: bash
       env:
@@ -78,7 +90,13 @@ runs:
         export HARD_EPOCH=$(( $(date +%s) + 345 * 60 ))
         # A package still building at 5h25m is interrupted and its build tree saved
         # (build.sh run_abuild), to be continued by the next job.
-        export PARTIAL_DEADLINE_EPOCH=$(( $(date +%s) + 325 * 60 ))
+        # (.github/ci-test-partial, when present, holds "<stage> <minutes>": that
+        # stage is interrupted after that many minutes, to test the resume.)
+        PM=325
+        if [ -f .github/ci-test-partial ] && [ "$(cut -d' ' -f1 .github/ci-test-partial)" = "${{ inputs.stage }}" ]; then
+          PM=$(cut -d' ' -f2 .github/ci-test-partial)
+        fi
+        export PARTIAL_DEADLINE_EPOCH=$(( $(date +%s) + PM * 60 ))
         set -o pipefail
         ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
     # Job logs need a login to read, but annotations are public: surface the
@@ -105,6 +123,19 @@ runs:
       run: |
         docker ps -q | xargs -r docker kill || true
         sudo chown -R "$(id -u):$(id -g)" . || true
+    # Pack the build trees of packages that build.sh interrupted (marker
+    # .pending), on the runner at native speed.
+    - name: Pack build trees of interrupted packages
+      if: always()
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for f in .work/partial/*.pending; do
+          p=$(basename "$f" .pending)
+          (cd "testing/$p" && tar -cf - $(ls -d src pkg tmp 2>/dev/null)) | zstd -T0 -3 -q -f -o ".work/partial/$p.tar.zst"
+          rm -f "$f"
+          echo "packed the build tree of $p: $(du -h ".work/partial/$p.tar.zst" | cut -f1)"
+        done
     - if: always()
       uses: actions/upload-artifact@v4
       with:

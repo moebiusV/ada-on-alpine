@@ -33,7 +33,7 @@ BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 # a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} ${DOCKER_EXTRA:-} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk zstd gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
@@ -174,11 +174,21 @@ run_abuild() {
     install_makedepends "$_p"
     mkdir -p "$_part"
     _cmd="abuild -K -k"
-    if [ -s "$_part/$_p.tar.zst" ] && [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ]; then
+    if [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ] \
+        && { [ -d "$_dir/src" ] || [ -s "$_part/$_p.tar.zst" ]; }; then
         echo "===== $_p: resuming the saved build tree ====="
-        zstd -dc "$_part/$_p.tar.zst" | tar -C "$_dir" -xf -
+        # In CI the stage action has already unpacked the tree (natively: this
+        # script may run under emulation); unpack here only if it has not.
+        [ -d "$_dir/src" ] || zstd -dc "$_part/$_p.tar.zst" | tar -C "$_dir" -xf -
         chown -R build:build "$_dir"
-        _cmd="abuild -d -K -k build && abuild -d -K -k check && abuild -d -K -k rootpkg && abuild -d -K -k index"
+        # Generators (langkit's, for one) rewrite their output on every run, so
+        # every source looks newer than its object and gprbuild would recompile
+        # everything.  "gprbuild -m" (minimal recompilation) skips a unit whose
+        # source changed only in timestamp: put a wrapper first in PATH.
+        mkdir -p /opt/gprbuild-m
+        printf '#!/bin/sh\nexec %s -m "$@"\n' "$(command -v gprbuild)" > /opt/gprbuild-m/gprbuild
+        chmod 755 /opt/gprbuild-m/gprbuild
+        _cmd="export PATH=/opt/gprbuild-m:\$PATH; abuild -d -K -k build && abuild -d -K -k check && abuild -d -K -k rootpkg && abuild -d -K -k index"
     fi
     setsid su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd $_dir; $_cmd" &
     _pid=$!
@@ -190,9 +200,12 @@ run_abuild() {
             while kill -0 "$_pid" 2>/dev/null && [ "$_i" -lt 12 ]; do sleep 5; _i=$((_i + 1)); done
             kill -s KILL -- "-$_pid" 2>/dev/null || true
             wait "$_pid" 2>/dev/null || true
-            (cd "$_dir" && tar -cf - $(ls -d src pkg tmp 2>/dev/null)) | zstd -T0 -3 -q -f -o "$_part/$_p.tar.zst"
+            # The tree stays in $_dir.  The hash says what it was built from;
+            # the .pending marker tells the stage action (on the runner, at
+            # native speed) to pack it into .work/partial/$_p.tar.zst.
             printf '%s\n' "$_h" > "$_part/$_p.hash"
-            echo "  saved $(du -h "$_part/$_p.tar.zst" | cut -f1)"
+            : > "$_part/$_p.pending"
+            echo "  build tree kept in $_dir for the next job"
             return 75
         fi
         sleep 10
@@ -203,7 +216,7 @@ run_abuild() {
         return "$_rc"
     fi
     # built: drop the saved tree and the kept build dirs
-    rm -f "$_part/$_p.tar.zst" "$_part/$_p.hash"
+    rm -f "$_part/$_p.tar.zst" "$_part/$_p.hash" "$_part/$_p.pending"
     rm -rf "$_dir/src" "$_dir/pkg" "$_dir/tmp"
 }
 

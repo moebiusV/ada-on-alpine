@@ -18,6 +18,8 @@ makedepends="gcc-gnat gprbuild py3-langkit langkit langkit-static gnatcoll gnatc
 source="libadalang-$_commit.tar.gz::https://github.com/AdaCore/libadalang/archive/$_commit.tar.gz"
 builddir="$srcdir/libadalang-$_commit"
 
+# A big package: on a slow runner its build can outlast one CI job; build.sh then
+# interrupts it, keeps the build tree and continues it in the next job.
 build() {
 	# Generate the parser from the LKT spec and build libadalang (static).
 	# --build-mode=prod: the default dev mode builds with -O0 -g -gnata, which
