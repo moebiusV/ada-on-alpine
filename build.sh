@@ -165,64 +165,92 @@ GPR
     done
 }
 
-# Run abuild for $1 (content hash $2).  A big package can take longer than one CI
-# job, so the build is resumable across jobs: at PARTIAL_DEADLINE_EPOCH abuild is
-# interrupted (SIGINT stops make cleanly), the kept build tree is packed into
-# .work/partial/ with the content hash, and 75 is returned so the stage is marked
-# incomplete.  The next job unpacks the tree (if the hash still matches) and runs
-# the build, check, package and index steps on it, instead of starting over
-# ("abuild" alone would clean src/ and re-apply the patches).
-run_abuild() {
-    _p=$1 _h=$2 _dir=/repo/testing/$1 _part=/repo/.work/partial
-    install_makedepends "$_p"
-    mkdir -p "$_part"
-    _cmd="abuild -K -k"
-    if [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ] \
-        && { [ -d "$_dir/src" ] || [ -s "$_part/$_p.tar.zst" ]; }; then
-        echo "===== $_p: resuming the saved build tree ====="
-        # In CI the stage action has already unpacked the tree (natively: this
-        # script may run under emulation); unpack here only if it has not.
-        [ -d "$_dir/src" ] || zstd -dc "$_part/$_p.tar.zst" | tar -C "$_dir" -xf -
-        chown -R build:build "$_dir"
-        # Generators (langkit's, for one) rewrite their output on every run, so
-        # every source looks newer than its object and gprbuild would recompile
-        # everything.  "gprbuild -m" (minimal recompilation) skips a unit whose
-        # source changed only in timestamp: put a wrapper first in PATH.
-        mkdir -p /opt/gprbuild-m
-        printf '#!/bin/sh\nexec %s -m "$@"\n' "$(command -v gprbuild)" > /opt/gprbuild-m/gprbuild
-        chmod 755 /opt/gprbuild-m/gprbuild
-        _cmd="export PATH=/opt/gprbuild-m:\$PATH; abuild -d -K -k build && abuild -d -K -k check && abuild -d -K -k rootpkg && abuild -d -K -k index"
-    fi
-    setsid su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd $_dir; $_cmd" &
+# Run one abuild step ($2) of package $1 and watch the clock.  Returns the step's
+# status, or 75 when it was interrupted at $_stop_at (SIGINT stops make cleanly).
+_abuild_step() {
+    _sp=$1 _ss=$2
+    setsid su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$_sp; $_pre abuild -d -K -k $_ss" &
     _pid=$!
-    # (PARTIAL_AFTER_SECONDS: test hook, stop this build that many seconds after it started)
-    _stop_at=${PARTIAL_DEADLINE_EPOCH:-}
-    [ -n "${PARTIAL_AFTER_SECONDS:-}" ] && _stop_at=$(( $(date +%s) + PARTIAL_AFTER_SECONDS ))
     while kill -0 "$_pid" 2>/dev/null; do
         if [ -n "$_stop_at" ] && [ "$(date +%s)" -ge "$_stop_at" ]; then
-            echo "===== $_p: out of time; interrupting and saving the build tree ====="
+            echo "===== $_sp: out of time during '$_ss'; interrupting ====="
             kill -s INT -- "-$_pid" 2>/dev/null || true
             _i=0
             while kill -0 "$_pid" 2>/dev/null && [ "$_i" -lt 12 ]; do sleep 5; _i=$((_i + 1)); done
             kill -s KILL -- "-$_pid" 2>/dev/null || true
             wait "$_pid" 2>/dev/null || true
-            # The tree stays in $_dir.  The hash says what it was built from;
-            # the .pending marker tells the stage action (on the runner, at
-            # native speed) to pack it into .work/partial/$_p.tar.zst.
-            printf '%s\n' "$_h" > "$_part/$_p.hash"
-            : > "$_part/$_p.pending"
-            echo "  build tree kept in $_dir for the next job"
             return 75
         fi
         sleep 10
     done
-    wait "$_pid" && _rc=0 || _rc=$?
-    if [ "$_rc" != 0 ]; then
+    wait "$_pid" && return 0 || return $?
+}
+
+# Run abuild for $1 (content hash $2), one step at a time.  A big package can take
+# longer than one CI job, or fail late (an out-of-memory kill, a flaky compiler),
+# and nothing already done may be thrown away, so:
+#  - each finished step is recorded in .work/partial/$1.steps; a rerun with the
+#    same content hash continues at the first unfinished step, in the kept tree;
+#  - at an interrupt (PARTIAL_DEADLINE_EPOCH) or a failure the tree stays in
+#    testing/$1 and a marker (.pending) tells the stage action to pack it, on the
+#    runner and at native speed, into .work/partial/$1.tar.zst for the next job;
+#  - a tree built from other content is set aside, and deleted only once the new
+#    build has succeeded.
+# Returns 75 when interrupted, the failing status on failure.
+run_abuild() {
+    _p=$1 _h=$2 _dir=/repo/testing/$1 _part=/repo/.work/partial
+    install_makedepends "$_p"
+    mkdir -p "$_part"
+    _done="" _pre=""
+    if [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ] \
+        && { [ -d "$_dir/src" ] || [ -s "$_part/$_p.tar.zst" ]; }; then
+        # In CI the stage action has already unpacked the tree (natively: this
+        # script may run under emulation); unpack here only if it has not.
+        [ -d "$_dir/src" ] || zstd -dc "$_part/$_p.tar.zst" | tar -C "$_dir" -xf -
+        chown -R build:build "$_dir"
+        _done=$(tr '\n' ' ' < "$_part/$_p.steps" 2>/dev/null)
+        echo "===== $_p: resuming the saved build tree (finished steps: ${_done:-none}) ====="
+        # Generators rewrite their output, so every source can look newer than
+        # its object: "gprbuild -m" skips a unit whose source changed only in
+        # timestamp.
+        mkdir -p /opt/gprbuild-m
+        printf '#!/bin/sh\nexec %s -m "$@"\n' "$(command -v gprbuild)" > /opt/gprbuild-m/gprbuild
+        chmod 755 /opt/gprbuild-m/gprbuild
+        _pre='export PATH=/opt/gprbuild-m:$PATH;'
+    else
+        if [ -d "$_dir/src" ]; then
+            echo "  (setting aside the build tree of other content; deleted after this build succeeds)"
+            mkdir -p "$_dir/tmp"
+            mv "$_dir/src" "$_dir/tmp/aside-src"
+            [ -d "$_dir/pkg" ] && mv "$_dir/pkg" "$_dir/tmp/aside-pkg"
+        fi
+        : > "$_part/$_p.steps"
+    fi
+    printf '%s\n' "$_h" > "$_part/$_p.hash"
+    # (PARTIAL_AFTER_SECONDS: test hook, stop this build that many seconds from now)
+    _stop_at=${PARTIAL_DEADLINE_EPOCH:-}
+    [ -n "${PARTIAL_AFTER_SECONDS:-}" ] && _stop_at=$(( $(date +%s) + PARTIAL_AFTER_SECONDS ))
+    for _s in fetch unpack prepare mkusers build check rootpkg index; do
+        case " $_done " in *" $_s "*) continue ;; esac
+        echo "===== $_p: abuild $_s ====="
+        _abuild_step "$_p" "$_s" && _rc=0 || _rc=$?
+        if [ "$_rc" = 0 ]; then
+            echo "$_s" >> "$_part/$_p.steps"
+            continue
+        fi
+        # interrupted or failed: keep the tree for the next job
+        : > "$_part/$_p.pending"
+        if [ "$_rc" = 75 ]; then
+            echo "  build tree kept in $_dir for the next job"
+            return 75
+        fi
+        echo "  step '$_s' failed ($_rc); build tree kept in $_dir"
         dump_testsuite_failures "$_p" || dump_ada_runtime_state
         return "$_rc"
-    fi
-    # built: drop the saved tree and the kept build dirs
-    rm -f "$_part/$_p.tar.zst" "$_part/$_p.hash" "$_part/$_p.pending"
+    done
+    # Succeeded: only now drop the saved state and the build dirs (including a
+    # tree that was set aside).
+    rm -f "$_part/$_p.tar.zst" "$_part/$_p.hash" "$_part/$_p.pending" "$_part/$_p.steps"
     rm -rf "$_dir/src" "$_dir/pkg" "$_dir/tmp"
 }
 
@@ -319,21 +347,25 @@ mkdir -p /repo/.work/hashes /repo/.work/runs
 # A cache can hold the packages of an aport whose build or install failed half
 # way (the hash is written only after both succeeded).  Such leftovers can be an
 # inconsistent family (some of gcc's packages at the new version), which apk
-# then refuses to install: drop every cached package whose aport has no hash.
-if [ -n "${CASCADE:-}" ]; then
-    for _f in /repo/.work/packages/*.apk; do
-        [ -e "$_f" ] || break
+# then refuses to install: do not install the cached packages of an aport that
+# has no hash.  They are left where they are, not deleted.
+_install_list=""
+for _f in /repo/.work/packages/*.apk; do
+    [ -e "$_f" ] || break
+    if [ -n "${CASCADE:-}" ]; then
         _origin=$(tar -xzOf "$_f" .PKGINFO 2>/dev/null | sed -n 's/^origin = //p' | head -1)
         if [ -n "$_origin" ] && [ -d "/repo/testing/$_origin" ] && [ ! -s "/repo/.work/hashes/$_origin" ]; then
-            echo "  (dropping $(basename "$_f"): $_origin was not completed)"
-            rm -f "$_f"
+            echo "  (not installing $(basename "$_f"): $_origin was not completed)"
+            continue
         fi
-    done
-fi
+    fi
+    _install_list="$_install_list $_f"
+done
 
-if [ -n "${CASCADE:-}" ] && ls /repo/.work/packages/*.apk >/dev/null 2>&1; then
+if [ -n "${CASCADE:-}" ] && [ -n "$_install_list" ]; then
     echo "===== installing previously built packages ====="
-    if ! apk add --allow-untrusted /repo/.work/packages/*.apk; then
+    # shellcheck disable=SC2086
+    if ! apk add --allow-untrusted $_install_list; then
         echo "error: failed to install previously built packages" >&2
         exit 1
     fi
