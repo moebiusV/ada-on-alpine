@@ -16,7 +16,12 @@ license="Apache-2.0 WITH LLVM-exception"
 depends="libgnat"
 makedepends="gcc-gnat gprbuild"
 subpackages="$pkgname-static"
-source="vss-text-$_commit.tar.gz::https://github.com/AdaCore/vss-text/archive/$_commit.tar.gz"
+# ucd-endianness.patch: the Unicode property table is read through an overlay
+# that is only right on little-endian machines (s390x got "(" and "[" two cells
+# wide).  Pending upstream (AdaCore/vss-text).
+source="vss-text-$_commit.tar.gz::https://github.com/AdaCore/vss-text/archive/$_commit.tar.gz
+	ucd-endianness.patch
+	"
 builddir="$srcdir/vss-text-$_commit"
 
 build() {
@@ -53,4 +58,5 @@ package() {
 
 sha512sums="
 e5cfb9a4d882c043c07e42de5e87de4c2e6646a09b29b3ef5372cf0032e01ebffd4c6c6db666cabc335e30bd43725a6e38c3bd73343ca4508f19ca9522752298  vss-text-a8e0e94930767310ce983c09c9b7191cf9f48630.tar.gz
+ae1bc779e9df23bc263bb4c37722cc34311454c6d794ad66fb0be1712a572dc261c8fd943bd5deef6a113973724a234262dc83ec5f913c7762ca304f9526a8ca  ucd-endianness.patch
 "
