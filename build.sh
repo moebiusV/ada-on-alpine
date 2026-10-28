@@ -202,7 +202,12 @@ run_abuild() {
     install_makedepends "$_p"
     mkdir -p "$_part"
     _done="" _pre=""
+    # Only build, check, rootpkg and index can be repeated on a half-finished
+    # tree.  unpack and prepare cannot (prepare applies patches, which then fail
+    # as "previously applied"), so a tree is resumed only once prepare is done;
+    # one stopped earlier is set aside and those cheap steps start afresh.
     if [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ] \
+        && grep -qx prepare "$_part/$_p.steps" 2>/dev/null \
         && { [ -d "$_dir/src" ] || [ -s "$_part/$_p.tar.zst" ]; }; then
         # In CI the stage action has already unpacked the tree (natively: this
         # script may run under emulation); unpack here only if it has not.
@@ -219,7 +224,7 @@ run_abuild() {
         _pre='export PATH=/opt/gprbuild-m:$PATH;'
     else
         if [ -d "$_dir/src" ]; then
-            echo "  (setting aside the build tree of other content; deleted after this build succeeds)"
+            echo "  (setting aside the unusable build tree; deleted after this build succeeds)"
             mkdir -p "$_dir/tmp"
             mv "$_dir/src" "$_dir/tmp/aside-src"
             [ -d "$_dir/pkg" ] && mv "$_dir/pkg" "$_dir/tmp/aside-pkg"
