@@ -95,12 +95,16 @@ runs:
         # (build.sh run_abuild), to be continued by the next job.
         PM=325
         export PARTIAL_DEADLINE_EPOCH=$(( $(date +%s) + PM * 60 ))
-        # Test hook: .github/ci-test-partial holds "<stage> <seconds>"; on the first
+        # Test hook: .github/ci-test-partial holds "<stage> <seconds>" or "<stage> step:<name>"; on the first
         # attempt of that stage every package build is interrupted that many seconds
         # after it starts, so the resume can be tested quickly.
         if [ -f .github/ci-test-partial ] && [ "$(cut -d' ' -f1 .github/ci-test-partial)" = "${{ inputs.stage }}" ] \
            && [ "${{ github.run_attempt }}" = 1 ]; then
-          export PARTIAL_AFTER_SECONDS=$(cut -d' ' -f2 .github/ci-test-partial)
+          arg=$(cut -d' ' -f2 .github/ci-test-partial)
+          case "$arg" in
+            step:*) export PARTIAL_AFTER_STEP="${arg#step:}" ;;
+            *)      export PARTIAL_AFTER_SECONDS="$arg" ;;
+          esac
         fi
         set -o pipefail
         ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
@@ -136,7 +140,7 @@ runs:
         log="$RUNNER_TEMP/build.log"
         [ -f "$log" ] || exit 0
         resumed=$(grep -c 'resuming the saved build tree' "$log" || true)
-        interrupted=$(grep -c 'out of time during' "$log" || true)
+        interrupted=$(grep -cE 'out of time during|test hook: stopping' "$log" || true)
         units=$(grep -cE '^ *\[Ada\] ' "$log" || true)
         gens=$(grep -c 'Generating source for' "$log" || true)
         echo "::notice title=resume report (${{ inputs.arch }} ${{ inputs.stage }})::resumed=$resumed interrupted=$interrupted ada_units_compiled=$units generator_runs=$gens"

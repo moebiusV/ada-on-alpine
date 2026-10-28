@@ -36,7 +36,7 @@ BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 # a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} ${DOCKER_EXTRA:-} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -e PARTIAL_AFTER_SECONDS="${PARTIAL_AFTER_SECONDS:-}" ${JOBS:+-e JOBS="$JOBS"} -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} ${DOCKER_EXTRA:-} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -e PARTIAL_AFTER_SECONDS="${PARTIAL_AFTER_SECONDS:-}" -e PARTIAL_AFTER_STEP="${PARTIAL_AFTER_STEP:-}" ${JOBS:+-e JOBS="$JOBS"} -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk zstd gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
@@ -241,6 +241,12 @@ run_abuild() {
         _abuild_step "$_p" "$_s" && _rc=0 || _rc=$?
         if [ "$_rc" = 0 ]; then
             echo "$_s" >> "$_part/$_p.steps"
+            # (PARTIAL_AFTER_STEP: test hook, stop right after this step finished)
+            if [ "${PARTIAL_AFTER_STEP:-}" = "$_s" ]; then
+                echo "===== $_p: test hook: stopping after '$_s' ====="
+                : > "$_part/$_p.pending"
+                return 75
+            fi
             continue
         fi
         # interrupted or failed: keep the tree for the next job
