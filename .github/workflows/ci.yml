@@ -72,10 +72,12 @@ jobs:
           m = re.search(r"\[ci only: *([^\]]+)\]", os.environ.get("MSG", ""))
           only = (m.group(1) if m else os.environ.get("ONLY_INPUT", "")).replace(" ", "")
           want = [a for a in only.split(",") if a]
-          # s390x and riscv64 are off by default: langkit's testsuite fails 3 unparsing
-          # tests on s390x (array_lit, dot_expr, raise_expr), and on riscv64 langkit
-          # does not compile (liblktlang-implementation.adb).  Both still build with
-          # their gcc seed when named: [ci only: s390x] or [ci only: riscv64].
+          # s390x and riscv64 are off by default until a full run passes.  s390x: a
+          # big-endian bug in VSS's Unicode table made three langkit unparsing tests
+          # fail (patched in testing/vss, being verified).  riscv64: langkit now builds
+          # and passes (alignment patches in langkit and adasat); libadalang takes
+          # longer than one job, which the multi-job resume (build.sh run_abuild) is
+          # for.  Name them to build them: [ci only: s390x] or [ci only: riscv64].
           off = {"s390x", "riscv64"}
           default = [e for e in full if e["arch"] not in off]
           if want == ["all"]:
