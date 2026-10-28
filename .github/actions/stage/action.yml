@@ -86,6 +86,9 @@ runs:
         export KEYDIR="$PWD/.work/keys"
                 # Nothing new is started after 4h15m; HARD is just before GitHub kills the
         # job (a killed job uploads nothing, so its work would be lost).
+        # Emulated architectures compile serially: parallel emulated compilers just
+        # exhaust the (emulated) memory and get OOM-killed.
+        if [ "${{ inputs.qemu }}" = true ]; then export JOBS=1; fi
         export DEADLINE_EPOCH=$(( $(date +%s) + 255 * 60 ))
         export HARD_EPOCH=$(( $(date +%s) + 345 * 60 ))
         # A package still building at 5h25m is interrupted and its build tree saved

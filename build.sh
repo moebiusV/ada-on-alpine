@@ -22,6 +22,9 @@ PKGS="${PKGS:-abuild gprbuild bracke-cryptolib bracke-zlib libsodium-ada mustach
 # key location), not in this repo, so every checkout and every machine signs with
 # the same key.  bind-mount it into the container below as /keys.
 KEYDIR="${KEYDIR:-$HOME/.config/abuild}"
+# JOBS (if set) is passed to abuild; without it abuild uses one job per CPU.
+# CI sets JOBS=1 on emulated architectures, where parallel compilers only fight over
+# the emulated memory (OOM kills).
 # CI builds other architectures through these: DOCKER_PLATFORM selects the
 # container platform (e.g. linux/386), BUILD_IMAGE the base image.  Unset, this
 # is the usual native alpine:edge build.
@@ -33,7 +36,7 @@ BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 # a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} ${DOCKER_EXTRA:-} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -e PARTIAL_AFTER_SECONDS="${PARTIAL_AFTER_SECONDS:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} ${DOCKER_CPUSET:+--cpuset-cpus "$DOCKER_CPUSET"} ${DOCKER_EXTRA:-} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -e PARTIAL_AFTER_SECONDS="${PARTIAL_AFTER_SECONDS:-}" ${JOBS:+-e JOBS="$JOBS"} -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
 apk add --no-cache alpine-sdk zstd gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
