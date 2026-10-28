@@ -76,6 +76,9 @@ runs:
         # job (a killed job uploads nothing, so its work would be lost).
         export DEADLINE_EPOCH=$(( $(date +%s) + 255 * 60 ))
         export HARD_EPOCH=$(( $(date +%s) + 345 * 60 ))
+        # A package still building at 5h25m is interrupted and its build tree saved
+        # (build.sh run_abuild), to be continued by the next job.
+        export PARTIAL_DEADLINE_EPOCH=$(( $(date +%s) + 325 * 60 ))
         set -o pipefail
         ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
     # Job logs need a login to read, but annotations are public: surface the

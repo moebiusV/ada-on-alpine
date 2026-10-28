@@ -33,9 +33,9 @@ BUILD_IMAGE="${BUILD_IMAGE:-alpine:edge}"
 # a failed stage does not redo packages it already rebuilt.
 mkdir -p "$KEYDIR"
 
-docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
+docker run -i --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -e PKGS="$PKGS" -e CASCADE="${CASCADE:-}" -e RUN_TAG="${RUN_TAG:-}" -e DEADLINE_EPOCH="${DEADLINE_EPOCH:-}" -e HARD_EPOCH="${HARD_EPOCH:-}" -e PARTIAL_DEADLINE_EPOCH="${PARTIAL_DEADLINE_EPOCH:-}" -v "$ROOT":/repo -v "$KEYDIR":/keys -w /repo "$BUILD_IMAGE" sh -s <<'SCRIPT'
 set -eu
-apk add --no-cache alpine-sdk gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
+apk add --no-cache alpine-sdk zstd gcc-gnat which gawk bash python3 rsync sqlite-dev zlib-dev zlib-static libsodium-dev libsodium-static openssl-dev readline-dev libffi-dev openssl-libs-static gmp-dev linux-headers gettext py3-setuptools py3-build py3-installer py3-wheel python3-dev py3-pip py3-mako py3-yaml py3-funcy py3-docutils py3-defusedxml py3-colorama py3-dateutil py3-requests py3-requests-cache py3-requests-toolbelt py3-tqdm py3-stevedore py3-resolvelib py3-psutil py3-distro scdoc kyua libcap-utils git pkgconf >/tmp/setup.log 2>&1 || { cat /tmp/setup.log >&2; echo "error: build-tool setup failed" >&2; exit 1; }
 adduser -D -u 1000 build >/dev/null 2>&1 || true
 
 # Signing key: /keys is a bind-mount of the host's ~/.config/abuild, so the same
@@ -162,10 +162,49 @@ GPR
     done
 }
 
+# Run abuild for $1 (content hash $2).  A big package can take longer than one CI
+# job, so the build is resumable across jobs: at PARTIAL_DEADLINE_EPOCH abuild is
+# interrupted (SIGINT stops make cleanly), the kept build tree is packed into
+# .work/partial/ with the content hash, and 75 is returned so the stage is marked
+# incomplete.  The next job unpacks the tree (if the hash still matches) and runs
+# the build, check, package and index steps on it, instead of starting over
+# ("abuild" alone would clean src/ and re-apply the patches).
 run_abuild() {
-    install_makedepends "$1"
-    su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd /repo/testing/$1; abuild" \
-        || { _rc=$?; dump_testsuite_failures "$1" || dump_ada_runtime_state; return $_rc; }
+    _p=$1 _h=$2 _dir=/repo/testing/$1 _part=/repo/.work/partial
+    install_makedepends "$_p"
+    mkdir -p "$_part"
+    _cmd="abuild -K -k"
+    if [ -s "$_part/$_p.tar.zst" ] && [ "$(cat "$_part/$_p.hash" 2>/dev/null)" = "$_h" ]; then
+        echo "===== $_p: resuming the saved build tree ====="
+        zstd -dc "$_part/$_p.tar.zst" | tar -C "$_dir" -xf -
+        chown -R build:build "$_dir"
+        _cmd="abuild -d -K -k build && abuild -d -K -k check && abuild -d -K -k rootpkg && abuild -d -K -k index"
+    fi
+    setsid su build -s /bin/sh -c "export HOME=/home/build SRCDEST=/home/build/distfiles; cd $_dir; $_cmd" &
+    _pid=$!
+    while kill -0 "$_pid" 2>/dev/null; do
+        if [ -n "${PARTIAL_DEADLINE_EPOCH:-}" ] && [ "$(date +%s)" -ge "$PARTIAL_DEADLINE_EPOCH" ]; then
+            echo "===== $_p: out of time; interrupting and saving the build tree ====="
+            kill -s INT -- "-$_pid" 2>/dev/null || true
+            _i=0
+            while kill -0 "$_pid" 2>/dev/null && [ "$_i" -lt 12 ]; do sleep 5; _i=$((_i + 1)); done
+            kill -s KILL -- "-$_pid" 2>/dev/null || true
+            wait "$_pid" 2>/dev/null || true
+            (cd "$_dir" && tar -cf - $(ls -d src pkg tmp 2>/dev/null)) | zstd -T0 -3 -q -f -o "$_part/$_p.tar.zst"
+            printf '%s\n' "$_h" > "$_part/$_p.hash"
+            echo "  saved $(du -h "$_part/$_p.tar.zst" | cut -f1)"
+            return 75
+        fi
+        sleep 10
+    done
+    wait "$_pid" && _rc=0 || _rc=$?
+    if [ "$_rc" != 0 ]; then
+        dump_testsuite_failures "$_p" || dump_ada_runtime_state
+        return "$_rc"
+    fi
+    # built: drop the saved tree and the kept build dirs
+    rm -f "$_part/$_p.tar.zst" "$_part/$_p.hash"
+    rm -rf "$_dir/src" "$_dir/pkg" "$_dir/tmp"
 }
 
 # Install a package's main .apk plus any subpackages from a directory. The
@@ -337,7 +376,14 @@ for pkg in $PKGS; do
     fi
     _t0=$(date +%s)
     _built_any=1
-    run_abuild "$pkg"
+    _rc=0
+    run_abuild "$pkg" "$cur_hash" || _rc=$?
+    if [ "$_rc" = 75 ]; then
+        touch /repo/.work/incomplete
+        break
+    elif [ "$_rc" != 0 ]; then
+        exit "$_rc"
+    fi
     mkdir -p /repo/.work/durations
     printf '%s\n' $(( $(date +%s) - _t0 )) > "/repo/.work/durations/$pkg"
     # Persist the just-built package(s) for reuse across runs, then install them
