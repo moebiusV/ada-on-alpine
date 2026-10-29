@@ -1,0 +1,50 @@
+Size the array descriptor from Descriptor_Size (riscv64)
+
+The vectors keep their elements behind a descriptor holding the bounds, as GNAT
+does for an array reached through a thin pointer, and checked at elaboration
+that the descriptor is exactly the two Naturals of Array_Bounds:
+
+    pragma Assert (Array_Bounds'Size = Elements_Array'Descriptor_Size, ...);
+
+GNAT pads the descriptor so that the array stays aligned.  For element types
+that need 16-byte alignment (AdaSAT's DPLL Watcher on riscv64) the descriptor
+is 16 bytes, not 8, and the assertion fails when the package is elaborated:
+
+    raised ADA.ASSERTIONS.ASSERTION_ERROR : Unexpected size for array bounds
+
+Derive the room reserved in front of the elements from Descriptor_Size, so
+that the elements are 16-byte aligned (the allocator's 16 plus 16), and require
+only that the descriptor is at least the bounds.  The bounds are written at
+the start of the descriptor, as before.  For every other element type the
+descriptor is 8 bytes and nothing changes.  Checked on riscv64 with a 16-byte
+aligned element: bounds 1 .. 5 and five correctly aligned elements.
+
+--- a/src/adasat-vectors.adb
++++ b/src/adasat-vectors.adb
+@@ -15,8 +15,13 @@
+    end record;
+ 
+    pragma Assert
+-     (Array_Bounds'Size = Elements_Array'Descriptor_Size,
++     (Elements_Array'Descriptor_Size >= Array_Bounds'Size,
+       "Unexpected size for array bounds");
++   --  GNAT pads the descriptor (the bounds) of an array reached through a thin
++   --  pointer so that the array itself stays aligned: when the elements need
++   --  more than 8 bytes of alignment (16 for some records on riscv64) the
++   --  descriptor is larger than the bounds.  The bounds are the first bytes of
++   --  the descriptor, which starts Descriptor_Size bytes before the elements.
+ 
+    type Thin_Unconstrained_Array_Access is access all Elements_Array;
+    for Thin_Unconstrained_Array_Access'Size use Standard'Address_Size;
+@@ -29,7 +34,10 @@
+    type Fat_Unconstrained_Array_Access is access all Elements_Array;
+ 
+    El_Size : constant size_t := Elements_Array'Component_Size / Storage_Unit;
+-   Bd_Size : constant size_t := Array_Bounds'Size / Storage_Unit;
++   Bd_Size : constant size_t :=
++     size_t (Elements_Array'Descriptor_Size) / Storage_Unit;
++   --  Room for the whole descriptor (bounds and padding) in front of the
++   --  elements
+    Offset  : constant Storage_Count := Storage_Count (Bd_Size);
+ 
+    --------------

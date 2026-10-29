@@ -1,0 +1,79 @@
+Decode the Unicode core data table without overlaying a record on it
+
+VSS.Implementation.UCD_Core stores the core character properties as 32-bit
+words (Core_Data_Raw_Table), with each field at a fixed bit position counting
+from the least significant bit, and then overlays an array of Core_Data_Record
+on that table, a packed record whose fields are placed by "at 0 range N .. M".
+Such a layout follows the bit and byte order of the machine, so the overlay
+reads the right fields only on little-endian targets.
+
+On big-endian s390x it decodes garbage.  The visible effect: Display_Width of
+"(", ")", "[", "]" and "{" is 2 instead of 1 (their general category is
+Ps or Pe, which lands on a wide East Asian width after the misread), so
+anything that lays text out by display width counts them double.  In
+Prettier_Ada that made lines holding a bracket pair, a parenthesis pair or a
+call break two columns early, and failed three Liblktlang unparsing tests
+(unparsing/array_lit, dot_expr and raise_expr) on s390x only.
+
+Decode the raw word with shifts and masks in Extract_Core_Data, the only user
+of the table.  It is the same on every machine, and the result on little-endian
+targets is unchanged.  Checked on s390x: the three tests pass.
+
+--- a/source/text/implementation/vss-implementation-ucd_utilities.adb
++++ b/source/text/implementation/vss-implementation-ucd_utilities.adb
+@@ -4,6 +4,8 @@
+ --  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ --
+ 
++with Interfaces;
++
+ package body VSS.Implementation.UCD_Utilities is
+ 
+    -----------------------
+@@ -15,6 +17,7 @@
+       return VSS.Implementation.UCD_Core.Core_Data_Record
+    is
+       use type VSS.Implementation.UCD_Core.Core_Offset;
++      use type Interfaces.Unsigned_32;
+       use type VSS.Unicode.Code_Point;
+ 
+       Block : constant VSS.Implementation.UCD_Core.Core_Index :=
+@@ -24,10 +27,36 @@
+         VSS.Implementation.UCD_Core.Core_Offset
+           (Code mod VSS.Implementation.UCD_Core.Block_Size);
+ 
++      Raw : constant Interfaces.Unsigned_32 :=
++        VSS.Implementation.UCD_Core.Core_Data_Raw_Table
++          (VSS.Implementation.UCD_Core.Core_Index_Table (Block) + Offset);
++      --  The table holds 32-bit words with the fields at fixed bit positions,
++      --  least significant bit first (see Core_Data_Record).  Decode them
++      --  here instead of overlaying the record on the table: the overlay
++      --  follows the machine's bit and byte order, so on a big-endian target
++      --  (s390x) it gives wrong properties (for instance, "(" and "[" came
++      --  out with wide East Asian width).
++
++      function Field (Low, Width : Natural) return Natural is
++        (Natural (Interfaces.Shift_Right (Raw, Low) and (2 ** Width - 1)));
++
++      function Flag (Pos : Natural) return Boolean is (Field (Pos, 1) = 1);
++
+    begin
+       return
+-        VSS.Implementation.UCD_Core.Core_Data_Table
+-          (VSS.Implementation.UCD_Core.Core_Index_Table (Block) + Offset);
++        (GC      => VSS.Implementation.UCD_Core.GC_Values'Val (Field (0, 5)),
++         OLower  => Flag (5),
++         OUpper  => Flag (6),
++         WSpace  => Flag (7),
++         GCB     => VSS.Implementation.UCD_Core.GCB_Values'Val (Field (8, 4)),
++         InCB    => VSS.Implementation.UCD_Core.INCB_Values'Val (Field (12, 2)),
++         ExtPict => Flag (14),
++         WB      => VSS.Implementation.UCD_Core.WB_Values'Val (Field (16, 5)),
++         EA      => VSS.Implementation.UCD_Core.EA_Values'Val (Field (24, 3)),
++         Emoji   => Flag (27),
++         EBase   => Flag (28),
++         EMod    => Flag (29),
++         EPres   => Flag (30));
+    end Extract_Core_Data;
+ 
+ end VSS.Implementation.UCD_Utilities;

@@ -1,0 +1,68 @@
+Title
+-----
+qemu-user 7.2.0 (Debian 1:7.2+dfsg-1~bpo11+2, multiarch/qemu-user-static):
+qemu-s390x itself segfaults in thread-local state while running gcc/gnat1;
+fixed or absent in 10.2.3
+
+Status: not reported upstream (7.2.0 is an old release); recorded so that the
+local s390x runs are not blamed on the compiler.
+
+
+What was seen
+-------------
+Local s390x builds under the host's binfmt emulator crashed intermittently:
+"gcc: internal compiler error: Segmentation fault signal terminated program
+gnat1" (langkit lkt testsuite, test syntax/misc: FAIL, PASS, FAIL, PASS).
+GitHub CI, which also emulates s390x (with its own, newer QEMU), never showed
+it.  No run on real s390x hardware was made.
+
+Which QEMU
+----------
+The host's binfmt entry for s390x was "interpreter /usr/bin/qemu-s390x-static,
+flags F"; the file no longer existed on disk.  The cores written by the
+crashes contain the first page of the emulator's ELF.  Its build-id,
+438ee9c2f6b05295cc566f4243b0ec3d62208f33, equals that of
+/usr/bin/qemu-s390x-static in the multiarch/qemu-user-static image, which
+reports "qemu-s390x version 7.2.0 (Debian 1:7.2+dfsg-1~bpo11+2)".  (The
+tonistiigi/binfmt copy, 10.2.3, build-id 4ea66282..., was not what ran.)
+
+The crash (host side, 5 cores examined)
+---------------------------------------
+All five cores are host SIGSEGVs of the qemu-s390x process, at the same
+address with the same call chain:
+    #0 0x49a970   (in the stripped binary: mov %fs:-0xb0,%eax)
+    #1 0x48e505
+    #2 0x49b4bf
+    #3 0x49681a
+    #4 0x496eb1
+The faulting instruction reads a thread-local variable through %fs, directly
+after a "subl $1,%fs:..." pair, which looks like a per-thread read-lock
+counter; a fault there means the emulator's own thread state was invalid.
+Some cores belong to the gcc driver, not gnat1, so the crash is not specific
+to Ada.  The binary is stripped, so the function is not named.
+
+Is it the compiler?  No
+-----------------------
+From-scratch compile of the VSS text units (gnatmake, 62 units, serial),
+counting "Segmentation" lines per run:
+    QEMU 7.2.0, stock Alpine gcc 15.2.0-r9 :  10, 7, 11, 8, 11   (5 runs)
+    QEMU 7.2.0, our gcc r10 (patches 0044-0046): 11, 9, 9, 8      (4 runs)
+    QEMU 10.2.3, our gcc r10                  :  0, 0, 0, 0, 0    (5 runs, no
+                                                  new host cores)
+The only failing unit under 10.2.3 is vss-strings-conversions.adb, which fails
+the same way in all runs because of how the test harness passes loose files
+to gnatmake ("... is not a predefined library unit"); it is unrelated.
+
+Conclusion and what is not known
+--------------------------------
+The segfaults come from QEMU 7.2.0 and disappear under 10.2.3.  Not bisected:
+which change between 7.2 and 10.2 fixed it, and whether the threads involved
+are the emulator's translation/RCU thread or the guest's fork/exec path.
+Fresh crashes would need an unstripped 7.2.0 build to name the function.
+
+Fix applied locally: the host's s390x binfmt entry was re-registered from
+tonistiigi/binfmt (10.2.3).  Previous entry: interpreter
+/usr/bin/qemu-s390x-static, flags F, same magic and mask.
+Search of the QEMU tracker found no report of this exact crash; nearby ones
+for other targets: qemu issue 3094 (cc1 segfault under qemu-riscv64) and
+3220 (cc1plus crash with unlimited stack under qemu-user).

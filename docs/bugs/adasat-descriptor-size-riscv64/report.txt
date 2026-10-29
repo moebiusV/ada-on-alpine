@@ -1,0 +1,42 @@
+Title
+-----
+[AdaSAT] Vectors asserts Array_Bounds'Size = Elements_Array'Descriptor_Size;
+fails at elaboration on riscv64 for 16-byte aligned elements
+(ADA.ASSERTIONS.ASSERTION_ERROR: Unexpected size for array bounds)
+
+Status: not yet reported upstream (AdaCore/AdaSAT).  Patch: descriptor-size.patch.
+The same file is also carried as a copy inside langkit's bootstrap Liblktlang
+(see ../langkit-strict-alignment/adasat-descriptor-size.patch).
+
+
+Summary
+-------
+AdaSAT.Vectors keeps its elements behind a descriptor holding the bounds, the
+way GNAT does for an array reached through a thin pointer, and checks at
+elaboration:
+
+    pragma Assert (Array_Bounds'Size = Elements_Array'Descriptor_Size, ...);
+
+GNAT pads the descriptor so that the array stays aligned.  For element types
+needing 16-byte alignment (the DPLL Watcher record on riscv64) the descriptor
+is 16 bytes, not 8.  The assertion then fails when the package is elaborated:
+
+    raised ADA.ASSERTIONS.ASSERTION_ERROR : Unexpected size for array bounds
+
+Any program that elaborates AdaSAT's DPLL on riscv64 dies at start-up (for us:
+the langkit-generated Liblktlang).
+
+
+Fix
+---
+Derive the room reserved in front of the elements from Descriptor_Size, so
+that the elements are 16-byte aligned (the allocator's 16 plus 16), and
+require only that the descriptor is at least the bounds.  The bounds are
+written at the start of the descriptor, as before.  For every other element
+type the descriptor is 8 bytes and nothing changes.
+
+Checked on riscv64 with a 16-byte aligned element: bounds 1 .. 5 and five
+correctly aligned elements; the langkit testsuite passes on riscv64 with the
+patch.  Not checked: other targets where an element type needs more than
+8-byte alignment (the layout is target dependent, so a 32-bit target with
+8-byte aligned elements could show the same).

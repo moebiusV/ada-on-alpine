@@ -1,0 +1,25 @@
+Title
+-----
+[hbnf] libhbnf.gpr omits four units, so a clean checkout cannot build the
+hbnf command ("hbnf_lookahead.ali not found")
+
+Status: for the maintainer to commit in moebiusV/hbnf; the Alpine overlay
+carries libhbnf-sources.patch until then.
+
+
+Summary
+-------
+At commit cd94a1621dcc (149 commits past v0.7.0), libhbnf.gpr lists the
+library's sources in Source_Files but omits hbnf_lookahead, hbnf_tree_sitter,
+hbnf_wire-zig and hbnf_wire-ada_lang.  Building libhbnf.gpr and then the hbnf
+command from a clean checkout stops with:
+
+    hbnf_lookahead.ali not found
+
+Fix
+---
+Add the four units (spec and body each) to Source_Files; see
+libhbnf-sources.patch (4 lines added).  Drop the patch from testing/hbnf once
+upstream lists them.
+
+Not checked here: whether other gpr files (hbnf.gpr) need the same list.

@@ -1,0 +1,126 @@
+Convert vector storage through Address_To_Access_Conversions (riscv64)
+
+Langkit_Support and the bootstrap Liblktlang are built in dev mode with
+-gnatwe, so any warning is fatal.  Vectors.To_Pointer turned the System.Address
+returned by Alloc/Realloc into a pointer to Internal_Elements_Array with an
+Unchecked_Conversion.  On targets that need strict alignment GNAT checks the
+alignment of the source (System.Address: 8) against that of the designated
+array type, and for arrays of records such as AdaSAT's Watcher that is 16 on
+riscv64:
+
+    warning: source alignment (8) < alignment of "Internal_Elements_Array" (16)
+    warning: in instantiation at liblktlang_adasat-dpll.adb:50
+    warning: in instantiation at liblktlang_adasat-vectors.adb:57
+
+which stops liblktlang-implementation.adb from compiling.  (pragma Warnings
+Off, on the function or around it, does not silence this check.)
+
+Go through System.Address_To_Access_Conversions instead: the conversion of the
+address then happens in the Ada runtime, and the remaining conversion is
+between two access types to the same array type, which have the same
+alignment.  Nothing changes at run time: the same address, a thin pointer
+either way, memory that Alloc returns suitably aligned.
+
+The same declaration is in three places: Langkit_Support.Vectors, its
+bootstrap copy Liblktlang_Support.Vectors, and the bootstrap copy of AdaSAT's
+Vectors (Liblktlang_AdaSAT.Vectors).
+
+--- a/langkit/support/langkit_support-vectors.ads
++++ b/langkit/support/langkit_support-vectors.ads
+@@ -10,6 +10,7 @@
+ with Ada.Unchecked_Deallocation;
+ 
+ with System;
++with System.Address_To_Access_Conversions;
+ 
+ --  .. note:: This unit is internal: only Langkit and Langkit-generated
+ --  libraries are supposed to use it.
+@@ -199,8 +200,20 @@
+    subtype Internal_Elements_Array is Elements_Array (Index_Type);
+    type Elements_Array_Access is access all Internal_Elements_Array;
+ 
+-   function To_Pointer is
+-     new Ada.Unchecked_Conversion (System.Address, Elements_Array_Access);
++   --  Convert through System.Address_To_Access_Conversions: converting a bare
++   --  System.Address (alignment 8) directly to a pointer to an array whose
++   --  alignment is 16 draws the warning "source alignment (8) < alignment of
++   --  Internal_Elements_Array (16)" on targets that need strict alignment
++   --  (riscv64), and warnings are errors here.  The memory comes from Alloc
++   --  and is suitably aligned.
++   package Address_Conversions is
++     new System.Address_To_Access_Conversions (Internal_Elements_Array);
++
++   function To_Access is new Ada.Unchecked_Conversion
++     (Address_Conversions.Object_Pointer, Elements_Array_Access);
++
++   function To_Pointer (Addr : System.Address) return Elements_Array_Access
++   is (To_Access (Address_Conversions.To_Pointer (Addr)));
+ 
+    procedure Free is new Ada.Unchecked_Deallocation
+      (Internal_Elements_Array, Elements_Array_Access);
+--- a/lkt/bootstrap/src/liblktlang_support-vectors.ads
++++ b/lkt/bootstrap/src/liblktlang_support-vectors.ads
+@@ -10,6 +10,7 @@
+ with Ada.Unchecked_Deallocation;
+ 
+ with System;
++with System.Address_To_Access_Conversions;
+ 
+ --  .. note:: This unit is internal: only Langkit and Langkit-generated
+ --  libraries are supposed to use it.
+@@ -199,8 +200,20 @@
+    subtype Internal_Elements_Array is Elements_Array (Index_Type);
+    type Elements_Array_Access is access all Internal_Elements_Array;
+ 
+-   function To_Pointer is
+-     new Ada.Unchecked_Conversion (System.Address, Elements_Array_Access);
++   --  Convert through System.Address_To_Access_Conversions: converting a bare
++   --  System.Address (alignment 8) directly to a pointer to an array whose
++   --  alignment is 16 draws the warning "source alignment (8) < alignment of
++   --  Internal_Elements_Array (16)" on targets that need strict alignment
++   --  (riscv64), and warnings are errors here.  The memory comes from Alloc
++   --  and is suitably aligned.
++   package Address_Conversions is
++     new System.Address_To_Access_Conversions (Internal_Elements_Array);
++
++   function To_Access is new Ada.Unchecked_Conversion
++     (Address_Conversions.Object_Pointer, Elements_Array_Access);
++
++   function To_Pointer (Addr : System.Address) return Elements_Array_Access
++   is (To_Access (Address_Conversions.To_Pointer (Addr)));
+ 
+    procedure Free is new Ada.Unchecked_Deallocation
+      (Internal_Elements_Array, Elements_Array_Access);
+--- a/lkt/bootstrap/src/liblktlang_adasat-vectors.ads
++++ b/lkt/bootstrap/src/liblktlang_adasat-vectors.ads
+@@ -7,6 +7,7 @@
+ with Ada.Unchecked_Conversion;
+ 
+ with System;
++with System.Address_To_Access_Conversions;
+ 
+ --  This Vector implementation is taken from Liblktlang_Support-Vectors and
+ --  shares the same desired benefits. However it was also modified so as to
+@@ -151,8 +152,20 @@
+ 
+    type Elements_Array_Access is access all Internal_Elements_Array;
+ 
+-   function To_Pointer is
+-     new Ada.Unchecked_Conversion (System.Address, Elements_Array_Access);
++   --  Convert through System.Address_To_Access_Conversions: converting a bare
++   --  System.Address (alignment 8) directly to a pointer to an array whose
++   --  alignment is 16 draws the warning "source alignment (8) < alignment of
++   --  Internal_Elements_Array (16)" on targets that need strict alignment
++   --  (riscv64), and warnings are errors here.  The memory comes from Alloc
++   --  and is suitably aligned.
++   package Address_Conversions is
++     new System.Address_To_Access_Conversions (Internal_Elements_Array);
++
++   function To_Access is new Ada.Unchecked_Conversion
++     (Address_Conversions.Object_Pointer, Elements_Array_Access);
++
++   function To_Pointer (Addr : System.Address) return Elements_Array_Access
++   is (To_Access (Address_Conversions.To_Pointer (Addr)));
+ 
+    type Vector is tagged record
+       E        : Elements_Array_Access := null;

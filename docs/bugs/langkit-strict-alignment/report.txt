@@ -1,0 +1,48 @@
+Title
+-----
+[Langkit] Langkit_Support and the bootstrap Liblktlang do not compile on
+strict-alignment targets (32-bit ARM, riscv64): fatal -gnatwe alignment
+warnings
+
+Status: not yet reported upstream (AdaCore/langkit).  Patches in this directory.
+
+
+Summary
+-------
+Langkit_Support is built with -gnatwe, and the bootstrap Liblktlang is always
+built in dev mode, so any warning is fatal.  On targets that need strict
+alignment GNAT reports real alignment problems in three places.
+
+1. alignment.patch (32-bit ARM, armv7/armhf)
+   * Generic_Bump_Ptr.Array_Alloc.Empty_Array_Access is a pointer to a
+     "non-null junk address", and that address was 1:
+        warning: source alignment (1) < alignment of "Element_Array" (4)
+     for each of the dozens of instantiations in Liblktlang.  The patch uses
+     the alignment of Element_Array: still non-null, never dereferenced.
+   * Text.Decode overlaid a Text_Type (alignment 4) on the String returned by
+     Iconv (alignment 1) with an Address clause (RM 13.3(27) warning).  The
+     patch copies the bytes into the result instead.
+   The same two units exist under lkt/bootstrap/src (as Liblktlang_Support)
+   and are changed the same way.
+
+2. vectors-alignment.patch (riscv64)
+   Vectors.To_Pointer turned the System.Address returned by Alloc/Realloc into
+   a pointer to Internal_Elements_Array with Unchecked_Conversion.  GNAT checks
+   the alignment of the source (System.Address: 8) against that of the
+   designated array type, which is 16 for arrays of records such as AdaSAT's
+   Watcher on riscv64:
+        warning: source alignment (8) < alignment of "Internal_Elements_Array" (16)
+   and liblktlang-implementation.adb stops compiling.  (pragma Warnings Off,
+   on the function or around it, does not silence this check.)
+   The patch goes through System.Address_To_Access_Conversions: nothing changes
+   at run time (same address, a thin pointer either way, memory that Alloc
+   returns suitably aligned).  The declaration is in three places:
+   Langkit_Support.Vectors, its bootstrap copy Liblktlang_Support.Vectors and
+   the bootstrap copy of AdaSAT's Vectors (Liblktlang_AdaSAT.Vectors).
+
+3. adasat-descriptor-size.patch (riscv64)
+   The bootstrap copy of AdaSAT's Vectors has the descriptor-size assertion
+   described in ../adasat-descriptor-size-riscv64/report.txt.
+
+Checked: armv7 and armhf (alignment.patch), riscv64 (all three), each in the
+Alpine overlay's CI; the langkit testsuite passes on riscv64 with them.

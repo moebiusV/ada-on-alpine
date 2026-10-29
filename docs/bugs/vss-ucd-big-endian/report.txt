@@ -1,0 +1,54 @@
+Title
+-----
+[vss-text] VSS.Implementation.UCD_Utilities.Extract_Core_Data reads wrong
+Unicode properties on big-endian targets (s390x): Display_Width of "(" is 2
+
+Status: not yet reported upstream (AdaCore/vss-text).  Patch: ucd-endianness.patch.
+
+
+Summary
+-------
+VSS.Implementation.UCD_Core stores the core character properties as 32-bit
+words (Core_Data_Raw_Table), fields at fixed bit positions counting from the
+least significant bit.  It then overlays an array of Core_Data_Record on that
+table, a packed record whose fields are placed with "at 0 range N .. M".  Such
+a layout follows the bit and byte order of the machine, so the overlay reads
+the right fields only on little-endian targets.
+
+On s390x (big-endian) the properties are decoded wrongly.  Seen: Display_Width
+of "(", ")", "[", "]" and "{" is 2 instead of 1.
+
+
+Effect downstream
+-----------------
+Prettier_Ada lays text out by display width, so lines holding a bracket pair,
+a parenthesis pair or a call broke two columns early.  That failed three
+Liblktlang unparsing tests of the langkit testsuite on s390x only:
+unparsing/array_lit, unparsing/dot_expr, unparsing/raise_expr.
+
+
+Fix
+---
+Decode the raw word with shifts and masks in Extract_Core_Data, the only user
+of the table.  The result is the same on every machine; on little-endian
+targets it is unchanged.  Field positions are those of Core_Data_Record
+(GC 0..4, flags at 5, 6, 7, GCB 8..11, InCB 12..13, ExtPict 14, WB 16..20,
+EA 24..26, Emoji 27, EBase 28, EMod 29, EPres 30).
+
+Checked:
+  * s390x, patched libvss-text.so against langkit's lkt testsuite: the three
+    tests pass (full lkt suite 114 pass, 0 fail, 2 skipped; unpatched VSS:
+    110 pass, 4 fail).
+  * the s390x CI job of the Alpine overlay passes the langkit testsuite with
+    the patch.
+Not checked: other big-endian targets (ppc64 big-endian, etc.).  Not
+benchmarked; the decode is a few shifts per lookup.
+
+
+Suggested upstream form
+-----------------------
+The patch is minimal.  A cleaner change may be to generate the table with the
+packed fields already combined, or to add a big-endian representation clause
+(for Core_Data_Record'Bit_Order use System.High_Order_First with swapped
+positions); the shift-and-mask version was chosen because it needs no
+generator change and cannot depend on the machine's bit order.
