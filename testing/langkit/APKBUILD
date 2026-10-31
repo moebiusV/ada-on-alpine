@@ -64,6 +64,11 @@ check() {
 }
 
 package() {
+	# The mains project imports langkit_support, which gprinstall finds through
+	# the project path that manage.py printenv sets.  Set it here: package()
+	# must not depend on what check() exported (abuild runs the steps as
+	# separate processes when resumed, and not at all when check is skipped).
+	eval "$(python3 manage.py printenv --build-mode=prod)"
 	python3 manage.py install-langkit-support --build-mode=prod \
 		"$pkgdir/usr" --library-types=static,relocatable
 	python3 -m langkit.scripts.lkm install --build-mode=prod \
