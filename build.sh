@@ -103,6 +103,15 @@ dump_testsuite_failures() {
     echo "$_bad" | sed 's|.*/out/||; s|\.yaml$||' | sed 's/^/FAILED TEST: /'
 }
 
+# After a failed step: run tools/diagnose/<package>.sh, if there is one, as the build
+# user in the kept tree.  It only adds to the log (what a repeat of the step sees is
+# not changed) and its status is ignored.
+run_diagnose() {
+    [ -f "/repo/tools/diagnose/$1.sh" ] || return 0
+    echo "===== $1: diagnose ($2 failed) ====="
+    su build -s /bin/sh -c "export HOME=/home/build; sh /repo/tools/diagnose/$1.sh" 2>&1 | tail -40 || true
+}
+
 # After any failed build: which gcc family is installed and whether the runtime's
 # .ali files match its sources (a mix of gcc versions shows up here).
 dump_ada_runtime_state() {
@@ -256,6 +265,7 @@ run_abuild() {
         fi
         echo "  step '$_s' failed ($_rc); build tree kept in $_dir"
         dump_testsuite_failures "$_p" || dump_ada_runtime_state
+        run_diagnose "$_p" "$_s"
         return "$_rc"
     done
     # Succeeded: drop the saved state and the build dirs.
