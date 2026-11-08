@@ -1,0 +1,189 @@
+Decode the casing and normalization mapping tables without a record overlay
+
+VSS.Implementation.UCD_Casing_UTF8 and UCD_Normalization_UTF8 keep their
+mapping information as 32-bit (casing) and 64-bit (normalization) words with
+the fields at fixed bit positions, counting from the least significant bit, and
+then overlay an array of a record on the raw table (Simplified_Mapping_Data_
+Table, Contextual_Mapping_Data_Table, Mapping_Data_Table).  The records place
+their fields with "at 0 range N .. M", which follows the bit and byte order of
+the machine, so the overlay reads the right fields only on little-endian
+targets: it is the same mistake as in the Unicode core data table (see
+ucd-endianness.patch).
+
+On big-endian s390x the offsets and counts come out wrong.  The first visible
+effect is a Constraint_Error in Unchecked_Append (range check at
+vss-implementation-utf8_strings-mutable_operations.adb:700, from => 18562) for
+any lower- or upper-casing, which killed ada_language_server at start-up
+(elaboration of lsp-ada_configurations.adb:43 lower-cases a string); the
+normalization forms (NFC, NFD, NFKC, NFKD) return garbage or raise.
+
+Decode the raw word with shifts and masks in the three functions that read the
+tables (Get_Contextual_Case_Mapping_Information,
+Get_Simplified_Case_Mapping_Information, Get_Decomposition_Information).  The
+result is the same on every machine, and on little-endian targets it is
+unchanged.  Checked on s390x with the transformers of VSS.Transformers.Casing
+and .Normalization on 13 cases (ASCII and accented lower/upper case, final
+sigma, sharp s, NFC/NFD/NFKC/NFKD of an accented letter, a ligature and Hangul):
+12 failed before, all pass now.
+
+--- a/source/text/implementation/vss-implementation-utf8_casing.adb
++++ b/source/text/implementation/vss-implementation-utf8_casing.adb
+@@ -8,6 +8,7 @@
+ 
+ with VSS.Implementation.Strings;
+ with VSS.Implementation.UCD_Casing;
++with Interfaces;
+ with VSS.Implementation.UTF8_Strings.Mutable_Operations;
+ 
+ package body VSS.Implementation.UTF8_Casing is
+@@ -437,6 +438,7 @@
+    is
+       use type VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Offset;
+       use type VSS.Unicode.Code_Point;
++      use type Interfaces.Unsigned_32;
+ 
+       Group  : constant VSS.Implementation.UCD_Casing_UTF8.Mapping_Group :=
+         VSS.Implementation.UCD_Casing_UTF8.Mapping_Group
+@@ -446,10 +448,42 @@
+           VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Offset
+             (Code mod VSS.Implementation.UCD_Casing_UTF8.Mapping_Group_Size);
+ 
++      Raw : constant Interfaces.Unsigned_32 :=
++        VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Table_Raw
++          (Mapping (Group) + Offset);
++
++      function Field (Low, Width : Natural) return Natural is
++        (Natural (Interfaces.Shift_Right (Raw, Low) and (2 ** Width - 1)));
++
++      function Flag (Pos : Natural) return Boolean is (Field (Pos, 1) = 1);
++      --  The table holds 32-bit words with the fields at fixed bit positions,
++      --  least significant bit first (see the representation clause of the
++      --  record).  Decode them here instead of overlaying the record on the
++      --  table: the overlay follows the machine's bit and byte order, so on a
++      --  big-endian target (s390x) it gives wrong offsets and counts.
++
+    begin
+       return
+-        VSS.Implementation.UCD_Casing_UTF8.Contextual_Mapping_Data_Table
+-          (Mapping (Group) + Offset);
++        (Offset         =>
++           VSS.Implementation.UCD_Casing_UTF8.Casing_UTF8_Data_Offset
++             (Field (0, 15)),
++         Length         =>
++           VSS.Implementation.UCD_Casing_UTF8
++             .Contextual_Casing_Character_Count
++             (Field (16, 2)),
++         Count          =>
++           VSS.Implementation.UCD_Casing_UTF8
++             .Contextual_Casing_UTF8_Code_Unit_Count (Field (24, 3)),
++         Context_Change =>
++           (Enter_Final_Sigma          => Flag (18),
++            Continue_Final_Sigma       => Flag (19),
++            Enter_After_Soft_Dotted    => Flag (20),
++            Continue_After_Soft_Dotted => Flag (21),
++            Enter_After_I              => Flag (22),
++            Continue_After_I           => Flag (23)),
++         Cased          => Flag (28),
++         Case_Ignorable => Flag (29),
++         Changes        => Flag (31));
+    end Get_Contextual_Case_Mapping_Information;
+ 
+    ---------------------------------------------
+@@ -463,6 +497,7 @@
+    is
+       use type VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Offset;
+       use type VSS.Unicode.Code_Point;
++      use type Interfaces.Unsigned_32;
+ 
+       Group  : constant VSS.Implementation.UCD_Casing_UTF8.Mapping_Group :=
+         VSS.Implementation.UCD_Casing_UTF8.Mapping_Group
+@@ -472,10 +507,33 @@
+           VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Offset
+             (Code mod VSS.Implementation.UCD_Casing_UTF8.Mapping_Group_Size);
+ 
++      Raw : constant Interfaces.Unsigned_32 :=
++        VSS.Implementation.UCD_Casing_UTF8.Mapping_Data_Table_Raw
++          (Mapping (Group) + Offset);
++
++      function Field (Low, Width : Natural) return Natural is
++        (Natural (Interfaces.Shift_Right (Raw, Low) and (2 ** Width - 1)));
++
++      function Flag (Pos : Natural) return Boolean is (Field (Pos, 1) = 1);
++      --  The table holds 32-bit words with the fields at fixed bit positions,
++      --  least significant bit first (see the representation clause of the
++      --  record).  Decode them here instead of overlaying the record on the
++      --  table: the overlay follows the machine's bit and byte order, so on a
++      --  big-endian target (s390x) it gives wrong offsets and counts.
++
+    begin
+       return
+-        VSS.Implementation.UCD_Casing_UTF8.Simplified_Mapping_Data_Table
+-          (Mapping (Group) + Offset);
++        (Offset  =>
++           VSS.Implementation.UCD_Casing_UTF8.Casing_UTF8_Data_Offset
++             (Field (0, 15)),
++         Length  =>
++           VSS.Implementation.UCD_Casing_UTF8
++             .Simplified_Casing_Character_Count
++             (Field (16, 5)),
++         Count   =>
++           VSS.Implementation.UCD_Casing_UTF8
++             .Simplified_Casing_UTF8_Code_Unit_Count (Field (24, 6)),
++         Changes => Flag (31));
+    end Get_Simplified_Case_Mapping_Information;
+ 
+ end VSS.Implementation.UTF8_Casing;
+--- a/source/text/implementation/vss-implementation-utf8_normalization.adb
++++ b/source/text/implementation/vss-implementation-utf8_normalization.adb
+@@ -6,6 +6,7 @@
+ 
+ with VSS.Implementation.UCD_Normalization_Common;
+ with VSS.Implementation.Strings;
++with Interfaces;
+ with VSS.Implementation.UTF8_Strings.Mutable_Operations;
+ 
+ package body VSS.Implementation.UTF8_Normalization is
+@@ -1905,10 +1906,41 @@
+             (Code
+              mod VSS.Implementation.UCD_Normalization_UTF8.Mapping_Group_Size);
+ 
++      use type Interfaces.Unsigned_64;
++
++      package UCD renames VSS.Implementation.UCD_Normalization_UTF8;
++
++      Raw : constant Interfaces.Unsigned_64 :=
++        UCD.Mapping_Data_Table_Raw (Decomposition_Data (Group) + Offset);
++
++      function Field (Low, Width : Natural) return Natural is
++        (Natural (Interfaces.Shift_Right (Raw, Low) and (2 ** Width - 1)));
++
++      function Flag (Pos : Natural) return Boolean is (Field (Pos, 1) = 1);
++      --  The table holds 64-bit words with the fields at fixed bit positions,
++      --  least significant bit first (see the representation clause of the
++      --  record).  Decode them here instead of overlaying the record on the
++      --  table: the overlay follows the machine's bit and byte order, so on a
++      --  big-endian target (s390x) it gives wrong values.
++
+    begin
+       return
+-        VSS.Implementation.UCD_Normalization_UTF8.Mapping_Data_Table
+-          (Decomposition_Data (Group) + Offset);
++        (Decomposition_QC => Flag (63),
++         Composition_QC   => UCD.Composition_Quick_Check'Val (Field (61, 2)),
++         CCC              => UCD.CCC_Values'Val (Field (38, 6)),
++         Offset           => UCD.Normalization_UTF8_Data_Offset (Field (0, 14)),
++         Size             =>
++           UCD.Normalization_UTF8_Code_Unit_Count (Field (32, 6)),
++         Length           => UCD.Normalization_Character_Count (Field (56, 5)),
++         First_CCC        => UCD.CCC_Values'Val (Field (44, 6)),
++         Last_CCC         => UCD.CCC_Values'Val (Field (50, 6)),
++         First_Index      =>
++           VSS.Implementation.UCD_Normalization_Common
++             .First_Mapping_Code_Offset (Field (16, 9)),
++         Last_Index       =>
++           VSS.Implementation.UCD_Normalization_Common
++             .Last_Mapping_Code_Offset (Field (25, 6)),
++         Has_Starter      => Flag (31));
+    end Get_Decomposition_Information;
+ 
+    ---------------
