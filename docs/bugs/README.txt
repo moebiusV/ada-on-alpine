@@ -16,7 +16,9 @@ or workaround, so it can be filed or applied as a unit.
   vss-ucd-big-endian/
       VSS decodes its Unicode property table through a packed-record overlay
       that is only right on little-endian: on s390x Display_Width of "(" is 2.
-      Patch (shifts and masks in Extract_Core_Data) included.
+      Patch (shifts and masks in Extract_Core_Data) included.  A second patch, for the casing and
+      normalization tables (the cause of ada_language_server failing on s390x), is
+      included.
 
   adasat-descriptor-size-riscv64/
       AdaSAT.Vectors asserts the array descriptor is exactly the two bounds;

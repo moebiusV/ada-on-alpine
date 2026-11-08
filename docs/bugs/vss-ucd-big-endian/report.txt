@@ -52,3 +52,35 @@ packed fields already combined, or to add a big-endian representation clause
 (for Core_Data_Record'Bit_Order use System.High_Order_First with swapped
 positions); the shift-and-mask version was chosen because it needs no
 generator change and cannot depend on the machine's bit order.
+
+
+Second report: the casing and normalization tables (same mistake)
+------------------------------------------------------------------
+Patch: ucd-mapping-endianness.patch.
+
+VSS.Implementation.UCD_Casing_UTF8 (Simplified_Mapping_Data_Table,
+Contextual_Mapping_Data_Table) and UCD_Normalization_UTF8 (Mapping_Data_Table)
+overlay a record on a table of raw 32/64-bit words in the same way, and read
+wrongly on big-endian targets.
+
+Found through ada_language_server, whose "--version" check died on s390x with
+    CONSTRAINT_ERROR : vss-implementation-utf8_strings-mutable_operations.adb:700
+    range check failed
+A stack trace taken with QEMU's gdb stub (qemu-user, gdb inside an s390x
+container) gave: lsp-ada_configurations elaboration (line 43) lower-cases a
+string -> VSS.Strings.Transform -> vss.transformers.casing.transform ->
+convert_case -> convert_case_full -> Unchecked_Append with from => 18562 (a
+garbage offset into UTF8_Data_Table) -> range check.
+
+Test (13 cases through the VSS.Transformers.Casing and .Normalization objects:
+ASCII and accented lower/upper case, Greek final sigma, sharp s, NFC/NFD/NFKC/
+NFKD of an accented letter, a ligature and Hangul): on s390x 12 failed (three
+with the Constraint_Error above, one Program_Error and one Constraint_Error
+"invalid data" in the normalization); with the patch all pass.  Then
+ada_language_server built and passed its check on s390x.
+
+Fix: decode the raw word with shifts and masks in Get_Contextual_Case_
+Mapping_Information, Get_Simplified_Case_Mapping_Information and Get_
+Decomposition_Information; unchanged on little-endian.  Not checked: other
+big-endian targets; the little-endian result was not re-run (the decode follows
+the bit positions of the existing representation clauses).
