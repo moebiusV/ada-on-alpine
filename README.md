@@ -1,6 +1,6 @@
 # ada-on-alpine
 
-[up](https://moebiusv.github.io/) | [github.com/moebiusV/ada-on-alpine](https://github.com/moebiusV/ada-on-alpine) | `git clone https://github.com/moebiusV/ada-on-alpine`
+[project index](https://moebiusv.github.io/) | [github.com/moebiusV/ada-on-alpine](https://github.com/moebiusV/ada-on-alpine) | `git clone https://github.com/moebiusV/ada-on-alpine`
 
 Modern Ada projects build with gprbuild, which replaces gnatmake. gnatmake
 builds Ada only; gprbuild builds from project files (`.gpr`) that describe
