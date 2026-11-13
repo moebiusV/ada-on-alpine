@@ -1,8 +1,8 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=hbnf
-pkgver=0.7.0_git20261022
+pkgver=0.8.0_git20261113
 pkgrel=0
-_commit="cd94a1621dcca5946522e29e454bea132f33e16c"
+_commit="686a99f56f7259d89fb3574028444dfeb71ba7e9"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
 url="https://github.com/moebiusV/hbnf"
 # Pure Ada, no 128-bit types (the old hbnf_config reader, whose 38-digit Decimal
@@ -10,20 +10,15 @@ url="https://github.com/moebiusV/hbnf"
 arch="all"
 license="ISC"
 # Static-only (sources + static .a files + .gpr files): the hbnf binary is
-# fully static, so the CLI itself has no runtime component.  But the installed
-# libhbnf.gpr does `with "mustache.gpr"` (the code templates are rendered by
-# mustache-ada), so consumers of libhbnf.a need mustache-ada installed too.
+# fully static, so the CLI itself has no runtime component.  Pure Ada with no
+# C dependency: the code templates are Mustache, rendered by hbnf's own
+# HBNF_Template (read by a parser hbnf generated from grammars/template.hbnf),
+# so nothing beyond the GNAT runtime is needed (mustache-ada no longer is).
 # hbnf is its own dev package (no -dev split); it ships one library,
 # libhbnf.a: the schema engine and the C/Rust/Zig/Ada emitters.
-depends="mustache-ada"
-makedepends="gcc-gnat gprbuild build-base mustache-ada"
-# libhbnf-sources.patch: libhbnf.gpr at this commit omits hbnf_lookahead,
-# hbnf_tree_sitter, hbnf_wire-zig and hbnf_wire-ada_lang, so a clean checkout
-# cannot build the hbnf command ("hbnf_lookahead.ali not found").  Pending
-# upstream (moebiusV/hbnf); drop the patch once libhbnf.gpr lists them.
-source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz
-	libhbnf-sources.patch
-	"
+depends=""
+makedepends="gcc-gnat gprbuild build-base"
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
 builddir="$srcdir/$pkgname-$_commit"
 
 build() {
@@ -74,6 +69,5 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="281222cf935732b46d77984d44f5fff2aede4e415915a884bb2610ffb555270b19ac85c8fef77c11ccd23d6e97163792740ca7cfd7a08562de94e26283e75b76  hbnf-cd94a1621dcca5946522e29e454bea132f33e16c.tar.gz
-232467b8ba43f2879e6889cf2f2638407671fca43042674d15a80978efc7e9bceb71433c9e73a1e4a5d3d1d335ac01095e0a98b171aa28d251b13e9cd2641995  libhbnf-sources.patch
+sha512sums="2810b0a268aca46e9d9bcf04d72b4b3847411f741d559367a70a309c92ddab8c3d2ba43a399ab139e3a8427a3957395c7555b073d73495986a73fb31e8f1b7f6  hbnf-686a99f56f7259d89fb3574028444dfeb71ba7e9.tar.gz
 "
