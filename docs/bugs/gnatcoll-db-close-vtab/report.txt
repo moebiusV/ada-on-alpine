@@ -1,0 +1,50 @@
+Title
+-----
+[gnatcoll-db] Closing a SQLite connection that has an FTS5 (or any virtual)
+table crashes: Close finalizes statements the virtual table owns
+(SIGSEGV, double sqlite3_finalize)
+
+Status: not yet reported upstream (AdaCore/gnatcoll-db).
+Patch: close-virtual-table-statements.patch.  Reproducer: repro.adb.
+
+
+Summary
+-------
+GNATCOLL.SQL.Sqlite.Builder.Close calls
+
+    Close (Connection.DB, Finalize_Prepared_Statements => True);
+
+and GNATCOLL.SQL.Sqlite.Gnade.Close then loops
+
+    Stmt := sqlite3_next_stmt (DB);  exit when none;  sqlite3_finalize (Stmt);
+
+before sqlite3_close_v2.  sqlite3_next_stmt lists every prepared statement on
+the connection, including the ones a virtual-table module prepared for its own
+use (FTS5 prepares statements on the content table and its shadow tables).
+Those are finalized again by the module when the table is disconnected as the
+connection closes, so they are finalized twice: a use of freed memory, which
+is a SIGSEGV on Alpine (GNAT reports it as STORAGE_ERROR, s-intman.adb:136).
+
+It needs nothing but an FTS5 table on the connection: creating one and closing
+the connection is enough (repro.adb).  It went unnoticed while gnatcoll's
+bundled SQLite (3.21.0, built without FTS5) was the only one in use.
+
+
+Fix
+---
+Do not finalize "everything SQLite lists".  GNATCOLL's own statements are
+finalized by their owners (the cursors, and Finalize (Connection, Prepared)),
+and sqlite3_close_v2 is made for the rest: it defers the deallocation until
+the remaining statements are gone and lets the virtual-table modules clean up
+their own.  The patch passes Finalize_Prepared_Statements => False.  A
+statement GNATCOLL leaked then keeps a "zombie" connection until process exit,
+which is harmless next to a crash; the safety net does not need to be a
+double free.
+
+
+Seen with
+---------
+gnatcoll-db 26.0.0 (e43ed894) built with GNATCOLL_SQLITE=external against
+Alpine's libsqlite3 3.53/3.54 (FTS5 enabled); soja's database tests
+(sqlite_check, dbmsg_check) crashed in Close once the schema contained
+MessageFTS.

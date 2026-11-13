@@ -1,0 +1,16 @@
+--- a/sqlite/gnatcoll-sql-sqlite-builder.adb	2026-11-13 01:29:35.459425569 -0700
++++ b/sqlite/gnatcoll-sql-sqlite-builder.adb	2026-11-13 02:38:04.089993092 -0700
+@@ -352,7 +352,12 @@
+    begin
+       Trace (Me, "Closing connection to sqlite");
+       Mark_As_Closed (Connection, Closed => True);
+-      Close (Connection.DB, Finalize_Prepared_Statements => True);
++      --  Do not finalize "all" the statements SQLite lists for the connection:
++      --  that includes the ones its virtual tables (FTS5, ...) own and
++      --  finalize themselves when the table is disconnected, so finalizing
++      --  them here is a double free.  GNATCOLL's own statements were
++      --  finalized by their owners; sqlite3_close_v2 deals with the rest.
++      Close (Connection.DB, Finalize_Prepared_Statements => False);
+       Connection.DB := No_Database;
+    end Close;
+ 

@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-db
 pkgver=26.0.0_git20260518
-pkgrel=2
+pkgrel=3
 _commit="e43ed894c20c69544882e28eb8c75f7eafe14c08"
 pkgdesc="GNAT Components Collection database components (SQL, SQLite)"
 url="https://github.com/AdaCore/gnatcoll-db"
@@ -10,7 +10,9 @@ license="GPL-3.0-or-later WITH GCC-exception-3.1"
 depends="libgnat gnatcoll sqlite-libs"
 makedepends="gcc-gnat gprbuild gnatcoll gnatcoll-static xmlada xmlada-static build-base sqlite-dev"
 subpackages="$pkgname-static"
-source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz"
+source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz
+	close-virtual-table-statements.patch
+"
 builddir="$srcdir/gnatcoll-db-$_commit"
 
 # GNATCOLL_SQLITE=external links gnatcoll_sqlite against the system libsqlite3
@@ -68,4 +70,5 @@ package() {
 
 sha512sums="
 744665b06546f0f9fce87fe8ca1402bf1cdc5cfb43cfc362d57b38c4aa95d6b32ae2c0dab6c82522558a716639bd6e26dd6c859849958ea9feb8f5b56f9f533a  gnatcoll-db-e43ed894c20c69544882e28eb8c75f7eafe14c08.tar.gz
+5c9a6ad7ea9c35c7ec99d55774975aaad82defbea8fb50b7f47fcdf3aa379fd3eed2475ea2064b8602aff9f3aa0a55b0ac61004b746a681861812911ef8058f4  close-virtual-table-statements.patch
 "
