@@ -2,7 +2,7 @@
 pkgname=hbnf
 pkgver=0.8.0_git20261113
 pkgrel=0
-_commit="686a99f56f7259d89fb3574028444dfeb71ba7e9"
+_commit="708bd937102e03f8acb8e2b161f138b99ee8c540"
 pkgdesc="ABNF-style parser generator / compiler compiler (C/Ada/Rust/Zig), in Ada"
 url="https://github.com/moebiusV/hbnf"
 # Pure Ada, no 128-bit types (the old hbnf_config reader, whose 38-digit Decimal
@@ -69,5 +69,5 @@ package() {
 	install -m644 templates/*.tmpl "$pkgdir/usr/share/hbnf/"
 }
 
-sha512sums="2810b0a268aca46e9d9bcf04d72b4b3847411f741d559367a70a309c92ddab8c3d2ba43a399ab139e3a8427a3957395c7555b073d73495986a73fb31e8f1b7f6  hbnf-686a99f56f7259d89fb3574028444dfeb71ba7e9.tar.gz
+sha512sums="b08e52f0c4009d3557c062b47e1bf61fdbe8af7bd476134b85456ecedf89344d657d43447d72acb1280310db6a7ba0ddc71c13b90902d5d240697126c0ad039d  hbnf-708bd937102e03f8acb8e2b161f138b99ee8c540.tar.gz
 "
