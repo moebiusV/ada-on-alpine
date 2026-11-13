@@ -78,7 +78,7 @@ tooling and the language server. This is the set proposed for Alpine.
 | `xmlada` | Built: XML/Ada (static + shared) |
 | `aunit` | Built: Ada unit testing framework (static + shared) |
 | `gnatcoll` | Built: GNAT Components Collection core (static + shared) |
-| `gnatcoll-db` | Built: GNATcoll SQL + SQLite (static + shared) |
+| `gnatcoll-db` | Built: GNATcoll SQL + SQLite (static + shared); the SQLite binding links the system `libsqlite3` (FTS5, upsert, JSON, ...), not the 2017 amalgamation bundled in the source |
 | `gnatcoll-gmp` | Built: GMP (arbitrary precision) bindings (static + shared) |
 | `gnatcoll-iconv` | Built: iconv charset-conversion bindings (static + shared) |
 | `spawn` | Built: process-spawning library (static + shared) |

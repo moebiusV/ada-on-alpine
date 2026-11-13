@@ -1,7 +1,7 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=gnatcoll-db
 pkgver=26.0.0_git20260518
-pkgrel=1
+pkgrel=2
 _commit="e43ed894c20c69544882e28eb8c75f7eafe14c08"
 pkgdesc="GNAT Components Collection database components (SQL, SQLite)"
 url="https://github.com/AdaCore/gnatcoll-db"
@@ -13,12 +13,21 @@ subpackages="$pkgname-static"
 source="gnatcoll-db-$_commit.tar.gz::https://github.com/AdaCore/gnatcoll-db/archive/$_commit.tar.gz"
 builddir="$srcdir/gnatcoll-db-$_commit"
 
+# GNATCOLL_SQLITE=external links gnatcoll_sqlite against the system libsqlite3
+# (Alpine's sqlite-libs), not against the amalgamation bundled in the source.
+# That copy is SQLite 3.21.0 (2017): no FTS5, no upsert (ON CONFLICT, 3.24), no
+# window functions, RETURNING or DROP COLUMN, no JSON or math functions, and no
+# security fixes since.  The system library has every option Alpine enables
+# (FTS3/4/5, RTREE, GEOPOLY, JSON, math, session, unlock-notify, ...) and gets
+# Alpine's updates.  Consumers link -lsqlite3 (the installed project says so).
+_sqlite="GNATCOLL_SQLITE=external"
+
 # sqlite imports gnatcoll_sql, so sql must be installed before sqlite builds.
 _install() {
 	local dest="$1"
 	make -C sql ENABLE_SHARED=yes install prefix="$dest"
 	export GPR_PROJECT_PATH="$dest/share/gpr"
-	make -C sqlite ENABLE_SHARED=yes install prefix="$dest"
+	make -C sqlite ENABLE_SHARED=yes $_sqlite install prefix="$dest"
 }
 
 build() {
@@ -26,7 +35,7 @@ build() {
 	make -C sql ENABLE_SHARED=yes PROCESSORS="${JOBS:-1}"
 	make -C sql ENABLE_SHARED=yes install prefix="$srcdir"/stage
 	export GPR_PROJECT_PATH="$srcdir"/stage/share/gpr
-	make -C sqlite ENABLE_SHARED=yes PROCESSORS="${JOBS:-1}"
+	make -C sqlite ENABLE_SHARED=yes $_sqlite PROCESSORS="${JOBS:-1}"
 }
 
 check() {
@@ -34,6 +43,12 @@ check() {
 	_install "$srcdir"/stage2/usr
 	test -f "$srcdir"/stage2/usr/share/gpr/gnatcoll_sql.gpr
 	test -f "$srcdir"/stage2/usr/share/gpr/gnatcoll_sqlite.gpr
+	# It must be the external build: it links the system SQLite and carries no
+	# copy of the amalgamation.
+	grep -q 'sqlite_dep : sqlite_dep_kind := "external"' \
+		"$srcdir"/stage2/usr/share/gpr/gnatcoll_sqlite.gpr
+	grep -q -- '-lsqlite3' "$srcdir"/stage2/usr/share/gpr/gnatcoll_sqlite.gpr
+	test ! -e "$srcdir"/stage2/usr/include/gnatcoll_sqlite/sqlite3.c
 }
 
 package() {
