@@ -1,59 +1,3 @@
-From 00ff104149eaaddf84dfb4756389852ae35e99cd Mon Sep 17 00:00:00 2001
-From: David Walther <tederific@gmail.com>
-Date: Fri, 13 Nov 2026 19:17:24 -0700
-Subject: [PATCH] Base64: public, with an optional Padded parameter
-
-CryptoLib.Base64 was a private child, reachable only from inside the crate.
-Make it public and give Encoded_Length, Decoded_Length, Encode and Decode a
-Padded parameter (default False, so existing callers are unchanged): RFC 4648
-section 4 padding with '='.  Decoding stays strict: whole groups only, at most
-two '=' at the end, the unused low bits zero.
-
-Decode now zeroes its output on every refusal.  It used to leave the octets of
-the groups read before the bad one, against the crate's rule that a failed
-operation leaves nothing partial.
-
-Tests: Check_Base64 (RFC 4648 section 10 vectors in both forms, a round trip at
-every length from 0 to 64, and the refusals, each asserting the zeroed
-output).  README package map and SECURITY.md updated.
----
- CHANGELOG.md                  |  10 +++
- README.md                     |   1 +
- SECURITY.md                   |   1 +
- src/cryptolib-base64.adb      |  85 ++++++++++++++++++-----
- src/cryptolib-base64.ads      |  63 ++++++++++-------
- tests/src/tests_encodings.adb | 123 ++++++++++++++++++++++++++++++++++
- tests/src/tests_encodings.ads |   2 +-
- 7 files changed, 242 insertions(+), 43 deletions(-)
-
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index d39f06b..307cf95 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -14,6 +14,10 @@ commits; each of those says what it changed.
- 
- ### Added
- 
-+- `CryptoLib.Base64`: an optional `Padded` parameter (default `False`, so no
-+  caller changes) for `Encoded_Length`, `Decoded_Length`, `Encode` and
-+  `Decode`: RFC 4648 section 4 padding with `=`, decoded as strictly as the
-+  unpadded form.
- - Argon2: `Verify`, so the recommended password hash can be checked without a
-   caller writing its own comparison, and the PHC string encoding beside it.
- - The ECDSA DER signature encoder and decoder.
-@@ -45,6 +49,12 @@ commits; each of those says what it changed.
-   MB/s, output matching pyca/cryptography at lengths on both sides of the
-   eight-block boundary.
- 
-+### Fixed
-+
-+- `CryptoLib.Base64.Decode` left the octets of the groups it had read when it
-+  refused a later one; every refusal now leaves the output zero, as the rest of
-+  the crate does.
-+
- ## Releasing
- 
- No procedure yet.
 diff --git a/README.md b/README.md
 index 8d3b3cb..143bd54 100644
 --- a/README.md
@@ -205,10 +149,10 @@ index 6274fc9..c35fe06 100644
  
  end CryptoLib.Base64;
 diff --git a/src/cryptolib-base64.ads b/src/cryptolib-base64.ads
-index 84760c3..df025c3 100644
+index 84760c3..beb4b57 100644
 --- a/src/cryptolib-base64.ads
 +++ b/src/cryptolib-base64.ads
-@@ -1,54 +1,69 @@
+@@ -1,54 +1,70 @@
  with Ada.Streams;
  
 ---  @summary Unpadded standard base64, the encoding two unrelated formats in
@@ -235,6 +179,7 @@ index 84760c3..df025c3 100644
 +--  second copy of an encoding that is easy to get subtly wrong. CryptoLib.PEM
 +--  decodes its own armour, line breaks included, and does not go through it.
 +package CryptoLib.Base64 is
++   pragma Preelaborate;
  
 -   --  The encoded length of Count octets, with no padding.
 -   --  @param Count the number of octets to encode
@@ -302,6 +247,158 @@ index 84760c3..df025c3 100644
 +      Padded : Boolean := False);
  
  end CryptoLib.Base64;
+diff --git a/src/cryptolib-pem.adb b/src/cryptolib-pem.adb
+index 05c6f46..88f18fe 100644
+--- a/src/cryptolib-pem.adb
++++ b/src/cryptolib-pem.adb
+@@ -1,3 +1,5 @@
++with CryptoLib.Base64;
++
+ package body CryptoLib.PEM is
+ 
+    use type Ada.Streams.Stream_Element_Offset;
+@@ -21,21 +23,6 @@ package body CryptoLib.PEM is
+    function Is_Whitespace (C : Character) return Boolean
+    is (C = ' ' or else C = ASCII.HT or else C = ASCII.CR or else C = ASCII.LF);
+ 
+-   --  Base64 alphabet value, or -1. Padding is not a value and is handled by
+-   --  the decoder, which is the only place that knows whether padding is
+-   --  allowed at the position it appears.
+-   function Base64_Value (C : Character) return Integer is
+-   begin
+-      case C is
+-         when 'A' .. 'Z' => return Character'Pos (C) - Character'Pos ('A');
+-         when 'a' .. 'z' => return Character'Pos (C) - Character'Pos ('a') + 26;
+-         when '0' .. '9' => return Character'Pos (C) - Character'Pos ('0') + 52;
+-         when '+'        => return 62;
+-         when '/'        => return 63;
+-         when others     => return -1;
+-      end case;
+-   end Base64_Value;
+-
+    --  Find the next occurrence of Pattern at or after From.
+    function Index_From
+      (Text    : String;
+@@ -118,9 +105,8 @@ package body CryptoLib.PEM is
+       Body_First : Natural;
+       Body_Last  : Natural;
+       After      : Natural;
+-      Quantum    : array (0 .. 3) of Integer := [others => 0];
++      Group      : String (1 .. 4);
+       Filled     : Natural := 0;
+-      Padding    : Natural := 0;
+       Cursor     : Offset;
+       Finished   : Boolean := False;
+    begin
+@@ -137,15 +123,11 @@ package body CryptoLib.PEM is
+          return;
+       end if;
+ 
++      --  The body is read four characters at a time, white space skipped, and
++      --  each group is decoded by CryptoLib.Base64, which refuses what is not
++      --  base64, padding in the wrong place, and stray low bits.
+       for I in Body_First .. Body_Last loop
+-         declare
+-            C     : constant Character := Text (I);
+-            Value : Integer;
+-         begin
+-            if Is_Whitespace (C) then
+-               goto Continue;
+-            end if;
+-
++         if not Is_Whitespace (Text (I)) then
+             --  Anything after the padding has ended the encoding.
+             if Finished then
+                Status := Invalid_Base64;
+@@ -153,70 +135,37 @@ package body CryptoLib.PEM is
+                return;
+             end if;
+ 
+-            if C = '=' then
+-               --  Padding only completes a quantum, and only the last two
+-               --  positions of one.
+-               if Filled < 2 then
+-                  Status := Invalid_Base64;
+-                  Last := Output'First - 1;
+-                  return;
+-               end if;
+-               Padding := Padding + 1;
+-               Quantum (Filled) := 0;
+-               Filled := Filled + 1;
+-            else
+-               if Padding > 0 then
+-                  --  Base64 after padding.
+-                  Status := Invalid_Base64;
+-                  Last := Output'First - 1;
+-                  return;
+-               end if;
+-
+-               Value := Base64_Value (C);
+-               if Value < 0 then
+-                  Status := Invalid_Base64;
+-                  Last := Output'First - 1;
+-                  return;
+-               end if;
+-               Quantum (Filled) := Value;
+-               Filled := Filled + 1;
+-            end if;
++            Filled := Filled + 1;
++            Group (Filled) := Text (I);
+ 
+             if Filled = 4 then
+                declare
+-                  Produced : constant Natural := 3 - Padding;
+-                  Packed   : constant Integer :=
+-                    Quantum (0) * 262_144 + Quantum (1) * 4_096
+-                    + Quantum (2) * 64 + Quantum (3);
++                  Decoded : Octets (1 .. 3);
++                  Count   : Offset;
++                  Valid   : Boolean;
+                begin
+-                  if Cursor + Offset (Produced) - 1 > Output'Last then
+-                     Status := Buffer_Too_Small;
++                  CryptoLib.Base64.Decode
++                    (Group, Decoded, Count, Valid, Padded => True);
++                  if not Valid then
++                     Status := Invalid_Base64;
+                      Last := Output'First - 1;
+                      return;
+                   end if;
+ 
+-                  if Produced >= 1 then
+-                     Output (Cursor) :=
+-                       Ada.Streams.Stream_Element (Packed / 65_536);
+-                     Cursor := Cursor + 1;
+-                  end if;
+-                  if Produced >= 2 then
+-                     Output (Cursor) :=
+-                       Ada.Streams.Stream_Element ((Packed / 256) mod 256);
+-                     Cursor := Cursor + 1;
+-                  end if;
+-                  if Produced >= 3 then
+-                     Output (Cursor) :=
+-                       Ada.Streams.Stream_Element (Packed mod 256);
+-                     Cursor := Cursor + 1;
++                  if Cursor + Count - 1 > Output'Last then
++                     Status := Buffer_Too_Small;
++                     Last := Output'First - 1;
++                     return;
+                   end if;
++
++                  Output (Cursor .. Cursor + Count - 1) := Decoded (1 .. Count);
++                  Cursor := Cursor + Count;
+                end;
+ 
+                Filled := 0;
+-               Finished := Padding > 0;
++               Finished := Group (4) = '=';
+             end if;
+-         end;
+-         <<Continue>>
++         end if;
+       end loop;
+ 
+       if Filled /= 0 then
 diff --git a/tests/src/tests_encodings.adb b/tests/src/tests_encodings.adb
 index 0a9e88d..72519aa 100644
 --- a/tests/src/tests_encodings.adb
@@ -477,6 +574,46 @@ index 2151b77..6cbf0dd 100644
  --
  --  Each procedure is one group of known-answer or negative tests, and
  --  is called from the Tests driver. Splitting the suite by topic is
--- 
-2.47.3
-
+diff --git a/tests/src/tests_x509_decoding.adb b/tests/src/tests_x509_decoding.adb
+index a7c0d18..8318233 100644
+--- a/tests/src/tests_x509_decoding.adb
++++ b/tests/src/tests_x509_decoding.adb
+@@ -250,6 +250,14 @@ package body Tests_X509_Decoding is
+          Good : constant String :=
+            "-----BEGIN CERTIFICATE-----" & ASCII.LF & "QUJD" & ASCII.LF
+            & "-----END CERTIFICATE-----" & ASCII.LF;
++         --  "QQ==" is "A"; "QR==" has a bit set where the encoding of one
++         --  octet has none, which is a second spelling of the same octet.
++         Padded_Block : constant String :=
++           "-----BEGIN CERTIFICATE-----" & ASCII.LF & "QQ==" & ASCII.LF
++           & "-----END CERTIFICATE-----" & ASCII.LF;
++         Stray_Bits : constant String :=
++           "-----BEGIN CERTIFICATE-----" & ASCII.LF & "QR==" & ASCII.LF
++           & "-----END CERTIFICATE-----" & ASCII.LF;
+          Preamble : constant String :=
+            "Alias name: mykey" & ASCII.LF & "Entry type: PrivateKeyEntry"
+            & ASCII.LF & Good;
+@@ -266,6 +274,23 @@ package body Tests_X509_Decoding is
+          Check (St = CryptoLib.PEM.Invalid_Base64,
+                 "a character that is not base64 is refused, not skipped");
+ 
++         From := Padded_Block'First;
++         CryptoLib.PEM.Decode_Block
++           (Padded_Block, CryptoLib.PEM.Certificate_Label, From, Buffer, Last,
++            St);
++         Check (St = CryptoLib.PEM.Ok
++                and then Last = Buffer'First
++                and then Buffer (Buffer'First) = Character'Pos ('A'),
++                "a block ending in padding decodes to its bytes");
++
++         From := Stray_Bits'First;
++         CryptoLib.PEM.Decode_Block
++           (Stray_Bits, CryptoLib.PEM.Certificate_Label, From, Buffer, Last,
++            St);
++         Check (St = CryptoLib.PEM.Invalid_Base64
++                and then Last = Buffer'First - 1,
++                "padding that hides stray bits is refused, not dropped");
++
+          From := Good'First;
+          CryptoLib.PEM.Decode_Block
+            (Good, CryptoLib.PEM.Certificate_Label, From, Buffer, Last, St);
