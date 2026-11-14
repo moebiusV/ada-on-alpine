@@ -2,7 +2,7 @@
 pkgname=soja
 pkgver=0.1.0_git20261113
 pkgrel=0
-_commit="13ee46133c0aa546c4fbe26419b2db4c849f93ec"
+_commit="ac17f94400297766e8ea64636149cf3306a5cff2"
 pkgdesc="soju IRC bouncer, translated to Ada: a drop-in replacement (soja, sojadb, sojactl)"
 url="https://github.com/moebiusV/soja"
 arch="all"
@@ -11,16 +11,18 @@ license="AGPL-3.0-only"
 # (as the test suite builds them), so they need nothing at run time but the C
 # library.  libpam is optional: `auth pam` loads it with dlopen when started.
 depends=""
-makedepends="gcc-gnat gprbuild build-base aws aws-static gnatcoll-db gnatcoll-db-static
+makedepends="gcc-gnat gprbuild build-base scdoc aws aws-static gnatcoll-db gnatcoll-db-static
 	bracke-cryptolib bracke-cryptolib-static sqlite-dev sqlite-static
 	openssl-dev openssl-libs-static zlib-dev zlib-static"
 source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
 builddir="$srcdir/$pkgname-$_commit"
+subpackages="$pkgname-doc"
 
 build() {
 	# The parsers hbnf generated are in src/, so hbnf is not needed here.
 	for d in soja sojadb sojactl; do
 		(cd cmd/$d && gprbuild -P $d.gpr -p -XLIBRARY_TYPE=static)
+		scdoc < docs/$d.1.scd > $d.1
 	done
 }
 
@@ -36,10 +38,13 @@ check() {
 package() {
 	for d in soja sojadb sojactl; do
 		install -Dm755 cmd/$d/$d "$pkgdir"/usr/bin/$d
+		install -Dm644 $d.1 "$pkgdir"/usr/share/man/man1/$d.1
 	done
 	install -Dm644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
 	install -Dm644 PORTING.md "$pkgdir"/usr/share/doc/$pkgname/PORTING.md
 	install -Dm644 SOJU-BUGS.md "$pkgdir"/usr/share/doc/$pkgname/SOJU-BUGS.md
+	install -Dm644 docs/getting-started.md "$pkgdir"/usr/share/doc/$pkgname/getting-started.md
+	install -Dm644 docs/differences.md "$pkgdir"/usr/share/doc/$pkgname/differences.md
 }
 
-sha512sums="0de2150762f20d70624f006def154f3b5b14014a89f8e0a326d462b529d7c9c2e304fbc2c1a9b323d99134b5014dc1ffc845edf34b36b266498276f5e1762571  $pkgname-$_commit.tar.gz"
+sha512sums="c51037986102b8e6b877099a4ab87e29100c31ee37d87e49634f8987903f48f0fd70ec367a2e42731af48b6f4205279f8485eb065ea075a79060b427ca7bf425  $pkgname-$_commit.tar.gz"
