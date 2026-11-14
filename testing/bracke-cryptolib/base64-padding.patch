@@ -1,20 +1,33 @@
-From 31a4dfa61611cbf494f6043fa74ebb9e209baa81 Mon Sep 17 00:00:00 2001
+From 00ff104149eaaddf84dfb4756389852ae35e99cd Mon Sep 17 00:00:00 2001
 From: David Walther <tederific@gmail.com>
 Date: Fri, 13 Nov 2026 19:17:24 -0700
-Subject: [PATCH] Base64: an optional Padded parameter
+Subject: [PATCH] Base64: public, with an optional Padded parameter
 
-Encoded_Length, Decoded_Length, Encode and Decode take Padded (default False,
-so existing callers are unchanged): RFC 4648 section 4 padding with '='.
-Decoding stays strict: whole groups only, at most two '=' at the end, the
-unused low bits zero.  Checked against the RFC 4648 section 10 vectors.
+CryptoLib.Base64 was a private child, reachable only from inside the crate.
+Make it public and give Encoded_Length, Decoded_Length, Encode and Decode a
+Padded parameter (default False, so existing callers are unchanged): RFC 4648
+section 4 padding with '='.  Decoding stays strict: whole groups only, at most
+two '=' at the end, the unused low bits zero.
+
+Decode now zeroes its output on every refusal.  It used to leave the octets of
+the groups read before the bad one, against the crate's rule that a failed
+operation leaves nothing partial.
+
+Tests: Check_Base64 (RFC 4648 section 10 vectors in both forms, a round trip at
+every length from 0 to 64, and the refusals, each asserting the zeroed
+output).  README package map and SECURITY.md updated.
 ---
- CHANGELOG.md             |  4 +++
- src/cryptolib-base64.adb | 76 +++++++++++++++++++++++++++++-----------
- src/cryptolib-base64.ads | 46 ++++++++++++++++--------
- 3 files changed, 90 insertions(+), 36 deletions(-)
+ CHANGELOG.md                  |  10 +++
+ README.md                     |   1 +
+ SECURITY.md                   |   1 +
+ src/cryptolib-base64.adb      |  85 ++++++++++++++++++-----
+ src/cryptolib-base64.ads      |  63 ++++++++++-------
+ tests/src/tests_encodings.adb | 123 ++++++++++++++++++++++++++++++++++
+ tests/src/tests_encodings.ads |   2 +-
+ 7 files changed, 242 insertions(+), 43 deletions(-)
 
 diff --git a/CHANGELOG.md b/CHANGELOG.md
-index d39f06b..2822bdc 100644
+index d39f06b..307cf95 100644
 --- a/CHANGELOG.md
 +++ b/CHANGELOG.md
 @@ -14,6 +14,10 @@ commits; each of those says what it changed.
@@ -28,8 +41,45 @@ index d39f06b..2822bdc 100644
  - Argon2: `Verify`, so the recommended password hash can be checked without a
    caller writing its own comparison, and the PHC string encoding beside it.
  - The ECDSA DER signature encoder and decoder.
+@@ -45,6 +49,12 @@ commits; each of those says what it changed.
+   MB/s, output matching pyca/cryptography at lengths on both sides of the
+   eight-block boundary.
+ 
++### Fixed
++
++- `CryptoLib.Base64.Decode` left the octets of the groups it had read when it
++  refused a later one; every refusal now leaves the output zero, as the rest of
++  the crate does.
++
+ ## Releasing
+ 
+ No procedure yet.
+diff --git a/README.md b/README.md
+index 8d3b3cb..143bd54 100644
+--- a/README.md
++++ b/README.md
+@@ -57,6 +57,7 @@ Do not run plain system `gnat*`, `gnatmake`, `gnatls`, `gnatprove`,
+ | `CryptoLib.RSA` | RSA PKCS#1 v1.5 and PSS, signing and verification (SHA-256/384/512); blinded private operation with optional CRT; 2048/3072/4096-bit key generation |
+ | `CryptoLib.ASN1`, `CryptoLib.ASN1.DER`, `CryptoLib.ASN1.OIDs` | defensive bounded DER reader, object identifiers |
+ | `CryptoLib.PEM` | strict PEM armour decoding, multi-block |
++| `CryptoLib.Base64` | standard base64, padded or unpadded, with a strict one-spelling decoder |
+ | `CryptoLib.PKCS10` | certification requests: decode, read the subject and key, check proof of possession; any key whose proof can be checked can be signed into a certificate, RSA included |
+ | `CryptoLib.PKCS8` | private keys, plain or PBES2-encrypted; wipes its own storage when it goes out of scope |
+ | `CryptoLib.PBES2` | password-based decryption shared by PKCS#8 and PKCS#12 |
+diff --git a/SECURITY.md b/SECURITY.md
+index 88ceab5..83fbfba 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -46,6 +46,7 @@ RSASSA-PSS can now be issued as well as verified, which was the last algorithm t
+ | X.509 parsing (`ASN1`, `PEM`, `X509.*`) | DER reader, PEM armour, certificate decode, extensions, signature verification | a BIT STRING's padding bits must be zero, as X.690 11.2.1 requires: the key-usage reader indexes bits straight out of the octets, so a certificate setting a bit inside the padding would claim a usage its own encoding does not grant. Checked in the reader rather than at each caller, which is why several callers ignore the unused-bit count; field-by-field against `openssl x509 -text` on the same certificates; an OpenSSL-issued RSA chain verifies here and under `openssl verify`; the machine's own trust store is parsed by the suite rather than measured once and written down here: every certificate in it must decode, with the count left unpinned because it changes when the machine's packages do -- 121 at the time of writing, where an earlier note in this file said 122. That check exists because the DER reader is deliberately strict, and each rule it gains is a chance to reject something the world uses that the crate's own corpus cannot reveal. It is a net for real-world encoding diversity rather than a unique one: a gross over-rejection trips the corpus first, as breaking the reader deliberately showed. An earlier manual measurement also found every `notAfter` agreeing with `openssl x509 -enddate`, and 117 of the self-signatures verifying here. The other five are `sha1WithRSAEncryption`, which this does not verify and reports as unchecked -- none of the 122 comes back as an invalid signature, which is the answer that would mean this crate believes a real root was tampered with |
+ | Revocation (`X509.CRLs`, `OCSP`) | CRL and OCSP parsing and signature checking | a serial number must be positive, and that is not pedantry: serials are compared as magnitudes with leading zeros stripped, which is right across the padded encodings a positive serial has and wrong across the sign. DER writes -1 as content `FF` and 255 as `00 FF`, so a list naming -1 reported the certificate whose serial is 255 as revoked. Pinned with two hand-built lists differing only in the serial -- the positive one still revoking is what says the refusal is aimed at the sign rather than at the list; against a CRL and OCSP responses OpenSSL produced through `openssl ca -revoke`; the request builder is byte-identical to `openssl ocsp -reqout`, with and without a nonce; a delegate without OCSP-signing authority is refused; revocation times and reasons match `openssl crl -text`, and the CRL and OCSP paths agree with each other on the same certificate, and agree on what a serial number is -- one comparison serves both, reading a serial as a number so that a padded encoding is not taken for a different certificate, which on this path would look like not being revoked; a CRL scoped by a critical `issuingDistributionPoint` is refused rather than read as a complete list; a statement that names no `nextUpdate` -- which is optional in both a CRL and an OCSP response, and left it with no window to be outside of -- is believed only for `Maximum_Age_Days` from when it was issued, seven by default, because replaying a genuine old "nothing revoked" needs no forgery; a validly signed OCSP response carrying an unrecognised critical extension is refused, in its own extensions or in the entry about the certificate |
+ | Key fingerprints (`Fingerprints`) | OpenSSH MD5 and SHA-256 renderings | byte-identical to what `ssh-keygen -l` prints for the same key blobs, Ed25519 and RSA, including that the SHA-256 form carries no base64 padding |
++| Base64 (`Base64`) | RFC 4648 section 4, padded and unpadded | the RFC 4648 section 10 vectors in both forms, and a round trip at every length from 0 to 64 octets. The decoder accepts one spelling of each octet string and nothing else: a character outside the alphabet, white space, a length of 1 modulo 4, a final group whose unused low bits are not zero, padding where none is asked for, and padding that is missing, misplaced or more than two characters are each refused with the output left zero. |
+ | Service identity (`X509.Identity`) | RFC 9525 DNS and IP matching | negative cases pinned: a wildcard matches neither the bare domain nor across two labels, an address is never matched as text, and the common name is consulted only when a caller asks for it |
+ 
+ ## Constant-time properties
 diff --git a/src/cryptolib-base64.adb b/src/cryptolib-base64.adb
-index 6274fc9..f634d21 100644
+index 6274fc9..c35fe06 100644
 --- a/src/cryptolib-base64.adb
 +++ b/src/cryptolib-base64.adb
 @@ -5,24 +5,30 @@ package body CryptoLib.Base64 is
@@ -102,65 +152,89 @@ index 6274fc9..f634d21 100644
              end if;
              Cursor := Cursor + 3;
           end;
-@@ -63,10 +76,11 @@ package body CryptoLib.Base64 is
+@@ -62,7 +75,9 @@ package body CryptoLib.Base64 is
+       Last := Out_At - 1;
     end Encode;
  
-    procedure Decode
--     (Text  : String;
--      Into  : out Ada.Streams.Stream_Element_Array;
--      Last  : out Ada.Streams.Stream_Element_Offset;
--      Valid : out Boolean)
+-   procedure Decode
++   --  Decode for text without padding. A refusal may come after earlier groups
++   --  were written; Decode zeroes them, so that no caller sees half a result.
++   procedure Decode_Unpadded
+      (Text  : String;
+       Into  : out Ada.Streams.Stream_Element_Array;
+       Last  : out Ada.Streams.Stream_Element_Offset;
+@@ -143,6 +158,40 @@ package body CryptoLib.Base64 is
+ 
+       Last := Out_At - 1;
+       Valid := True;
++   end Decode_Unpadded;
++
++   procedure Decode
 +     (Text   : String;
 +      Into   : out Ada.Streams.Stream_Element_Array;
 +      Last   : out Ada.Streams.Stream_Element_Offset;
 +      Valid  : out Boolean;
 +      Padded : Boolean := False)
-    is
-       --  -1 for anything outside the alphabet, including padding and space.
-       function Value_Of (Item : Character) return Integer is
-@@ -87,6 +101,26 @@ package body CryptoLib.Base64 is
-       Last := Into'First - 1;
-       Valid := False;
- 
++   is
++      Stop : Natural := Text'Last;
++   begin
++      Into := [others => 0];
++      Last := Into'First - 1;
++      Valid := False;
++
 +      if Padded then
 +         --  Whole groups only, and at most two `=` at the very end; what is
 +         --  left is an unpadded encoding, decoded (strictly) as one.
 +         if Text'Length mod 4 /= 0 then
 +            return;
 +         end if;
-+         declare
-+            Stop : Natural := Text'Last;
-+         begin
-+            if Stop >= Text'First and then Text (Stop) = '=' then
++         if Stop >= Text'First and then Text (Stop) = '=' then
++            Stop := Stop - 1;
++            if Text (Stop) = '=' then
 +               Stop := Stop - 1;
-+               if Text (Stop) = '=' then
-+                  Stop := Stop - 1;
-+               end if;
 +            end if;
-+            Decode (Text (Text'First .. Stop), Into, Last, Valid);
-+         end;
-+         return;
++         end if;
 +      end if;
 +
-       if Text'Length = 0 then
-          Valid := True;
-          return;
++      Decode_Unpadded (Text (Text'First .. Stop), Into, Last, Valid);
++      if not Valid then
++         Into := [others => 0];
++         Last := Into'First - 1;
++      end if;
+    end Decode;
+ 
+ end CryptoLib.Base64;
 diff --git a/src/cryptolib-base64.ads b/src/cryptolib-base64.ads
-index 84760c3..8ed7105 100644
+index 84760c3..df025c3 100644
 --- a/src/cryptolib-base64.ads
 +++ b/src/cryptolib-base64.ads
-@@ -9,35 +9,48 @@ with Ada.Streams;
- --  CryptoLib.Fingerprints' body, where the second caller could not reach it.
- --  One copy, for the same reason CryptoLib.Blowfish exists.
+@@ -1,54 +1,69 @@
+ with Ada.Streams;
+ 
+---  @summary Unpadded standard base64, the encoding two unrelated formats in
+---  this crate both happen to need.
++--  @summary Standard base64 (RFC 4648 section 4), padded or unpadded, with a
++--  decoder that accepts exactly one spelling of each octet string.
+ --
+---  A **private child**: machinery for CryptoLib's own packages and reachable
+---  from nowhere else. OpenSSH key fingerprints are unpadded base64, and so is
+---  every field of an Argon2 PHC string; the encoder existed inside
+---  CryptoLib.Fingerprints' body, where the second caller could not reach it.
+---  One copy, for the same reason CryptoLib.Blowfish exists.
++--  Standard alphabet -- A-Z a-z 0-9 + / -- not the URL-safe variant. The
++--  default is no padding, which is what the two formats this crate reads
++--  itself specify: OpenSSH key fingerprints are unpadded base64, and so is
++--  every field of an Argon2 PHC string. A caller whose format pads -- most
++--  text formats do -- passes `Padded => True`. The two forms share one decoder,
++--  so the strictness described under Decode holds for both.
  --
 ---  Standard alphabet -- A-Z a-z 0-9 + / -- and no padding, which is what both
 ---  formats specify. This is not the URL-safe variant and does not accept `=`.
-+--  Standard alphabet -- A-Z a-z 0-9 + / -- and, by default, no padding, which
-+--  is what both formats specify. This is not the URL-safe variant. A caller
-+--  whose format pads (RFC 4648 section 4, as PEM and most text formats do)
-+--  passes `Padded => True`; the unpadded forms stay the default, so no existing
-+--  caller changes.
- private package CryptoLib.Base64 is
+-private package CryptoLib.Base64 is
++--  This package is public so that code built on this crate need not carry a
++--  second copy of an encoding that is easy to get subtly wrong. CryptoLib.PEM
++--  decodes its own armour, line breaks included, and does not go through it.
++package CryptoLib.Base64 is
  
 -   --  The encoded length of Count octets, with no padding.
 -   --  @param Count the number of octets to encode
@@ -209,8 +283,9 @@ index 84760c3..8ed7105 100644
     --  modulo 4, and a final group whose unused low bits are not zero -- the
     --  last of these being what lets two different strings decode to the same
     --  octets, which a format that is compared as text must not allow.
-@@ -45,10 +58,13 @@ private package CryptoLib.Base64 is
-    --  @param Into  out: the octets, from Into'First
+    --  @param Text  the characters to decode
+-   --  @param Into  out: the octets, from Into'First
++   --  @param Into  out: the octets, from Into'First; all zero on a refusal
     --  @param Last  out: the last octet written, Into'First - 1 on failure
     --  @param Valid out: True only when Text is exactly an encoding
 +   --  @param Padded whether Text must end in `=` to a multiple of 4 (when
@@ -227,6 +302,181 @@ index 84760c3..8ed7105 100644
 +      Padded : Boolean := False);
  
  end CryptoLib.Base64;
+diff --git a/tests/src/tests_encodings.adb b/tests/src/tests_encodings.adb
+index 0a9e88d..72519aa 100644
+--- a/tests/src/tests_encodings.adb
++++ b/tests/src/tests_encodings.adb
+@@ -5,6 +5,7 @@ with Ada.Text_IO;
+ with Interfaces;
+ with System;
+ with CryptoLib.ASN1;
++with CryptoLib.Base64;
+ with CryptoLib.PEM;
+ with CryptoLib.X509;
+ with CryptoLib.X509.Certificates;
+@@ -2101,6 +2102,120 @@ package body Tests_Encodings is
+       end;
+    end Check_PKCS12;
+ 
++   --  CryptoLib.Base64: the RFC 4648 section 10 vectors in both forms, a round
++   --  trip at every length, and the refusals -- each of which must leave the
++   --  output zeroed and say nothing was written.
++   procedure Check_Base64 is
++      use CryptoLib.Base64;
++
++      function Encode (Plain : String; Padded : Boolean) return String is
++         Data : constant Ada.Streams.Stream_Element_Array := Bytes_From_String (Plain);
++         Text : String (1 .. Encoded_Length (Plain'Length, Padded) + 4);
++         Last : Natural;
++      begin
++         Encode (Data, Text, Last, Padded);
++         Check (Last = Encoded_Length (Plain'Length, Padded), "base64: Encoded_Length is what Encode writes");
++         return Text (1 .. Last);
++      end Encode;
++
++      function Decode (Text : String; Padded : Boolean) return String is
++         Data  : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
++         Last  : Ada.Streams.Stream_Element_Offset;
++         Valid : Boolean;
++         Plain : String (1 .. Text'Length);
++      begin
++         Decode (Text, Data, Last, Valid, Padded);
++         Check (Valid, "base64: """ & Text & """ is refused");
++         Check (Natural (Last) <= Decoded_Length (Text'Length, Padded), "base64: Decoded_Length is a bound");
++         for Index in 1 .. Natural (Last) loop
++            Plain (Index) := Character'Val (Data (Ada.Streams.Stream_Element_Offset (Index)));
++         end loop;
++         return Plain (1 .. Natural (Last));
++      end Decode;
++
++      procedure Expect_Refused (Text : String; Padded : Boolean) is
++         Data  : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Text'Length) + 3) :=
++           [others => 16#AA#];
++         Last  : Ada.Streams.Stream_Element_Offset;
++         Valid : Boolean;
++      begin
++         Decode (Text, Data, Last, Valid, Padded);
++         Check (not Valid, "base64: """ & Text & """ is accepted");
++         Check (Last = Data'First - 1, "base64: a refusal says nothing was written");
++         Check (Data = Ada.Streams.Stream_Element_Array'(Data'Range => 0), "base64: a refusal leaves the output zero");
++      end Expect_Refused;
++
++      --  One RFC 4648 section 10 test vector, in both directions and both forms.
++      procedure Vector (Plain, Padded_Text, Unpadded_Text : String) is
++      begin
++         Check (Encode (Plain, True) = Padded_Text, "base64: padded encoding of """ & Plain & """");
++         Check (Encode (Plain, False) = Unpadded_Text, "base64: unpadded encoding of """ & Plain & """");
++         Check (Decode (Padded_Text, True) = Plain, "base64: padded decoding of """ & Padded_Text & """");
++         Check (Decode (Unpadded_Text, False) = Plain, "base64: unpadded decoding of """ & Unpadded_Text & """");
++      end Vector;
++   begin
++      Vector ("", "", "");
++      Vector ("f", "Zg==", "Zg");
++      Vector ("fo", "Zm8=", "Zm8");
++      Vector ("foo", "Zm9v", "Zm9v");
++      Vector ("foob", "Zm9vYg==", "Zm9vYg");
++      Vector ("fooba", "Zm9vYmE=", "Zm9vYmE");
++      Vector ("foobar", "Zm9vYmFy", "Zm9vYmFy");
++
++      --  Every length from 0 to 64 octets, with every octet value in the mix.
++      for Length in 0 .. 64 loop
++         declare
++            Plain : String (1 .. Length);
++         begin
++            for Index in Plain'Range loop
++               Plain (Index) := Character'Val ((Index * 37 + Length * 11) mod 256);
++            end loop;
++            Check (Decode (Encode (Plain, True), True) = Plain, "base64: padded round trip");
++            Check (Decode (Encode (Plain, False), False) = Plain, "base64: unpadded round trip");
++            Check (Encode (Plain, True)'Length mod 4 = 0, "base64: padded text is whole groups");
++         end;
++      end loop;
++
++      --  The standard alphabet, not the URL-safe one: FB FF encodes with '+' and '/'.
++      Check (Encode (Character'Val (16#FB#) & Character'Val (16#FF#), True) = "+/8=",
++             "base64: the alphabet ends in '+' and '/'");
++
++      --  Lengths: a padded encoding is whole groups, an unpadded one may end short.
++      Check (Encoded_Length (0) = 0 and then Encoded_Length (1) = 2 and then Encoded_Length (2) = 3
++             and then Encoded_Length (3) = 4 and then Encoded_Length (1, True) = 4
++             and then Encoded_Length (2, True) = 4 and then Encoded_Length (4, True) = 8,
++             "base64: Encoded_Length");
++      Check (Decoded_Length (4) = 3 and then Decoded_Length (2) = 1 and then Decoded_Length (3) = 2
++             and then Decoded_Length (5) = 0 and then Decoded_Length (4, True) = 3
++             and then Decoded_Length (3, True) = 0 and then Decoded_Length (2, True) = 0,
++             "base64: Decoded_Length");
++
++      --  Refusals. A decoder that accepts two spellings of one value cannot be used where the text is
++      --  compared, so the stray low bits of a short final group are among them.
++      for Padded in Boolean loop
++         Expect_Refused ("Zm9v!", Padded);         --  outside the alphabet
++         Expect_Refused ("Zm9 v", Padded);         --  white space
++         Expect_Refused ("Zm9v" & Character'Val (10), Padded);
++         Expect_Refused ("Zm9v-_", Padded);        --  the URL-safe alphabet
++      end loop;
++      Expect_Refused ("Z", False);                 --  one character over a group encodes nothing
++      Expect_Refused ("Zm9vY", False);
++      Expect_Refused ("Zh", False);                --  stray low bits: "Zg" is the spelling
++      Expect_Refused ("Zm9=", False);              --  padding where none is asked for
++      Expect_Refused ("Zg==", False);
++      Expect_Refused ("Zg", True);                 --  padding missing
++      Expect_Refused ("Zg=", True);
++      Expect_Refused ("Zm9", True);
++      Expect_Refused ("Zg===", True);              --  too much of it
++      Expect_Refused ("Z===", True);
++      Expect_Refused ("====", True);
++      Expect_Refused ("Z=g=", True);               --  in the middle
++      Expect_Refused ("Zg=a", True);               --  not at the end
++      Expect_Refused ("Zh==", True);               --  stray low bits
++      Expect_Refused ("Zm9=", True);
++      Expect_Refused ("Zm9v=", True);              --  not whole groups
++   end Check_Base64;
++
+    --  AUnit routine wrappers. Each check is a test of its own, so a
+    --  failure reports the check that failed and the rest still run.
+    procedure Run_Check_ASN1_DER (Item : in out AUnit.Test_Cases.Test_Case'Class);
+@@ -2114,6 +2229,7 @@ package body Tests_Encodings is
+    procedure Run_Check_PKCS8_Encrypted (Item : in out AUnit.Test_Cases.Test_Case'Class);
+    procedure Run_Check_PKCS12 (Item : in out AUnit.Test_Cases.Test_Case'Class);
+    procedure Run_Check_Identity_Predicates (Item : in out AUnit.Test_Cases.Test_Case'Class);
++   procedure Run_Check_Base64 (Item : in out AUnit.Test_Cases.Test_Case'Class);
+ 
+    procedure Run_Check_ASN1_DER (Item : in out AUnit.Test_Cases.Test_Case'Class) is
+       pragma Unreferenced (Item);
+@@ -2181,6 +2297,12 @@ package body Tests_Encodings is
+       Check_Identity_Predicates;
+    end Run_Check_Identity_Predicates;
+ 
++   procedure Run_Check_Base64 (Item : in out AUnit.Test_Cases.Test_Case'Class) is
++      pragma Unreferenced (Item);
++   begin
++      Check_Base64;
++   end Run_Check_Base64;
++
+    overriding procedure Register_Tests (Item : in out Test_Case) is
+       use AUnit.Test_Cases.Registration;
+    begin
+@@ -2195,6 +2317,7 @@ package body Tests_Encodings is
+       Register_Routine (Item, Run_Check_PKCS8_Encrypted'Access, "pkcs8 encrypted");
+       Register_Routine (Item, Run_Check_PKCS12'Access, "pkcs12");
+       Register_Routine (Item, Run_Check_Identity_Predicates'Access, "identity predicates");
++      Register_Routine (Item, Run_Check_Base64'Access, "base64");
+    end Register_Tests;
+ 
+    overriding function Name (Item : Test_Case) return AUnit.Message_String is
+diff --git a/tests/src/tests_encodings.ads b/tests/src/tests_encodings.ads
+index 2151b77..6cbf0dd 100644
+--- a/tests/src/tests_encodings.ads
++++ b/tests/src/tests_encodings.ads
+@@ -1,7 +1,7 @@
+ with AUnit;
+ with AUnit.Test_Cases;
+ 
+---  ASN.1/DER, PEM, PKCS#8, PKCS#10, PKCS#12 and OpenSSH key encodings.
++--  ASN.1/DER, PEM, base64, PKCS#8, PKCS#10, PKCS#12 and OpenSSH key encodings.
+ --
+ --  Each procedure is one group of known-answer or negative tests, and
+ --  is called from the Tests driver. Splitting the suite by topic is
 -- 
 2.47.3
 
