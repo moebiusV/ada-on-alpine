@@ -1,8 +1,8 @@
 # Maintainer: David Walther <david@clearbrookdistillery.com>
 pkgname=soja
-pkgver=0.1.0_git20261113
+pkgver=0.1.0_git20261114
 pkgrel=0
-_commit="f0714cf138abfb8b053154e7d8a331539242493c"
+_commit="2eb64a732036dfb18cdaad817943ea350f8ef377"
 pkgdesc="soju IRC bouncer, translated to Ada: a drop-in replacement (soja, sojadb, sojactl)"
 url="https://github.com/moebiusV/soja"
 arch="all"
@@ -28,7 +28,7 @@ build() {
 check() {
 	# Unit checks that need nothing but the build (the end-to-end run, tests/
 	# e2e.sh, installs ngircd and needs root: run it by hand).
-	for t in sqlite oauth webpush certgen; do
+	for t in sqlite oauth webpush certgen scfg; do
 		gprbuild -P tests/${t}_check.gpr -p
 		./tests/${t}_check
 	done
@@ -44,6 +44,7 @@ package() {
 	install -Dm644 SOJU-BUGS.md "$pkgdir"/usr/share/doc/$pkgname/SOJU-BUGS.md
 	install -Dm644 docs/getting-started.md "$pkgdir"/usr/share/doc/$pkgname/getting-started.md
 	install -Dm644 docs/differences.md "$pkgdir"/usr/share/doc/$pkgname/differences.md
+	install -Dm644 docs/PARITY.md "$pkgdir"/usr/share/doc/$pkgname/PARITY.md
 }
 
-sha512sums="033b7607b5c89b44a8f8488bff1f4742974531a9a18044f634e5da1b8fab1700f855c7ed7274e454f83bde06b6ac765ba988b3e6e6d48affdd3c5dae648e53a9  $pkgname-$_commit.tar.gz"
+sha512sums="1dcb01b6877f77a97c2a50ffed82171a8ce0a5c87d025c28d410694d7610f829de634da852ff9bd67430fafcb87ee7e8f6fa19f1302bc1e93ac1a634c6b152d4  $pkgname-$_commit.tar.gz"
