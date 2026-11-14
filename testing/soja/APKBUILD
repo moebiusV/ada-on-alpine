@@ -2,7 +2,7 @@
 pkgname=soja
 pkgver=0.1.0_git20261113
 pkgrel=0
-_commit="fed6f48cac2306837fb1221623125312370af09c"
+_commit="f0714cf138abfb8b053154e7d8a331539242493c"
 pkgdesc="soju IRC bouncer, translated to Ada: a drop-in replacement (soja, sojadb, sojactl)"
 url="https://github.com/moebiusV/soja"
 arch="all"
@@ -11,7 +11,7 @@ license="AGPL-3.0-only"
 # (as the test suite builds them), so they need nothing at run time but the C
 # library.  libpam is optional: `auth pam` loads it with dlopen when started.
 depends=""
-makedepends="gcc-gnat gprbuild build-base scdoc aws aws-static gnatcoll-db gnatcoll-db-static
+makedepends="gcc-gnat gprbuild build-base aws aws-static gnatcoll-db gnatcoll-db-static
 	bracke-cryptolib bracke-cryptolib-static sqlite-dev sqlite-static
 	openssl-dev openssl-libs-static zlib-dev zlib-static"
 source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
@@ -22,7 +22,6 @@ build() {
 	# The parsers hbnf generated are in src/, so hbnf is not needed here.
 	for d in soja sojadb sojactl; do
 		(cd cmd/$d && gprbuild -P $d.gpr -p -XLIBRARY_TYPE=static)
-		scdoc < docs/$d.1.scd > $d.1
 	done
 }
 
@@ -38,7 +37,7 @@ check() {
 package() {
 	for d in soja sojadb sojactl; do
 		install -Dm755 cmd/$d/$d "$pkgdir"/usr/bin/$d
-		install -Dm644 $d.1 "$pkgdir"/usr/share/man/man1/$d.1
+		install -Dm644 docs/$d.1 "$pkgdir"/usr/share/man/man1/$d.1
 	done
 	install -Dm644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
 	install -Dm644 PORTING.md "$pkgdir"/usr/share/doc/$pkgname/PORTING.md
@@ -47,4 +46,4 @@ package() {
 	install -Dm644 docs/differences.md "$pkgdir"/usr/share/doc/$pkgname/differences.md
 }
 
-sha512sums="11da9008619d7e4de367bfb05e1be2d08c9c3094865697f79993092e0cf2da0538af64362af5153c52ec09d6bc8cead131e0c7419adfba47cdfa2a2429add099  $pkgname-$_commit.tar.gz"
+sha512sums="033b7607b5c89b44a8f8488bff1f4742974531a9a18044f634e5da1b8fab1700f855c7ed7274e454f83bde06b6ac765ba988b3e6e6d48affdd3c5dae648e53a9  $pkgname-$_commit.tar.gz"
