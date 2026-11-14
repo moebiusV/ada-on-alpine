@@ -1,0 +1,232 @@
+From 31a4dfa61611cbf494f6043fa74ebb9e209baa81 Mon Sep 17 00:00:00 2001
+From: David Walther <tederific@gmail.com>
+Date: Fri, 13 Nov 2026 19:17:24 -0700
+Subject: [PATCH] Base64: an optional Padded parameter
+
+Encoded_Length, Decoded_Length, Encode and Decode take Padded (default False,
+so existing callers are unchanged): RFC 4648 section 4 padding with '='.
+Decoding stays strict: whole groups only, at most two '=' at the end, the
+unused low bits zero.  Checked against the RFC 4648 section 10 vectors.
+---
+ CHANGELOG.md             |  4 +++
+ src/cryptolib-base64.adb | 76 +++++++++++++++++++++++++++++-----------
+ src/cryptolib-base64.ads | 46 ++++++++++++++++--------
+ 3 files changed, 90 insertions(+), 36 deletions(-)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index d39f06b..2822bdc 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -14,6 +14,10 @@ commits; each of those says what it changed.
+ 
+ ### Added
+ 
++- `CryptoLib.Base64`: an optional `Padded` parameter (default `False`, so no
++  caller changes) for `Encoded_Length`, `Decoded_Length`, `Encode` and
++  `Decode`: RFC 4648 section 4 padding with `=`, decoded as strictly as the
++  unpadded form.
+ - Argon2: `Verify`, so the recommended password hash can be checked without a
+   caller writing its own comparison, and the PHC string encoding beside it.
+ - The ECDSA DER signature encoder and decoder.
+diff --git a/src/cryptolib-base64.adb b/src/cryptolib-base64.adb
+index 6274fc9..f634d21 100644
+--- a/src/cryptolib-base64.adb
++++ b/src/cryptolib-base64.adb
+@@ -5,24 +5,30 @@ package body CryptoLib.Base64 is
+    Alphabet : constant String :=
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+ 
+-   function Encoded_Length (Count : Natural) return Natural is
+-     ((Count / 3) * 4 + (case Count mod 3 is
+-                            when 0 => 0,
+-                            when 1 => 2,
+-                            when others => 3));
+-
+-   function Decoded_Length (Length : Natural) return Natural is
+-     (case Length mod 4 is
+-         when 0 => (Length / 4) * 3,
+-         when 2 => (Length / 4) * 3 + 1,
+-         when 3 => (Length / 4) * 3 + 2,
+-         --  One character over a group boundary encodes nothing.
+-         when others => 0);
++   function Encoded_Length
++     (Count : Natural; Padded : Boolean := False) return Natural is
++     (if Padded then ((Count + 2) / 3) * 4
++      else (Count / 3) * 4 + (case Count mod 3 is
++                                 when 0 => 0,
++                                 when 1 => 2,
++                                 when others => 3));
++
++   function Decoded_Length
++     (Length : Natural; Padded : Boolean := False) return Natural is
++     (if Padded then (if Length mod 4 = 0 then (Length / 4) * 3 else 0)
++      else
++        (case Length mod 4 is
++            when 0 => (Length / 4) * 3,
++            when 2 => (Length / 4) * 3 + 1,
++            when 3 => (Length / 4) * 3 + 2,
++            --  One character over a group boundary encodes nothing.
++            when others => 0));
+ 
+    procedure Encode
+-     (Data : Ada.Streams.Stream_Element_Array;
+-      Into : out String;
+-      Last : out Natural)
++     (Data   : Ada.Streams.Stream_Element_Array;
++      Into   : out String;
++      Last   : out Natural;
++      Padded : Boolean := False)
+    is
+       Cursor : Stream_Element_Offset := Data'First;
+       Out_At : Natural := Into'First;
+@@ -34,7 +40,7 @@ package body CryptoLib.Base64 is
+       end Put;
+    begin
+       Last := Into'First - 1;
+-      if Into'Length < Encoded_Length (Natural (Data'Length)) then
++      if Into'Length < Encoded_Length (Natural (Data'Length), Padded) then
+          return;
+       end if;
+ 
+@@ -55,6 +61,13 @@ package body CryptoLib.Base64 is
+             end if;
+             if Remaining > 2 then
+                Put (Trio mod 64);
++            elsif Padded then
++               Into (Out_At) := '=';
++               Out_At := Out_At + 1;
++               if Remaining = 1 then
++                  Into (Out_At) := '=';
++                  Out_At := Out_At + 1;
++               end if;
+             end if;
+             Cursor := Cursor + 3;
+          end;
+@@ -63,10 +76,11 @@ package body CryptoLib.Base64 is
+    end Encode;
+ 
+    procedure Decode
+-     (Text  : String;
+-      Into  : out Ada.Streams.Stream_Element_Array;
+-      Last  : out Ada.Streams.Stream_Element_Offset;
+-      Valid : out Boolean)
++     (Text   : String;
++      Into   : out Ada.Streams.Stream_Element_Array;
++      Last   : out Ada.Streams.Stream_Element_Offset;
++      Valid  : out Boolean;
++      Padded : Boolean := False)
+    is
+       --  -1 for anything outside the alphabet, including padding and space.
+       function Value_Of (Item : Character) return Integer is
+@@ -87,6 +101,26 @@ package body CryptoLib.Base64 is
+       Last := Into'First - 1;
+       Valid := False;
+ 
++      if Padded then
++         --  Whole groups only, and at most two `=` at the very end; what is
++         --  left is an unpadded encoding, decoded (strictly) as one.
++         if Text'Length mod 4 /= 0 then
++            return;
++         end if;
++         declare
++            Stop : Natural := Text'Last;
++         begin
++            if Stop >= Text'First and then Text (Stop) = '=' then
++               Stop := Stop - 1;
++               if Text (Stop) = '=' then
++                  Stop := Stop - 1;
++               end if;
++            end if;
++            Decode (Text (Text'First .. Stop), Into, Last, Valid);
++         end;
++         return;
++      end if;
++
+       if Text'Length = 0 then
+          Valid := True;
+          return;
+diff --git a/src/cryptolib-base64.ads b/src/cryptolib-base64.ads
+index 84760c3..8ed7105 100644
+--- a/src/cryptolib-base64.ads
++++ b/src/cryptolib-base64.ads
+@@ -9,35 +9,48 @@ with Ada.Streams;
+ --  CryptoLib.Fingerprints' body, where the second caller could not reach it.
+ --  One copy, for the same reason CryptoLib.Blowfish exists.
+ --
+---  Standard alphabet -- A-Z a-z 0-9 + / -- and no padding, which is what both
+---  formats specify. This is not the URL-safe variant and does not accept `=`.
++--  Standard alphabet -- A-Z a-z 0-9 + / -- and, by default, no padding, which
++--  is what both formats specify. This is not the URL-safe variant. A caller
++--  whose format pads (RFC 4648 section 4, as PEM and most text formats do)
++--  passes `Padded => True`; the unpadded forms stay the default, so no existing
++--  caller changes.
+ private package CryptoLib.Base64 is
+ 
+-   --  The encoded length of Count octets, with no padding.
+-   --  @param Count the number of octets to encode
++   --  The encoded length of Count octets.
++   --  @param Count  the number of octets to encode
++   --  @param Padded whether the encoding is padded with `=` to a multiple of 4
+    --  @return the number of characters the encoding occupies
+-   function Encoded_Length (Count : Natural) return Natural;
++   function Encoded_Length
++     (Count : Natural; Padded : Boolean := False) return Natural;
+ 
+    --  The largest number of octets an encoding of Length characters can
+-   --  decode to. A length of 1 modulo 4 is not a valid encoding at all.
++   --  decode to. A length of 1 modulo 4 is not a valid unpadded encoding at
++   --  all, and a padded one is always a multiple of 4 (it may decode to up to
++   --  two octets fewer than the figure given, for its `=`).
+    --  @param Length the number of characters
++   --  @param Padded whether the encoding is padded
+    --  @return the octet count, or 0 when Length cannot be an encoding
+-   function Decoded_Length (Length : Natural) return Natural;
++   function Decoded_Length
++     (Length : Natural; Padded : Boolean := False) return Natural;
+ 
+    --  Encode.
+    --  @param Data   the octets to encode
+    --  @param Into   out: the characters, from Into'First
+    --  @param Last   out: the last character written, Into'First - 1 when Into
+    --    is too small
++   --  @param Padded whether to end a short final group with `=` (one for two
++   --    octets, two for one) so that the length is a multiple of 4
+    procedure Encode
+-     (Data : Ada.Streams.Stream_Element_Array;
+-      Into : out String;
+-      Last : out Natural);
++     (Data   : Ada.Streams.Stream_Element_Array;
++      Into   : out String;
++      Last   : out Natural;
++      Padded : Boolean := False);
+ 
+    --  Decode, strictly.
+    --
+    --  Refuses anything that is not the exact encoding of some octet string:
+-   --  a character outside the alphabet, padding, whitespace, a length of 1
++   --  a character outside the alphabet, whitespace, padding where Padded is
++   --  False, missing or misplaced padding where it is True, a length of 1
+    --  modulo 4, and a final group whose unused low bits are not zero -- the
+    --  last of these being what lets two different strings decode to the same
+    --  octets, which a format that is compared as text must not allow.
+@@ -45,10 +58,13 @@ private package CryptoLib.Base64 is
+    --  @param Into  out: the octets, from Into'First
+    --  @param Last  out: the last octet written, Into'First - 1 on failure
+    --  @param Valid out: True only when Text is exactly an encoding
++   --  @param Padded whether Text must end in `=` to a multiple of 4 (when
++   --    False, it must contain none)
+    procedure Decode
+-     (Text  : String;
+-      Into  : out Ada.Streams.Stream_Element_Array;
+-      Last  : out Ada.Streams.Stream_Element_Offset;
+-      Valid : out Boolean);
++     (Text   : String;
++      Into   : out Ada.Streams.Stream_Element_Array;
++      Last   : out Ada.Streams.Stream_Element_Offset;
++      Valid  : out Boolean;
++      Padded : Boolean := False);
+ 
+ end CryptoLib.Base64;
+-- 
+2.47.3
+

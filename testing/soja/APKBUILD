@@ -1,0 +1,45 @@
+# Maintainer: David Walther <david@clearbrookdistillery.com>
+pkgname=soja
+pkgver=0.1.0_git20261113
+pkgrel=0
+_commit="13ee46133c0aa546c4fbe26419b2db4c849f93ec"
+pkgdesc="soju IRC bouncer, translated to Ada: a drop-in replacement (soja, sojadb, sojactl)"
+url="https://github.com/moebiusV/soja"
+arch="all"
+license="AGPL-3.0-only"
+# The executables are linked statically against the Ada libraries and OpenSSL
+# (as the test suite builds them), so they need nothing at run time but the C
+# library.  libpam is optional: `auth pam` loads it with dlopen when started.
+depends=""
+makedepends="gcc-gnat gprbuild build-base aws aws-static gnatcoll-db gnatcoll-db-static
+	bracke-cryptolib bracke-cryptolib-static sqlite-dev sqlite-static
+	openssl-dev openssl-libs-static zlib-dev zlib-static"
+source="$pkgname-$_commit.tar.gz::https://github.com/moebiusV/$pkgname/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
+
+build() {
+	# The parsers hbnf generated are in src/, so hbnf is not needed here.
+	for d in soja sojadb sojactl; do
+		(cd cmd/$d && gprbuild -P $d.gpr -p -XLIBRARY_TYPE=static)
+	done
+}
+
+check() {
+	# Unit checks that need nothing but the build (the end-to-end run, tests/
+	# e2e.sh, installs ngircd and needs root: run it by hand).
+	for t in sqlite oauth webpush certgen; do
+		gprbuild -P tests/${t}_check.gpr -p
+		./tests/${t}_check
+	done
+}
+
+package() {
+	for d in soja sojadb sojactl; do
+		install -Dm755 cmd/$d/$d "$pkgdir"/usr/bin/$d
+	done
+	install -Dm644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
+	install -Dm644 PORTING.md "$pkgdir"/usr/share/doc/$pkgname/PORTING.md
+	install -Dm644 SOJU-BUGS.md "$pkgdir"/usr/share/doc/$pkgname/SOJU-BUGS.md
+}
+
+sha512sums="0de2150762f20d70624f006def154f3b5b14014a89f8e0a326d462b529d7c9c2e304fbc2c1a9b323d99134b5014dc1ffc845edf34b36b266498276f5e1762571  $pkgname-$_commit.tar.gz"
