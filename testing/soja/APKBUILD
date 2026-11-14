@@ -2,7 +2,7 @@
 pkgname=soja
 pkgver=0.1.0_git20261113
 pkgrel=0
-_commit="ac17f94400297766e8ea64636149cf3306a5cff2"
+_commit="fed6f48cac2306837fb1221623125312370af09c"
 pkgdesc="soju IRC bouncer, translated to Ada: a drop-in replacement (soja, sojadb, sojactl)"
 url="https://github.com/moebiusV/soja"
 arch="all"
@@ -47,4 +47,4 @@ package() {
 	install -Dm644 docs/differences.md "$pkgdir"/usr/share/doc/$pkgname/differences.md
 }
 
-sha512sums="c51037986102b8e6b877099a4ab87e29100c31ee37d87e49634f8987903f48f0fd70ec367a2e42731af48b6f4205279f8485eb065ea075a79060b427ca7bf425  $pkgname-$_commit.tar.gz"
+sha512sums="11da9008619d7e4de367bfb05e1be2d08c9c3094865697f79993092e0cf2da0538af64362af5153c52ec09d6bc8cead131e0c7419adfba47cdfa2a2429add099  $pkgname-$_commit.tar.gz"
